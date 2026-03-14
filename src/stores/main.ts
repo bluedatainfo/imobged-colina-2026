@@ -52,9 +52,9 @@ const getInitialSlaStart = (hoursAgo: number) =>
 
 let state: State = {
   settings: {
-    managementEmails: 'gerencia@imobged.com',
-    administrativeEmails: 'admin@imobged.com',
-    operationalEmails: 'operacao@imobged.com',
+    managementEmails: 'gerencia@imobged.onmicrosoft.com',
+    administrativeEmails: 'admin@imobged.onmicrosoft.com',
+    operationalEmails: 'operacao@imobged.onmicrosoft.com',
     slaHours: 24,
   },
   properties: [
@@ -101,14 +101,14 @@ let state: State = {
     {
       id: 'log1',
       propertyId: '101',
-      action: 'Upload de Documentos',
+      action: 'Upload de Documentos (SharePoint)',
       user: 'Ana Silva',
       timestamp: getInitialSlaStart(36),
     },
     {
       id: 'log2',
       propertyId: '102',
-      action: 'Upload de Documentos',
+      action: 'Upload de Documentos (SharePoint)',
       user: 'Carlos Santos',
       timestamp: getInitialSlaStart(10),
     },
@@ -145,16 +145,14 @@ export const mainStore = {
     emit()
   },
   addAuditLog: (log: Omit<AuditLog, 'id' | 'timestamp'>) => {
+    const newLog = {
+      ...log,
+      id: Math.random().toString(36).substring(2, 9),
+      timestamp: new Date().toISOString(),
+    }
     state = {
       ...state,
-      auditLogs: [
-        {
-          ...log,
-          id: Math.random().toString(36).substring(2, 9),
-          timestamp: new Date().toISOString(),
-        },
-        ...state.auditLogs,
-      ],
+      auditLogs: [newLog, ...state.auditLogs],
     }
     emit()
   },

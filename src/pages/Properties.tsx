@@ -36,8 +36,7 @@ const Properties = () => {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Gestão de Imóveis e Contratos</h1>
           <p className="text-muted-foreground">
-            Acompanhe o workflow de locação e acesse a trilha de auditoria completa de cada
-            contrato.
+            Acompanhe o workflow de locação e acesse a trilha de auditoria completa no SharePoint.
           </p>
         </div>
       </div>
@@ -107,7 +106,7 @@ const Properties = () => {
                 onClick={() => setSelectedProperty(property)}
               >
                 <span className="flex items-center gap-2">
-                  <FolderOpen className="h-4 w-4 text-primary" /> Pasta do Imóvel / Audit Trail
+                  <FolderOpen className="h-4 w-4 text-primary" /> SharePoint Site / Auditoria
                 </span>
                 <span className="text-muted-foreground group-hover:translate-x-1 transition-transform">
                   →

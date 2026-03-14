@@ -6,6 +6,7 @@ import {
   Search,
   FileSignature,
   ShieldAlert,
+  List,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import {
@@ -39,7 +40,7 @@ const Index = () => {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Painel de Controle</h1>
         <p className="text-muted-foreground">
-          Bem-vindo ao ImobGED. Visão geral da sua operação digital com SLA Ativo.
+          Bem-vindo ao ImobGED. Visão geral da sua operação digital integrada ao SharePoint.
         </p>
       </div>
 
@@ -122,8 +123,12 @@ const Index = () => {
 
           <Card>
             <CardHeader>
-              <CardTitle>Trilha de Auditoria Recente</CardTitle>
-              <CardDescription>Últimas ações realizadas no sistema.</CardDescription>
+              <CardTitle className="flex items-center gap-2">
+                <List className="h-5 w-5 text-primary" /> Trilha de Auditoria (SharePoint List)
+              </CardTitle>
+              <CardDescription>
+                Ações recentes registradas pelo M365 SSO na lista do site Gestão de Locação.
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
@@ -131,7 +136,7 @@ const Index = () => {
                   <TableRow>
                     <TableHead>Imóvel ID</TableHead>
                     <TableHead>Ação Realizada</TableHead>
-                    <TableHead>Usuário</TableHead>
+                    <TableHead>Usuário M365</TableHead>
                     <TableHead className="text-right">Hora</TableHead>
                   </TableRow>
                 </TableHeader>

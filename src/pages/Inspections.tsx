@@ -27,6 +27,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import useMainStore, { mainStore } from '@/stores/main'
 import { useAuth } from '@/contexts/AuthContext'
+import { m365Service } from '@/lib/m365'
 
 const Inspections = () => {
   const { toast } = useToast()
@@ -57,7 +58,8 @@ const Inspections = () => {
 
   const handleCompleteInspection = () => {
     if (!inspectingId) return
-    mainStore.saveInspection({ propertyId: inspectingId, wallCondition, furnitureNotes })
+    const data = { propertyId: inspectingId, wallCondition, furnitureNotes }
+    mainStore.saveInspection(data)
     mainStore.updatePropertyStatus(inspectingId, 'Confecção de Contrato')
     mainStore.addAuditLog({
       propertyId: inspectingId,
@@ -65,6 +67,8 @@ const Inspections = () => {
       user: user?.name || 'Sistema',
       details: 'Checklist mapeado preenchido.',
     })
+
+    m365Service.syncToList('Vistorias Realizadas', JSON.stringify(data))
 
     setInspectingId(null)
     toast({
@@ -79,7 +83,7 @@ const Inspections = () => {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Vistorias (Survey Inteligente)</h1>
           <p className="text-muted-foreground">
-            Preencha o checklist estruturado que integrará automaticamente o Contrato Final.
+            Preencha o checklist estruturado que integrará automaticamente ao SharePoint List.
           </p>
         </div>
         <div className="flex items-center gap-4 flex-wrap">
@@ -110,7 +114,10 @@ const Inspections = () => {
             </div>
             <Button
               className="shrink-0 gap-2 bg-amber-600 hover:bg-amber-700 text-white"
-              onClick={() => setUnsyncedCount(0)}
+              onClick={() => {
+                setUnsyncedCount(0)
+                toast({ title: 'Sincronização concluída com o SharePoint' })
+              }}
             >
               <RefreshCw className="h-4 w-4" /> Sincronizar Pendentes
             </Button>
@@ -164,7 +171,7 @@ const Inspections = () => {
           <DialogHeader>
             <DialogTitle>Checklist Inteligente de Vistoria</DialogTitle>
             <DialogDescription>
-              Os dados preenchidos aqui serão mapeados automaticamente para a Minuta do Contrato.
+              Os dados preenchidos aqui serão enviados automaticamente para a lista do SharePoint.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -190,7 +197,7 @@ const Inspections = () => {
             <Button variant="outline" onClick={() => setInspectingId(null)}>
               Cancelar
             </Button>
-            <Button onClick={handleCompleteInspection}>Concluir Vistoria</Button>
+            <Button onClick={handleCompleteInspection}>Sincronizar Vistoria</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

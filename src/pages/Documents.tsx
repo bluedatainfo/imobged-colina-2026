@@ -19,6 +19,7 @@ import { mockDocuments } from '@/lib/data'
 import { useToast } from '@/hooks/use-toast'
 import useMainStore, { mainStore } from '@/stores/main'
 import { useAuth } from '@/contexts/AuthContext'
+import { m365Service } from '@/lib/m365'
 
 const Documents = () => {
   const { toast } = useToast()
@@ -40,20 +41,23 @@ const Documents = () => {
     }, 2000)
   }
 
-  const handleOcrConfirm = () => {
+  const handleOcrConfirm = (data: any, library: string) => {
     setOcrData(null)
     const propertyId = '104'
     mainStore.updatePropertyStatus(propertyId, 'Análise Gerencial')
     mainStore.addAuditLog({
       propertyId,
-      action: 'Documentos Digitalizados (OCR) - Submetido',
+      action: `Upload para SharePoint: ${library}`,
       user: user?.name || 'Sistema',
     })
 
-    toast({
-      title: 'Fluxo Iniciado (Notificação Enviada)',
-      description: `Metadados salvos. E-mail automático enviado para a Gestão: ${store.settings.managementEmails}`,
-    })
+    m365Service.saveToLibrary(library, `${data.name || 'Doc'}_Digitalizado.pdf`)
+    m365Service.syncToList('Dados Contratuais', JSON.stringify(data))
+    m365Service.sendEmail(
+      store.settings.managementEmails,
+      `Nova Análise Pendente (Gerência) - ID: ${propertyId}`,
+      'Um novo documento foi processado (OCR) e salvo no SharePoint. Aguarda aprovação.',
+    )
   }
 
   const handleSendSignature = (docName: string) => {
@@ -61,6 +65,7 @@ const Documents = () => {
       title: 'Enviado para Assinatura',
       description: `O documento ${docName} foi enviado para os envolvidos. Acompanhe o status.`,
     })
+    m365Service.syncToList('Audit Log', `Documento ${docName} enviado para assinatura.`)
   }
 
   return (
@@ -68,7 +73,7 @@ const Documents = () => {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Central de Documentos (GED)</h1>
         <p className="text-muted-foreground">
-          Gerencie o acervo digital, OCR avançado e assinaturas eletrônicas.
+          Gerencie o acervo digital, OCR avançado e integrações com SharePoint Online.
         </p>
       </div>
 
@@ -78,7 +83,7 @@ const Documents = () => {
             value="library"
             className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary py-3"
           >
-            <FolderSync className="w-4 h-4 mr-2" /> Biblioteca M365
+            <FolderSync className="w-4 h-4 mr-2" /> Site: Gestão de Locação
           </TabsTrigger>
           <TabsTrigger
             value="scan"
@@ -92,8 +97,11 @@ const Documents = () => {
           <div className="flex items-center justify-between">
             <div className="relative w-72">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Buscar por nome, tag ou ID..." className="pl-8" />
+              <Input placeholder="Buscar no SharePoint..." className="pl-8" />
             </div>
+            <Badge variant="outline" className="bg-primary/5 text-primary">
+              Team Site: Gestão de Locação
+            </Badge>
           </div>
           <Card>
             <Table>
@@ -173,7 +181,7 @@ const Documents = () => {
                 <CardDescription>
                   {ocrLoading
                     ? 'Extraindo metadados e analisando contrato. Aguarde...'
-                    : 'Arraste e solte arquivos PDF, JPG ou PNG aqui para iniciar o OCR.'}
+                    : 'Arraste e solte arquivos aqui para iniciar o OCR e sincronizar ao SharePoint.'}
                 </CardDescription>
               </CardHeader>
             </Card>

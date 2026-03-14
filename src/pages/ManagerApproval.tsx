@@ -15,6 +15,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import useMainStore, { mainStore, isSlaBreached } from '@/stores/main'
 import { useAuth } from '@/contexts/AuthContext'
+import { m365Service } from '@/lib/m365'
 
 const ManagerApproval = () => {
   const { toast } = useToast()
@@ -32,12 +33,15 @@ const ManagerApproval = () => {
       propertyId: id,
       action: 'Aprovação Gerencial',
       user: user?.name || 'Sistema',
-      details: 'Documentação validada. Handoff para vistoria.',
+      details: 'Documentação validada no SharePoint. Handoff para vistoria.',
     })
-    toast({
-      title: 'Aprovado & Notificado',
-      description: `Imóvel movido para Vistoria. E-mail automático enviado para a Operação: ${store.settings.operationalEmails}`,
-    })
+
+    m365Service.syncToList('Audit Log', `Aprovação do Imóvel ID: ${id} por ${user?.name}`)
+    m365Service.sendEmail(
+      `${store.settings.administrativeEmails}, ${store.settings.operationalEmails}`,
+      `Documentação Aprovada - Imóvel ID: ${id}`,
+      'A gerência aprovou a documentação. Próximo passo: Vistoria.',
+    )
   }
 
   const handleRejectConfirm = () => {
@@ -59,11 +63,12 @@ const ManagerApproval = () => {
         details: `Motivo: ${rejectReason}`,
       })
 
-      toast({
-        variant: 'destructive',
-        title: 'Rejeitado & Notificado',
-        description: `Retornado para Rascunho. Alerta enviado para Admin (${store.settings.administrativeEmails}) e Captador.`,
-      })
+      m365Service.syncToList('Audit Log', `Rejeição do Imóvel ID: ${rejectId} por ${user?.name}`)
+      m365Service.sendEmail(
+        `${store.settings.administrativeEmails}, ${store.settings.managementEmails}`,
+        `Documentação Rejeitada - Imóvel ID: ${rejectId}`,
+        `Motivo: ${rejectReason}. Por favor, corrija as informações no SharePoint e reenvie.`,
+      )
     }
     setRejectId(null)
     setRejectReason('')
@@ -171,7 +176,7 @@ const ManagerApproval = () => {
               <AlertCircle className="h-5 w-5 text-destructive" /> Rejeitar Documentação
             </DialogTitle>
             <DialogDescription>
-              Informe o motivo da rejeição. Este feedback será enviado ao responsável e à equipe
+              Informe o motivo da rejeição. Um e-mail será enviado automaticamente para a equipe
               administrativa.
             </DialogDescription>
           </DialogHeader>

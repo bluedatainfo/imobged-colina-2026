@@ -11,7 +11,7 @@ const LegalReview = () => {
   const handleAction = (id: string) => {
     toast({
       title: 'Pasta Jurídica Acessada',
-      description: `Redirecionando para os autos do processo no SharePoint (Caso: ${id}).`,
+      description: `Redirecionando para a Lista de Casos no SharePoint Online (Caso: ${id}).`,
     })
   }
 

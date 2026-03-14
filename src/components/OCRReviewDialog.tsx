@@ -10,16 +10,24 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 interface OCRReviewDialogProps {
   open: boolean
   onClose: () => void
-  onConfirm: (data: any) => void
+  onConfirm: (data: any, library: string) => void
   initialData?: any
 }
 
 export function OCRReviewDialog({ open, onClose, onConfirm, initialData }: OCRReviewDialogProps) {
   const [formData, setFormData] = useState(initialData || {})
+  const [library, setLibrary] = useState('Documentos de Inquilinos')
 
   useEffect(() => {
     if (initialData) {
@@ -35,12 +43,27 @@ export function OCRReviewDialog({ open, onClose, onConfirm, initialData }: OCRRe
     <Dialog open={open} onOpenChange={(val) => !val && onClose()}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Revisão de Dados (OCR)</DialogTitle>
+          <DialogTitle>Revisão de Dados (OCR para SharePoint)</DialogTitle>
           <DialogDescription>
-            Verifique os dados extraídos automaticamente do documento antes de salvar no SharePoint.
+            Verifique os dados extraídos do documento antes de salvar no site "Gestão de Locação".
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
+          <div className="grid gap-2">
+            <Label>Biblioteca de Destino (SharePoint)</Label>
+            <Select value={library} onValueChange={setLibrary}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione a biblioteca" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Contratos">Contratos</SelectItem>
+                <SelectItem value="Documentos de Proprietários">
+                  Documentos de Proprietários
+                </SelectItem>
+                <SelectItem value="Documentos de Inquilinos">Documentos de Inquilinos</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <div className="grid gap-2">
             <Label htmlFor="name">Nome / Razão Social</Label>
             <Input
@@ -78,7 +101,7 @@ export function OCRReviewDialog({ open, onClose, onConfirm, initialData }: OCRRe
           <Button variant="outline" onClick={onClose}>
             Cancelar
           </Button>
-          <Button onClick={() => onConfirm(formData)}>Confirmar e Salvar</Button>
+          <Button onClick={() => onConfirm(formData, library)}>Sincronizar e Salvar</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

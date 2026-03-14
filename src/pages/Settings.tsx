@@ -28,7 +28,7 @@ const Settings = () => {
     toast({
       title: 'Configurações Salvas',
       description:
-        'Papéis e regras de SLA atualizados com sucesso. Os alertas e emails refletirão estas mudanças.',
+        'Papéis, contas M365 e regras de SLA atualizados com sucesso no sistema e no SharePoint.',
     })
   }
 
@@ -37,60 +37,61 @@ const Settings = () => {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Configurações do Sistema</h1>
         <p className="text-muted-foreground">
-          Gerencie e-mails de notificação, papéis e regras de aprovação SLA.
+          Gerencie contas do Microsoft 365, permissões de SharePoint e regras de aprovação SLA.
         </p>
       </div>
 
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Users className="w-5 h-5 text-primary" /> Papéis e Notificações (E-mails)
+            <Users className="w-5 h-5 text-primary" /> Equipes M365 (Papéis e Notificações)
           </CardTitle>
           <CardDescription>
-            Defina quem recebe os alertas automáticos em cada etapa do fluxo de locação.
+            Atribua contas do Microsoft 365 para as funções que receberão e-mails automatizados do
+            fluxo de locação.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-2">
-            <Label>Gestão (Aprovações Gerenciais)</Label>
+            <Label>Conta M365 (Gerência)</Label>
             <div className="flex gap-2">
               <Mail className="w-5 h-5 text-muted-foreground mt-2" />
               <Input
                 value={formData.managementEmails}
                 onChange={(e) => handleChange('managementEmails', e.target.value)}
-                placeholder="gerente@empresa.com"
+                placeholder="gerente@empresa.onmicrosoft.com"
               />
             </div>
             <p className="text-xs text-muted-foreground ml-7">
-              Recebe alertas de "Nova Análise" e violações de SLA.
+              Recebe e-mails de "Nova Análise" e violações de SLA.
             </p>
           </div>
           <div className="grid gap-2">
-            <Label>Equipe Administrativa (Contratos)</Label>
+            <Label>Conta M365 (Administrativo)</Label>
             <div className="flex gap-2">
               <Mail className="w-5 h-5 text-muted-foreground mt-2" />
               <Input
                 value={formData.administrativeEmails}
                 onChange={(e) => handleChange('administrativeEmails', e.target.value)}
-                placeholder="admin@empresa.com"
+                placeholder="admin@empresa.onmicrosoft.com"
               />
             </div>
             <p className="text-xs text-muted-foreground ml-7">
-              Recebe notificações sobre "Rejeições" e rascunhos de contrato.
+              Recebe e-mails de "Rejeições" e rascunhos de contrato.
             </p>
           </div>
           <div className="grid gap-2">
-            <Label>Equipe Operacional (Vistorias)</Label>
+            <Label>Conta M365 (Operacional / Vistorias)</Label>
             <div className="flex gap-2">
               <Mail className="w-5 h-5 text-muted-foreground mt-2" />
               <Input
                 value={formData.operationalEmails}
                 onChange={(e) => handleChange('operationalEmails', e.target.value)}
-                placeholder="operacao@empresa.com"
+                placeholder="operacao@empresa.onmicrosoft.com"
               />
             </div>
             <p className="text-xs text-muted-foreground ml-7">
-              Recebe alertas quando uma documentação é "Aprovada" para iniciar vistoria.
+              Recebe alertas quando uma documentação é "Aprovada" e segue para vistoria.
             </p>
           </div>
         </CardContent>
