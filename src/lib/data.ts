@@ -64,6 +64,7 @@ export const mockDocuments = [
     type: 'Contrato',
     date: '12/10/2023',
     status: 'Aprovado',
+    signatureStatus: 'Assinado',
   },
   {
     id: 'DOC-002',
@@ -72,6 +73,7 @@ export const mockDocuments = [
     type: 'Identificação',
     date: '12/10/2023',
     status: 'Aprovado',
+    signatureStatus: 'N/A',
   },
   {
     id: 'DOC-003',
@@ -80,6 +82,7 @@ export const mockDocuments = [
     type: 'Vistoria',
     date: '15/10/2023',
     status: 'Em Revisão',
+    signatureStatus: 'N/A',
   },
   {
     id: 'DOC-004',
@@ -88,6 +91,7 @@ export const mockDocuments = [
     type: 'Recibo',
     date: '05/11/2023',
     status: 'Sincronizado',
+    signatureStatus: 'N/A',
   },
   {
     id: 'DOC-005',
@@ -96,6 +100,7 @@ export const mockDocuments = [
     type: 'Legal',
     date: '20/11/2023',
     status: 'Faltando Assinatura',
+    signatureStatus: 'Pendente',
   },
 ]
 

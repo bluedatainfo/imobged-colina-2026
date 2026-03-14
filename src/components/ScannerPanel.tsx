@@ -1,4 +1,4 @@
-import { Printer, Settings2, FileText, CheckCircle2 } from 'lucide-react'
+import { Printer, FileText, CheckCircle2 } from 'lucide-react'
 import {
   Card,
   CardContent,
@@ -17,20 +17,14 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import { useToast } from '@/hooks/use-toast'
 
-export function ScannerPanel() {
-  const { toast } = useToast()
+interface ScannerPanelProps {
+  onScan?: () => void
+}
 
-  const handleScan = () => {
-    toast({
-      title: 'Scanner Epson ES-580W Conectado',
-      description: 'Iniciando digitalização em lote. Preparando motor OCR...',
-    })
-  }
-
+export function ScannerPanel({ onScan }: ScannerPanelProps) {
   return (
-    <Card className="border-primary/20 shadow-sm">
+    <Card className="border-primary/20 shadow-sm flex flex-col h-full">
       <CardHeader className="bg-muted/50 border-b pb-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -42,11 +36,9 @@ export function ScannerPanel() {
             Pronto
           </div>
         </div>
-        <CardDescription>
-          Configurações para digitalização em lote de alta velocidade.
-        </CardDescription>
+        <CardDescription>Configurações para digitalização em lote e Motor OCR.</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6 pt-6">
+      <CardContent className="space-y-6 pt-6 flex-1">
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label>Resolução (DPI)</Label>
@@ -89,15 +81,15 @@ export function ScannerPanel() {
         <div className="flex items-center justify-between rounded-lg border p-4">
           <div className="space-y-0.5">
             <Label className="text-base">Reconhecimento OCR</Label>
-            <p className="text-sm text-muted-foreground">Extrair metadados para o SharePoint.</p>
+            <p className="text-sm text-muted-foreground">Extrair metadados para preenchimento.</p>
           </div>
           <Switch defaultChecked />
         </div>
       </CardContent>
       <CardFooter>
-        <Button className="w-full h-12 text-lg gap-2" onClick={handleScan}>
+        <Button className="w-full h-12 text-lg gap-2" onClick={onScan}>
           <FileText className="h-5 w-5" />
-          Iniciar Digitalização em Lote
+          Iniciar Digitalização & OCR
         </Button>
       </CardFooter>
     </Card>
