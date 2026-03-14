@@ -7,6 +7,7 @@ import {
   Scale,
   Settings,
   Building,
+  UserCheck,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -22,10 +23,11 @@ import {
 
 const navigation = [
   { title: 'Painel', url: '/', icon: LayoutDashboard },
+  { title: 'Análise do Gerente', url: '/manager-approval', icon: UserCheck },
   { title: 'Documentos (GED)', url: '/documents', icon: FolderOpen },
   { title: 'Imóveis', url: '/properties', icon: Home },
   { title: 'Vistorias', url: '/inspections', icon: ClipboardCheck },
-  { title: 'Análise Jurídica', url: '/legal', icon: Scale },
+  { title: 'Jurídico', url: '/legal', icon: Scale },
   { title: 'Configurações', url: '/settings', icon: Settings },
 ]
 

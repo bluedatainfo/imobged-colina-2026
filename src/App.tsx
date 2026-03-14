@@ -8,6 +8,7 @@ import Documents from './pages/Documents'
 import Properties from './pages/Properties'
 import Inspections from './pages/Inspections'
 import LegalReview from './pages/LegalReview'
+import ManagerApproval from './pages/ManagerApproval'
 import NotFound from './pages/NotFound'
 import Login from './pages/Login'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
@@ -29,6 +30,7 @@ const AppRoutes = () => (
       }
     >
       <Route path="/" element={<Index />} />
+      <Route path="/manager-approval" element={<ManagerApproval />} />
       <Route path="/documents" element={<Documents />} />
       <Route path="/properties" element={<Properties />} />
       <Route path="/inspections" element={<Inspections />} />

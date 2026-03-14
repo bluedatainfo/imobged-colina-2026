@@ -2,30 +2,30 @@ export const mockActivity = [
   {
     id: 1,
     user: 'Ana Silva',
-    action: 'Digitalizou Contrato de Locação',
+    action: 'Aprovou Documentação Gerencial - Apt 402',
     time: '10 min atrás',
-    status: 'Sincronizado',
+    status: 'Vistoria Pendente',
   },
   {
     id: 2,
     user: 'Carlos Santos',
-    action: 'Enviou Vistoria - Apt 402',
+    action: 'Enviou Vistoria de Entrada - Casa Jardim',
     time: '1 hora atrás',
-    status: 'Pendente',
+    status: 'Concluído',
   },
   {
     id: 3,
-    user: 'Sistema OCR',
-    action: 'Metadados extraídos (RG Locatário)',
+    user: 'Sistema Automático',
+    action: 'Handoff de Fluxo: Contrato para Assinatura',
     time: '2 horas atrás',
-    status: 'Concluído',
+    status: 'Em Assinatura',
   },
   {
     id: 4,
     user: 'Mariana Costa',
-    action: 'Aprovou Documento Jurídico',
+    action: 'Abriu chamado jurídico: Atraso de Aluguel',
     time: 'Ontem',
-    status: 'Aprovado',
+    status: 'Registrado',
   },
 ]
 
@@ -35,7 +35,7 @@ export const mockProperties = [
     title: 'Apartamento Centro',
     address: 'Rua das Flores, 123 - Apto 402',
     type: 'Residencial',
-    status: 'Alugado',
+    status: 'Análise Gerencial',
     image: 'https://img.usecurling.com/p/400/300?q=apartment',
   },
   {
@@ -43,7 +43,7 @@ export const mockProperties = [
     title: 'Sala Comercial',
     address: 'Av. Paulista, 1000 - Sala 50',
     type: 'Comercial',
-    status: 'Disponível',
+    status: 'Vistoria Pendente',
     image: 'https://img.usecurling.com/p/400/300?q=office',
   },
   {
@@ -51,8 +51,16 @@ export const mockProperties = [
     title: 'Casa Jardim',
     address: 'Rua dos Ipês, 45',
     type: 'Residencial',
-    status: 'Em Manutenção',
+    status: 'Confecção de Contrato',
     image: 'https://img.usecurling.com/p/400/300?q=house',
+  },
+  {
+    id: '104',
+    title: 'Cobertura Vista Mar',
+    address: 'Av. Atlântica, 500',
+    type: 'Residencial',
+    status: 'Em Assinatura',
+    image: 'https://img.usecurling.com/p/400/300?q=penthouse',
   },
 ]
 
@@ -73,24 +81,6 @@ export const mockDocuments = [
     type: 'Identificação',
     date: '12/10/2023',
     status: 'Aprovado',
-    signatureStatus: 'N/A',
-  },
-  {
-    id: 'DOC-003',
-    name: 'Vistoria_Entrada_CasaJardim.pdf',
-    property: '103',
-    type: 'Vistoria',
-    date: '15/10/2023',
-    status: 'Em Revisão',
-    signatureStatus: 'N/A',
-  },
-  {
-    id: 'DOC-004',
-    name: 'Comprovante_Pagamento_Out.pdf',
-    property: '101',
-    type: 'Recibo',
-    date: '05/11/2023',
-    status: 'Sincronizado',
     signatureStatus: 'N/A',
   },
   {
@@ -115,15 +105,15 @@ export const mockInspections = [
   },
   {
     id: 'VIS-992',
-    property: 'Casa Jardim',
-    type: 'Saída',
+    property: 'Sala Comercial',
+    type: 'Entrada',
     inspector: 'Ana Silva',
     date: 'Hoje',
     status: 'Em Andamento',
   },
   {
     id: 'VIS-993',
-    property: 'Sala Comercial',
+    property: 'Galpão Industrial',
     type: 'Rotina',
     inspector: 'Carlos Santos',
     date: 'Amanhã',
@@ -131,26 +121,48 @@ export const mockInspections = [
   },
 ]
 
-export const mockReviewQueue = [
+export const mockManagerApprovals = [
   {
-    id: 'REV-01',
-    docName: 'Contrato_Renovacao_Apt10.pdf',
-    submittedBy: 'Corretor João',
+    id: 'MA-001',
+    property: 'Apartamento Centro (ID: 101)',
+    tenant: 'João Pedro da Silva',
+    docs: ['RG_Frente.jpg', 'RG_Verso.jpg', 'Comprovante_Renda.pdf'],
     date: 'Hoje, 09:30',
     priority: 'Alta',
   },
   {
-    id: 'REV-02',
-    docName: 'Fiador_Comprovantes_Renda.zip',
-    submittedBy: 'Recepção',
+    id: 'MA-002',
+    property: 'Casa Vila Nova (ID: 205)',
+    tenant: 'Empresa Alpha Ltda (CNPJ)',
+    docs: ['Contrato_Social.pdf', 'Balancete.pdf'],
     date: 'Ontem, 16:45',
+    priority: 'Normal',
+  },
+]
+
+export const mockLegalCases = [
+  {
+    id: 'LEG-001',
+    tenant: 'Maria Souza',
+    property: 'Casa Jardim (ID: 103)',
+    issue: 'Inadimplência > 60 dias (Ação de Despejo)',
+    status: 'Notificação Enviada',
+    priority: 'Alta',
+  },
+  {
+    id: 'LEG-002',
+    tenant: 'Comercial Silva',
+    property: 'Loja Térreo (ID: 042)',
+    issue: 'Disputa de Danos Estruturais pós-vistoria',
+    status: 'Em Acordo',
     priority: 'Média',
   },
   {
-    id: 'REV-03',
-    docName: 'Distrato_Locacao_Casa3.pdf',
-    submittedBy: 'Ana Silva',
-    date: 'Ontem, 14:20',
-    priority: 'Alta',
+    id: 'LEG-003',
+    tenant: 'Carlos Eduardo',
+    property: 'Apt 101 Bloco B (ID: 211)',
+    issue: 'Reclamação de Vizinhança / Quebra de Regras Condomínio',
+    status: 'Análise Inicial',
+    priority: 'Baixa',
   },
 ]
