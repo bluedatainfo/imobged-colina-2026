@@ -17,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import useMainStore from '@/stores/main'
 
 interface OCRReviewDialogProps {
   open: boolean
@@ -26,14 +27,22 @@ interface OCRReviewDialogProps {
 }
 
 export function OCRReviewDialog({ open, onClose, onConfirm, initialData }: OCRReviewDialogProps) {
+  const store = useMainStore()
+  const { libraries } = store.sharepoint
   const [formData, setFormData] = useState(initialData || {})
-  const [library, setLibrary] = useState('Documentos de Inquilinos')
+  const [library, setLibrary] = useState(libraries.tenantDocs)
 
   useEffect(() => {
     if (initialData) {
       setFormData(initialData)
     }
   }, [initialData])
+
+  useEffect(() => {
+    if (open) {
+      setLibrary(libraries.tenantDocs)
+    }
+  }, [open, libraries.tenantDocs])
 
   const handleChange = (field: string, value: string) => {
     setFormData((prev: any) => ({ ...prev, [field]: value }))
@@ -45,7 +54,7 @@ export function OCRReviewDialog({ open, onClose, onConfirm, initialData }: OCRRe
         <DialogHeader>
           <DialogTitle>Revisão de Dados (OCR para SharePoint)</DialogTitle>
           <DialogDescription>
-            Verifique os dados extraídos do documento antes de salvar no site "Gestão de Locação".
+            Verifique os dados extraídos do documento antes de salvar no site configurado.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
@@ -56,11 +65,9 @@ export function OCRReviewDialog({ open, onClose, onConfirm, initialData }: OCRRe
                 <SelectValue placeholder="Selecione a biblioteca" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Contratos">Contratos</SelectItem>
-                <SelectItem value="Documentos de Proprietários">
-                  Documentos de Proprietários
-                </SelectItem>
-                <SelectItem value="Documentos de Inquilinos">Documentos de Inquilinos</SelectItem>
+                <SelectItem value={libraries.contracts}>{libraries.contracts}</SelectItem>
+                <SelectItem value={libraries.ownerDocs}>{libraries.ownerDocs}</SelectItem>
+                <SelectItem value={libraries.tenantDocs}>{libraries.tenantDocs}</SelectItem>
               </SelectContent>
             </Select>
           </div>

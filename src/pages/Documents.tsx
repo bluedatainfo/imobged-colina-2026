@@ -52,7 +52,7 @@ const Documents = () => {
     })
 
     m365Service.saveToLibrary(library, `${data.name || 'Doc'}_Digitalizado.pdf`)
-    m365Service.syncToList('Dados Contratuais', JSON.stringify(data))
+    m365Service.syncToList(store.sharepoint.lists.processControl, JSON.stringify(data))
     m365Service.sendEmail(
       store.settings.managementEmails,
       `Nova Análise Pendente (Gerência) - ID: ${propertyId}`,
@@ -65,8 +65,13 @@ const Documents = () => {
       title: 'Enviado para Assinatura',
       description: `O documento ${docName} foi enviado para os envolvidos. Acompanhe o status.`,
     })
-    m365Service.syncToList('Audit Log', `Documento ${docName} enviado para assinatura.`)
+    m365Service.syncToList(
+      store.sharepoint.lists.auditLog,
+      `Documento ${docName} enviado para assinatura.`,
+    )
   }
+
+  const siteName = store.sharepoint.siteUrl.split('/').pop() || 'Gestão de Locação'
 
   return (
     <div className="space-y-6 h-full flex flex-col">
@@ -83,7 +88,7 @@ const Documents = () => {
             value="library"
             className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary py-3"
           >
-            <FolderSync className="w-4 h-4 mr-2" /> Site: Gestão de Locação
+            <FolderSync className="w-4 h-4 mr-2" /> Site: {siteName}
           </TabsTrigger>
           <TabsTrigger
             value="scan"
@@ -100,7 +105,7 @@ const Documents = () => {
               <Input placeholder="Buscar no SharePoint..." className="pl-8" />
             </div>
             <Badge variant="outline" className="bg-primary/5 text-primary">
-              Team Site: Gestão de Locação
+              Team Site: {siteName}
             </Badge>
           </div>
           <Card>

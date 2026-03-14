@@ -7,6 +7,13 @@ export type RoleSettings = {
   slaHours: number
 }
 
+export type SharePointSettings = {
+  siteUrl: string
+  tenantId: string
+  libraries: { contracts: string; ownerDocs: string; tenantDocs: string }
+  lists: { processControl: string; auditLog: string }
+}
+
 export type AuditLog = {
   id: string
   propertyId: string
@@ -42,13 +49,13 @@ export type Property = {
 
 type State = {
   settings: RoleSettings
+  sharepoint: SharePointSettings
   properties: Property[]
   auditLogs: AuditLog[]
   inspectionsData: Record<string, InspectionData>
 }
 
-const getInitialSlaStart = (hoursAgo: number) =>
-  new Date(Date.now() - hoursAgo * 60 * 60 * 1000).toISOString()
+const getInitialSlaStart = (h: number) => new Date(Date.now() - h * 60 * 60 * 1000).toISOString()
 
 let state: State = {
   settings: {
@@ -57,21 +64,34 @@ let state: State = {
     operationalEmails: 'operacao@imobged.onmicrosoft.com',
     slaHours: 24,
   },
+  sharepoint: {
+    siteUrl: 'https://imobged.sharepoint.com/sites/GestaoDeLocacao',
+    tenantId: 'a1b2c3d4-e5f6-7890-1234-567890abcdef',
+    libraries: {
+      contracts: 'Contratos',
+      ownerDocs: 'Documentos de Proprietários',
+      tenantDocs: 'Documentos de Inquilinos',
+    },
+    lists: {
+      processControl: 'Dados Contratuais',
+      auditLog: 'Audit Log',
+    },
+  },
   properties: [
     {
       id: '101',
       title: 'Apartamento Centro',
-      address: 'Rua das Flores, 123 - Apto 402',
+      address: 'Rua das Flores, 123',
       type: 'Residencial',
       status: 'Análise Gerencial',
       image: 'https://img.usecurling.com/p/400/300?q=apartment',
       slaStart: getInitialSlaStart(36),
-      tenant: 'João Pedro da Silva',
+      tenant: 'João Pedro',
     },
     {
       id: '102',
       title: 'Sala Comercial',
-      address: 'Av. Paulista, 1000 - Sala 50',
+      address: 'Av. Paulista, 1000',
       type: 'Comercial',
       status: 'Análise Gerencial',
       image: 'https://img.usecurling.com/p/400/300?q=office',
@@ -87,44 +107,28 @@ let state: State = {
       image: 'https://img.usecurling.com/p/400/300?q=house',
       tenant: 'Maria Souza',
     },
-    {
-      id: '104',
-      title: 'Cobertura Vista Mar',
-      address: 'Av. Atlântica, 500',
-      type: 'Residencial',
-      status: 'Pendente/Rascunho',
-      image: 'https://img.usecurling.com/p/400/300?q=penthouse',
-      tenant: 'Carlos Eduardo',
-    },
   ],
   auditLogs: [
     {
       id: 'log1',
       propertyId: '101',
-      action: 'Upload de Documentos (SharePoint)',
+      action: 'Upload SharePoint',
       user: 'Ana Silva',
       timestamp: getInitialSlaStart(36),
     },
     {
       id: 'log2',
       propertyId: '102',
-      action: 'Upload de Documentos (SharePoint)',
+      action: 'Upload SharePoint',
       user: 'Carlos Santos',
       timestamp: getInitialSlaStart(10),
-    },
-    {
-      id: 'log3',
-      propertyId: '103',
-      action: 'Vistoria Concluída',
-      user: 'Carlos Santos',
-      timestamp: getInitialSlaStart(5),
     },
   ],
   inspectionsData: {
     '103': {
       propertyId: '103',
-      wallCondition: 'Pintura nova, sem avarias',
-      furnitureNotes: 'Cozinha com armários intactos, faltam prateleiras no quarto',
+      wallCondition: 'Pintura nova',
+      furnitureNotes: 'Cozinha com armários intactos',
     },
   },
 }
@@ -144,16 +148,17 @@ export const mainStore = {
     state = { ...state, settings: { ...state.settings, ...s } }
     emit()
   },
+  updateSharePointSettings: (s: Partial<SharePointSettings>) => {
+    state = { ...state, sharepoint: { ...state.sharepoint, ...s } }
+    emit()
+  },
   addAuditLog: (log: Omit<AuditLog, 'id' | 'timestamp'>) => {
     const newLog = {
       ...log,
       id: Math.random().toString(36).substring(2, 9),
       timestamp: new Date().toISOString(),
     }
-    state = {
-      ...state,
-      auditLogs: [newLog, ...state.auditLogs],
-    }
+    state = { ...state, auditLogs: [newLog, ...state.auditLogs] }
     emit()
   },
   updatePropertyStatus: (id: string, status: PropertyStatus) => {
@@ -172,10 +177,7 @@ export const mainStore = {
     emit()
   },
   saveInspection: (data: InspectionData) => {
-    state = {
-      ...state,
-      inspectionsData: { ...state.inspectionsData, [data.propertyId]: data },
-    }
+    state = { ...state, inspectionsData: { ...state.inspectionsData, [data.propertyId]: data } }
     emit()
   },
 }
