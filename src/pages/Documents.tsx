@@ -17,31 +17,42 @@ import { ScannerPanel } from '@/components/ScannerPanel'
 import { OCRReviewDialog } from '@/components/OCRReviewDialog'
 import { mockDocuments } from '@/lib/data'
 import { useToast } from '@/hooks/use-toast'
+import useMainStore, { mainStore } from '@/stores/main'
+import { useAuth } from '@/contexts/AuthContext'
 
 const Documents = () => {
   const { toast } = useToast()
+  const { user } = useAuth()
+  const store = useMainStore()
   const [ocrLoading, setOcrLoading] = useState(false)
   const [ocrData, setOcrData] = useState<any>(null)
 
   const handleFileUpload = () => {
     setOcrLoading(true)
-    // Simulate OCR processing
     setTimeout(() => {
       setOcrLoading(false)
       setOcrData({
-        name: 'João Pedro da Silva',
+        name: 'Carlos Eduardo',
         documentId: '123.456.789-00',
-        address: 'Rua das Flores, 123 - Centro',
-        value: '2.500,00',
+        address: 'Av. Atlântica, 500',
+        value: '4.500,00',
       })
     }, 2000)
   }
 
   const handleOcrConfirm = () => {
     setOcrData(null)
+    const propertyId = '104'
+    mainStore.updatePropertyStatus(propertyId, 'Análise Gerencial')
+    mainStore.addAuditLog({
+      propertyId,
+      action: 'Documentos Digitalizados (OCR) - Submetido',
+      user: user?.name || 'Sistema',
+    })
+
     toast({
-      title: 'Documento Processado',
-      description: 'Metadados salvos com sucesso no banco de dados e SharePoint.',
+      title: 'Fluxo Iniciado (Notificação Enviada)',
+      description: `Metadados salvos. E-mail automático enviado para a Gestão: ${store.settings.managementEmails}`,
     })
   }
 
@@ -67,15 +78,13 @@ const Documents = () => {
             value="library"
             className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary py-3"
           >
-            <FolderSync className="w-4 h-4 mr-2" />
-            Biblioteca M365
+            <FolderSync className="w-4 h-4 mr-2" /> Biblioteca M365
           </TabsTrigger>
           <TabsTrigger
             value="scan"
             className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary py-3"
           >
-            <UploadCloud className="w-4 h-4 mr-2" />
-            Digitalização & OCR
+            <UploadCloud className="w-4 h-4 mr-2" /> Digitalização & OCR
           </TabsTrigger>
         </TabsList>
 
@@ -101,8 +110,7 @@ const Documents = () => {
                 {mockDocuments.map((doc) => (
                   <TableRow key={doc.id} className="hover:bg-muted/50">
                     <TableCell className="font-medium flex items-center gap-2">
-                      <File className="h-4 w-4 text-primary" />
-                      {doc.name}
+                      <File className="h-4 w-4 text-primary" /> {doc.name}
                     </TableCell>
                     <TableCell>{doc.type}</TableCell>
                     <TableCell>
@@ -135,8 +143,7 @@ const Documents = () => {
                           variant="outline"
                           onClick={() => handleSendSignature(doc.name)}
                         >
-                          <PenTool className="h-4 w-4 mr-2" />
-                          Enviar p/ Assinar
+                          <PenTool className="h-4 w-4 mr-2" /> Enviar p/ Assinar
                         </Button>
                       )}
                     </TableCell>

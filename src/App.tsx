@@ -9,6 +9,7 @@ import Properties from './pages/Properties'
 import Inspections from './pages/Inspections'
 import LegalReview from './pages/LegalReview'
 import ManagerApproval from './pages/ManagerApproval'
+import Settings from './pages/Settings'
 import NotFound from './pages/NotFound'
 import Login from './pages/Login'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
@@ -35,10 +36,7 @@ const AppRoutes = () => (
       <Route path="/properties" element={<Properties />} />
       <Route path="/inspections" element={<Inspections />} />
       <Route path="/legal" element={<LegalReview />} />
-      <Route
-        path="/settings"
-        element={<div className="p-6">Página de Configurações em construção...</div>}
-      />
+      <Route path="/settings" element={<Settings />} />
     </Route>
     <Route path="*" element={<NotFound />} />
   </Routes>
