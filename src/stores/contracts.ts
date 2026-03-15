@@ -8,6 +8,10 @@ export type ContractStatus =
   | 'Aguardando Assinatura'
   | 'Ativo'
   | 'Aguardando Renovação'
+  | 'Rescisão em Andamento'
+  | 'Rescindido'
+
+export type DocuSignStatus = 'Sent' | 'Viewed' | 'Signed' | null
 
 export type LeaseContract = {
   id: string
@@ -17,6 +21,8 @@ export type LeaseContract = {
   status: ContractStatus
   documentName: string
   updatedAt: string
+  expirationDate?: string
+  docusignStatus?: DocuSignStatus
 }
 
 type State = {
@@ -33,15 +39,30 @@ let state: State = {
       status: 'Ativo',
       documentName: 'Contrato_Joao_Pedro.docx',
       updatedAt: new Date().toISOString(),
+      expirationDate: new Date(Date.now() + 25 * 24 * 60 * 60 * 1000).toISOString(),
+      docusignStatus: 'Signed',
     },
     {
       id: 'CTR-002',
       propertyId: '103',
       tenantName: 'Maria Souza',
       template: 'Residencial (Fiador)',
-      status: 'Rascunho',
+      status: 'Aguardando Assinatura',
       documentName: 'Minuta_Maria_Souza.docx',
       updatedAt: new Date().toISOString(),
+      expirationDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+      docusignStatus: null,
+    },
+    {
+      id: 'CTR-003',
+      propertyId: '104',
+      tenantName: 'Carlos Silva',
+      template: 'Comercial Padrão',
+      status: 'Ativo',
+      documentName: 'Contrato_Carlos_Silva.docx',
+      updatedAt: new Date().toISOString(),
+      expirationDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+      docusignStatus: 'Signed',
     },
   ],
 }
@@ -64,6 +85,7 @@ export const contractsStore = {
         .toString()
         .padStart(3, '0')}`,
       updatedAt: new Date().toISOString(),
+      expirationDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
     }
     state = { ...state, contracts: [newContract, ...state.contracts] }
     emit()
@@ -74,6 +96,33 @@ export const contractsStore = {
       contracts: state.contracts.map((c) =>
         c.id === id ? { ...c, status, updatedAt: new Date().toISOString() } : c,
       ),
+    }
+    emit()
+  },
+  updateDocuSignStatus: (id: string, docusignStatus: DocuSignStatus) => {
+    state = {
+      ...state,
+      contracts: state.contracts.map((c) =>
+        c.id === id ? { ...c, docusignStatus, updatedAt: new Date().toISOString() } : c,
+      ),
+    }
+    emit()
+  },
+  extendExpiration: (id: string, days: number) => {
+    state = {
+      ...state,
+      contracts: state.contracts.map((c) => {
+        if (c.id === id) {
+          const newDate = c.expirationDate ? new Date(c.expirationDate) : new Date()
+          newDate.setDate(newDate.getDate() + days)
+          return {
+            ...c,
+            expirationDate: newDate.toISOString(),
+            updatedAt: new Date().toISOString(),
+          }
+        }
+        return c
+      }),
     }
     emit()
   },

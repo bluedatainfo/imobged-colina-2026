@@ -9,6 +9,8 @@ import {
   Building,
   UserCheck,
   FileSignature,
+  CalendarClock,
+  KeyRound,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -26,6 +28,8 @@ const navigation = [
   { title: 'Painel', url: '/', icon: LayoutDashboard },
   { title: 'Análise do Gerente', url: '/manager-approval', icon: UserCheck },
   { title: 'Ciclo de Contratos', url: '/contracts', icon: FileSignature },
+  { title: 'Renovações', url: '/renewals', icon: CalendarClock },
+  { title: 'Controle de Chaves', url: '/keys', icon: KeyRound },
   { title: 'Documentos (GED)', url: '/documents', icon: FolderOpen },
   { title: 'Imóveis', url: '/properties', icon: Home },
   { title: 'Vistorias', url: '/inspections', icon: ClipboardCheck },

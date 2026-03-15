@@ -9,6 +9,7 @@ import {
   MoreVertical,
   Archive,
   RefreshCw,
+  PenTool,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import {
@@ -38,6 +39,7 @@ import useMainStore, { mainStore } from '@/stores/main'
 import { m365Service } from '@/lib/m365'
 import { ContractWizard } from '@/components/ContractWizard'
 import { DocumentViewer } from '@/components/DocumentViewer'
+import { DocuSignDialog } from '@/components/DocuSignDialog'
 
 const statusColors: Record<ContractStatus, string> = {
   Rascunho: 'bg-gray-100 text-gray-800 border-gray-200',
@@ -47,6 +49,8 @@ const statusColors: Record<ContractStatus, string> = {
   'Aguardando Assinatura': 'bg-purple-100 text-purple-800 border-purple-200',
   Ativo: 'bg-emerald-100 text-emerald-800 border-emerald-200',
   'Aguardando Renovação': 'bg-orange-100 text-orange-800 border-orange-200',
+  'Rescisão em Andamento': 'bg-red-100 text-red-800 border-red-200',
+  Rescindido: 'bg-gray-200 text-gray-700 border-gray-300',
 }
 
 const getNextActions = (status: ContractStatus): ContractStatus[] => {
@@ -73,6 +77,7 @@ export default function Contracts() {
   const mainSettings = useMainStore().sharepoint
   const [wizardOpen, setWizardOpen] = useState(false)
   const [viewDoc, setViewDoc] = useState<string | null>(null)
+  const [docusignContract, setDocusignContract] = useState<LeaseContract | null>(null)
 
   const handleStatusChange = (contract: LeaseContract, newStatus: ContractStatus) => {
     contractsStore.updateStatus(contract.id, newStatus)
@@ -104,10 +109,9 @@ export default function Contracts() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Gestão de Contratos (Ciclo de Vida)</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Gestão de Contratos</h1>
           <p className="text-muted-foreground">
-            Acompanhe o workflow, gere minutas via templates e utilize a sincronização condicional
-            M365.
+            Acompanhe o workflow e assine digitalmente via DocuSign.
           </p>
         </div>
         <Button onClick={() => setWizardOpen(true)} className="shrink-0 gap-2">
@@ -131,7 +135,8 @@ export default function Contracts() {
                 <TableHead>ID</TableHead>
                 <TableHead>Documento / Template</TableHead>
                 <TableHead>Inquilino</TableHead>
-                <TableHead>Status M365</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Assinatura</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -156,6 +161,24 @@ export default function Contracts() {
                       {contract.status}
                     </Badge>
                   </TableCell>
+                  <TableCell>
+                    {contract.docusignStatus === 'Signed' && (
+                      <Badge
+                        variant="outline"
+                        className="border-emerald-500 text-emerald-600 bg-emerald-50"
+                      >
+                        Assinado
+                      </Badge>
+                    )}
+                    {contract.docusignStatus === 'Sent' && (
+                      <Badge variant="outline" className="border-blue-500 text-blue-600 bg-blue-50">
+                        Enviado
+                      </Badge>
+                    )}
+                    {!contract.docusignStatus && (
+                      <span className="text-xs text-muted-foreground">-</span>
+                    )}
+                  </TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -173,6 +196,12 @@ export default function Contracts() {
                             <FileEdit className="w-4 h-4 mr-2" /> Editar no Word Online
                           </DropdownMenuItem>
                         )}
+                        {(contract.status === 'Aguardando Assinatura' ||
+                          contract.status === 'Finalizado') && (
+                          <DropdownMenuItem onClick={() => setDocusignContract(contract)}>
+                            <PenTool className="w-4 h-4 mr-2 text-blue-600" /> Enviar para DocuSign
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuSeparator />
                         <DropdownMenuLabel>Avançar Workflow</DropdownMenuLabel>
                         {getNextActions(contract.status).map((action) => (
@@ -188,19 +217,6 @@ export default function Contracts() {
                             Avançar p/ {action}
                           </DropdownMenuItem>
                         ))}
-                        {contract.status === 'Ativo' && (
-                          <DropdownMenuItem
-                            onClick={() => handleStatusChange(contract, 'Aguardando Renovação')}
-                          >
-                            <RefreshCw className="w-4 h-4 mr-2 text-orange-600" /> Iniciar Renovação
-                          </DropdownMenuItem>
-                        )}
-                        {contract.status === 'Aguardando Renovação' && (
-                          <DropdownMenuItem disabled>
-                            <CheckCircle className="w-4 h-4 mr-2 text-muted-foreground" /> Fluxo
-                            Concluído
-                          </DropdownMenuItem>
-                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -213,6 +229,7 @@ export default function Contracts() {
 
       <ContractWizard open={wizardOpen} onClose={() => setWizardOpen(false)} />
       <DocumentViewer open={!!viewDoc} onClose={() => setViewDoc(null)} docName={viewDoc} />
+      <DocuSignDialog contract={docusignContract} onClose={() => setDocusignContract(null)} />
     </div>
   )
 }

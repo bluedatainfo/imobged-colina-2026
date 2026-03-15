@@ -1,17 +1,16 @@
 import { useState } from 'react'
 import {
-  Plus,
   Camera,
-  Search,
   WifiOff,
   Wifi,
   RefreshCw,
   ClipboardList,
   CheckCircle,
+  UploadCloud,
+  Loader2,
 } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
@@ -24,10 +23,12 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useToast } from '@/hooks/use-toast'
 import useMainStore, { mainStore } from '@/stores/main'
 import { useAuth } from '@/contexts/AuthContext'
 import { m365Service } from '@/lib/m365'
+import { InspectionOCRDialog } from '@/components/InspectionOCRDialog'
 
 const Inspections = () => {
   const { toast } = useToast()
@@ -41,6 +42,9 @@ const Inspections = () => {
   const [inspectingId, setInspectingId] = useState<string | null>(null)
   const [wallCondition, setWallCondition] = useState('')
   const [furnitureNotes, setFurnitureNotes] = useState('')
+
+  const [ocrLoading, setOcrLoading] = useState(false)
+  const [ocrData, setOcrData] = useState<any>(null)
 
   const handleStartInspection = (id: string) => {
     if (isOffline) {
@@ -77,13 +81,46 @@ const Inspections = () => {
     })
   }
 
+  const handleFileUpload = () => {
+    setOcrLoading(true)
+    setTimeout(() => {
+      setOcrLoading(false)
+      setOcrData({
+        address: 'Rua Flores, 123',
+        date: new Date().toLocaleDateString('pt-BR'),
+        wallCondition: 'Pintura nova',
+        generalNotes: 'Imóvel em perfeitas condições. Aprovado para locação.',
+      })
+    }, 2000)
+  }
+
+  const handleOcrConfirm = (data: any, propertyId: string) => {
+    setOcrData(null)
+    mainStore.saveInspection({
+      propertyId,
+      wallCondition: data.wallCondition,
+      furnitureNotes: data.generalNotes,
+    })
+    mainStore.updatePropertyStatus(propertyId, 'Confecção de Contrato')
+    mainStore.addAuditLog({
+      propertyId,
+      action: 'Vistoria OCR Importada',
+      user: user?.name || 'Sistema',
+      details: 'IA extraiu os dados do PDF de vistoria.',
+    })
+    toast({
+      title: 'OCR Processado com Sucesso',
+      description: 'Dados da vistoria salvos via Inteligência Artificial.',
+    })
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Vistorias (Survey Inteligente)</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Vistorias Inteligentes</h1>
           <p className="text-muted-foreground">
-            Preencha o checklist estruturado que integrará automaticamente ao SharePoint List.
+            Preencha offline ou utilize OCR para laudos de vistoria terceirizados.
           </p>
         </div>
         <div className="flex items-center gap-4 flex-wrap">
@@ -125,46 +162,77 @@ const Inspections = () => {
         </Card>
       )}
 
-      <Card>
-        <CardHeader className="pb-3 border-b">
-          <CardTitle className="flex items-center gap-2">
-            <ClipboardList className="w-5 h-5 text-primary" /> Fila de Vistorias de Entrada
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="divide-y">
-            {pendingInspections.map((p) => (
-              <div
-                key={p.id}
-                className="flex items-center justify-between p-4 hover:bg-muted/30 transition-colors"
-              >
-                <div className="flex items-start gap-4">
-                  <div className="bg-primary/10 p-3 rounded-lg hidden sm:block">
-                    <Camera className="h-6 w-6 text-primary" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-base">{p.title}</h4>
-                    <p className="text-sm text-muted-foreground">{p.address}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Badge variant="secondary">Entrada</Badge>
-                      <span className="text-xs font-medium text-amber-600">
-                        Aguardando Inspeção
-                      </span>
+      <Tabs defaultValue="fila">
+        <TabsList className="mb-4">
+          <TabsTrigger value="fila">Fila de Preenchimento Manual</TabsTrigger>
+          <TabsTrigger value="ocr">Upload & OCR (IA)</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="fila">
+          <Card>
+            <CardHeader className="pb-3 border-b">
+              <CardTitle className="flex items-center gap-2">
+                <ClipboardList className="w-5 h-5 text-primary" /> Fila de Imóveis (Entrada/Saída)
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="divide-y">
+                {pendingInspections.map((p) => (
+                  <div
+                    key={p.id}
+                    className="flex items-center justify-between p-4 hover:bg-muted/30 transition-colors"
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className="bg-primary/10 p-3 rounded-lg hidden sm:block">
+                        <Camera className="h-6 w-6 text-primary" />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-base">{p.title}</h4>
+                        <p className="text-sm text-muted-foreground">{p.address}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-xs font-medium text-amber-600">
+                            Aguardando Inspeção
+                          </span>
+                        </div>
+                      </div>
                     </div>
+                    <Button onClick={() => handleStartInspection(p.id)}>Iniciar Vistoria</Button>
                   </div>
-                </div>
-                <Button onClick={() => handleStartInspection(p.id)}>Iniciar Vistoria</Button>
+                ))}
+                {pendingInspections.length === 0 && (
+                  <div className="p-8 text-center text-muted-foreground">
+                    <CheckCircle className="w-8 h-8 mx-auto mb-2 opacity-50 text-emerald-500" />
+                    <p>Nenhum imóvel aguardando vistoria no momento.</p>
+                  </div>
+                )}
               </div>
-            ))}
-            {pendingInspections.length === 0 && (
-              <div className="p-8 text-center text-muted-foreground">
-                <CheckCircle className="w-8 h-8 mx-auto mb-2 opacity-50 text-emerald-500" />
-                <p>Nenhum imóvel aguardando vistoria no momento.</p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="ocr">
+          <Card
+            className="border-dashed border-2 flex flex-col items-center justify-center p-12 cursor-pointer transition-colors hover:bg-muted/50"
+            onClick={handleFileUpload}
+          >
+            <CardHeader className="text-center">
+              <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                {ocrLoading ? (
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                ) : (
+                  <UploadCloud className="h-8 w-8 text-primary" />
+                )}
               </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+              <CardTitle>
+                {ocrLoading ? 'Analisando via IA...' : 'Análise de Laudo (PDF/Imagem)'}
+              </CardTitle>
+              <CardDescription>
+                Arraste um laudo de terceiros para extrairmos os dados de vistoria automaticamente.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       <Dialog open={!!inspectingId} onOpenChange={(val) => !val && setInspectingId(null)}>
         <DialogContent className="sm:max-w-[500px]">
@@ -201,6 +269,13 @@ const Inspections = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <InspectionOCRDialog
+        open={!!ocrData}
+        onClose={() => setOcrData(null)}
+        initialData={ocrData}
+        onConfirm={handleOcrConfirm}
+      />
     </div>
   )
 }

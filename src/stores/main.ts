@@ -30,8 +30,14 @@ export type AuditLog = {
   details?: string
 }
 
-export type InspectionData = { propertyId: string; wallCondition: string; furnitureNotes: string }
+export type InspectionData = {
+  propertyId: string
+  wallCondition: string
+  furnitureNotes: string
+  generalNotes?: string
+}
 export type PropertyStatus =
+  | 'Disponível para Locação'
   | 'Pendente/Rascunho'
   | 'Análise Gerencial'
   | 'Vistoria'
@@ -95,6 +101,14 @@ let state: State = {
       status: 'Confecção de Contrato',
       image: 'https://img.usecurling.com/p/400/300?q=house',
       tenant: 'Maria Souza',
+    },
+    {
+      id: '104',
+      title: 'Sala Comercial',
+      address: 'Av. Paulista, 1000',
+      type: 'Comercial',
+      status: 'Disponível para Locação',
+      image: 'https://img.usecurling.com/p/400/300?q=office',
     },
   ],
   auditLogs: [
