@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { KeyRound, Search, FileSignature, CheckCircle, Home } from 'lucide-react'
+import { KeyRound, Search, FileSignature, CheckCircle, Home, Eye } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import {
   Table,
@@ -12,6 +12,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { DocumentViewer } from '@/components/DocumentViewer'
 import useKeysStore, { keysStore, KeyTask } from '@/stores/keys'
 import useMainStore, { mainStore } from '@/stores/main'
 import { contractsStore } from '@/stores/contracts'
@@ -21,6 +22,7 @@ export default function KeysControl() {
   const { tasks } = useKeysStore()
   const { toast } = useToast()
   const [search, setSearch] = useState('')
+  const [viewTerm, setViewTerm] = useState<string | null>(null)
 
   const filteredTasks = tasks.filter(
     (t) =>
@@ -119,10 +121,19 @@ export default function KeysControl() {
                       <span className="text-sm text-amber-600">Pendente</span>
                     )}
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right space-x-2">
+                    {t.status === 'Signed' && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setViewTerm(`Termo_${t.id}.pdf`)}
+                      >
+                        <Eye className="w-4 h-4 mr-1" /> Ver Termo
+                      </Button>
+                    )}
                     {t.status === 'Pending' && (
                       <Button size="sm" onClick={() => handleSignTerm(t)} className="gap-2">
-                        <FileSignature className="w-4 h-4" /> Assinar Termo
+                        <FileSignature className="w-4 h-4" /> Assinar
                       </Button>
                     )}
                   </TableCell>
@@ -139,6 +150,13 @@ export default function KeysControl() {
           </Table>
         </CardContent>
       </Card>
+
+      <DocumentViewer
+        open={!!viewTerm}
+        onClose={() => setViewTerm(null)}
+        docName={viewTerm}
+        isTerm={true}
+      />
     </div>
   )
 }

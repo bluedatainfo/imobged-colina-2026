@@ -1,5 +1,12 @@
 import { useSyncExternalStore } from 'react'
 
+export type AgencyProfile = {
+  name: string
+  address: string
+  website: string
+  logo: string
+}
+
 export type RoleSettings = {
   managementEmails: string
   administrativeEmails: string
@@ -7,10 +14,12 @@ export type RoleSettings = {
   slaHours: number
 }
 
+export type SiteKey = 'locacao' | 'captacao' | 'vendas' | 'juridico' | 'financeiro'
+
 export type SharePointSettings = {
-  siteUrl: string
   tenantId: string
   teamsWebhookUrl?: string
+  sites: Record<SiteKey, string>
   libraries: {
     contracts: string
     ownerDocs: string
@@ -56,6 +65,7 @@ export type Property = {
 }
 
 type State = {
+  agencyProfile: AgencyProfile
   settings: RoleSettings
   sharepoint: SharePointSettings
   properties: Property[]
@@ -64,6 +74,12 @@ type State = {
 }
 
 let state: State = {
+  agencyProfile: {
+    name: 'Imobiliária Prime',
+    address: 'Av. Paulista, 1000 - São Paulo, SP',
+    website: 'https://imobiliariaprime.com.br',
+    logo: 'https://img.usecurling.com/i?q=building&shape=lineal-color&color=blue',
+  },
   settings: {
     managementEmails: 'gerencia@imobged.com',
     administrativeEmails: 'admin@imobged.com',
@@ -71,9 +87,15 @@ let state: State = {
     slaHours: 24,
   },
   sharepoint: {
-    siteUrl: 'https://imobged.sharepoint.com/sites/GestaoDeLocacao',
     tenantId: 'a1b2c3d4-e5f6',
     teamsWebhookUrl: 'https://imobged.webhook.office.com/teams',
+    sites: {
+      locacao: 'https://imobged.sharepoint.com/sites/GestaoDeLocacao',
+      captacao: 'https://imobged.sharepoint.com/sites/Captacao',
+      vendas: 'https://imobged.sharepoint.com/sites/Vendas',
+      juridico: 'https://imobged.sharepoint.com/sites/Juridico',
+      financeiro: 'https://imobged.sharepoint.com/sites/Financeiro',
+    },
     libraries: {
       contracts: 'Contratos',
       ownerDocs: 'Doc Proprietários',
@@ -133,6 +155,10 @@ export const mainStore = {
     return () => {
       listeners = listeners.filter((fn) => fn !== l)
     }
+  },
+  updateAgencyProfile: (s: Partial<AgencyProfile>) => {
+    state = { ...state, agencyProfile: { ...state.agencyProfile, ...s } }
+    emit()
   },
   updateSettings: (s: Partial<RoleSettings>) => {
     state = { ...state, settings: { ...state.settings, ...s } }

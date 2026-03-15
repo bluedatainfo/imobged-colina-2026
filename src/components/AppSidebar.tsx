@@ -23,6 +23,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
+import useMainStore from '@/stores/main'
 
 const navigation = [
   { title: 'Painel', url: '/', icon: LayoutDashboard },
@@ -39,13 +40,24 @@ const navigation = [
 
 export function AppSidebar() {
   const location = useLocation()
+  const { agencyProfile } = useMainStore()
 
   return (
     <Sidebar variant="inset">
       <SidebarHeader className="border-b p-4">
-        <div className="flex items-center gap-2 font-semibold text-primary">
-          <Building className="h-6 w-6" />
-          <span className="text-lg">ImobGED</span>
+        <div className="flex items-center gap-3 font-semibold text-primary overflow-hidden">
+          {agencyProfile.logo ? (
+            <img
+              src={agencyProfile.logo}
+              alt={agencyProfile.name}
+              className="h-8 w-8 object-contain shrink-0"
+            />
+          ) : (
+            <Building className="h-6 w-6 shrink-0" />
+          )}
+          <span className="text-lg truncate" title={agencyProfile.name}>
+            {agencyProfile.name || 'ImobGED'}
+          </span>
         </div>
       </SidebarHeader>
       <SidebarContent>

@@ -925,6 +925,10 @@ section[aria-label='Notifications alt+T'] {
   margin-top: 1rem;
 }
 
+.mt-8{
+  margin-top: 2rem;
+}
+
 .mt-auto{
   margin-top: auto;
 }
@@ -1009,12 +1013,20 @@ section[aria-label='Notifications alt+T'] {
   height: 0.625rem;
 }
 
+.h-20{
+  height: 5rem;
+}
+
 .h-3{
   height: 0.75rem;
 }
 
 .h-3\.5{
   height: 0.875rem;
+}
+
+.h-32{
+  height: 8rem;
 }
 
 .h-4{
@@ -1235,6 +1247,10 @@ section[aria-label='Notifications alt+T'] {
 
 .w-\[1px\]{
   width: 1px;
+}
+
+.w-\[220px\]{
+  width: 220px;
 }
 
 .w-\[calc\(100\%-2rem\)\]{
@@ -1558,6 +1574,15 @@ section[aria-label='Notifications alt+T'] {
 
 .gap-6{
   gap: 1.5rem;
+}
+
+.gap-x-6{
+  -moz-column-gap: 1.5rem;
+       column-gap: 1.5rem;
+}
+
+.gap-y-4{
+  row-gap: 1rem;
 }
 
 .space-x-1 > :not([hidden]) ~ :not([hidden]){
@@ -2089,6 +2114,11 @@ section[aria-label='Notifications alt+T'] {
   fill: currentColor;
 }
 
+.object-contain{
+  -o-object-fit: contain;
+     object-fit: contain;
+}
+
 .object-cover{
   -o-object-fit: cover;
      object-fit: cover;
@@ -2240,6 +2270,10 @@ section[aria-label='Notifications alt+T'] {
 
 .pb-4{
   padding-bottom: 1rem;
+}
+
+.pb-8{
+  padding-bottom: 2rem;
 }
 
 .pl-11{
@@ -2394,6 +2428,10 @@ section[aria-label='Notifications alt+T'] {
   text-transform: uppercase;
 }
 
+.italic{
+  font-style: italic;
+}
+
 .tabular-nums{
   --tw-numeric-spacing: tabular-nums;
   font-variant-numeric: var(--tw-ordinal) var(--tw-slashed-zero) var(--tw-numeric-figure) var(--tw-numeric-spacing) var(--tw-numeric-fraction);
@@ -2520,11 +2558,6 @@ section[aria-label='Notifications alt+T'] {
 .text-gray-800{
   --tw-text-opacity: 1;
   color: rgb(31 41 55 / var(--tw-text-opacity, 1));
-}
-
-.text-indigo-500{
-  --tw-text-opacity: 1;
-  color: rgb(99 102 241 / var(--tw-text-opacity, 1));
 }
 
 .text-indigo-800{
@@ -4028,6 +4061,10 @@ section[aria-label='Notifications alt+T'] {
     width: 18rem;
   }
 
+  .sm\:w-auto{
+    width: auto;
+  }
+
   .sm\:max-w-\[425px\]{
     max-width: 425px;
   }
@@ -4151,6 +4188,10 @@ section[aria-label='Notifications alt+T'] {
 
   .md\:flex-row{
     flex-direction: row;
+  }
+
+  .md\:items-center{
+    align-items: center;
   }
 
   .md\:justify-normal{

@@ -17,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Badge } from '@/components/ui/badge'
 import useMainStore from '@/stores/main'
 
 interface OCRReviewDialogProps {
@@ -24,9 +25,16 @@ interface OCRReviewDialogProps {
   onClose: () => void
   onConfirm: (data: any, library: string) => void
   initialData?: any
+  contextSite?: string
 }
 
-export function OCRReviewDialog({ open, onClose, onConfirm, initialData }: OCRReviewDialogProps) {
+export function OCRReviewDialog({
+  open,
+  onClose,
+  onConfirm,
+  initialData,
+  contextSite,
+}: OCRReviewDialogProps) {
   const store = useMainStore()
   const { libraries } = store.sharepoint
   const [formData, setFormData] = useState(initialData || {})
@@ -52,14 +60,17 @@ export function OCRReviewDialog({ open, onClose, onConfirm, initialData }: OCRRe
     <Dialog open={open} onOpenChange={(val) => !val && onClose()}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Revisão de Dados (OCR para SharePoint)</DialogTitle>
+          <DialogTitle className="flex items-center justify-between">
+            Revisão OCR
+            {contextSite && <Badge variant="secondary">{contextSite}</Badge>}
+          </DialogTitle>
           <DialogDescription>
-            Verifique os dados extraídos do documento antes de salvar no site configurado.
+            Verifique os dados extraídos do documento antes de salvar no site selecionado.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid gap-2">
-            <Label>Biblioteca de Destino (SharePoint)</Label>
+            <Label>Biblioteca de Destino</Label>
             <Select value={library} onValueChange={setLibrary}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione a biblioteca" />
@@ -68,6 +79,8 @@ export function OCRReviewDialog({ open, onClose, onConfirm, initialData }: OCRRe
                 <SelectItem value={libraries.contracts}>{libraries.contracts}</SelectItem>
                 <SelectItem value={libraries.ownerDocs}>{libraries.ownerDocs}</SelectItem>
                 <SelectItem value={libraries.tenantDocs}>{libraries.tenantDocs}</SelectItem>
+                <SelectItem value="Anexos de Processo">Anexos de Processo</SelectItem>
+                <SelectItem value="Comprovantes">Comprovantes Financeiros</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -96,7 +109,7 @@ export function OCRReviewDialog({ open, onClose, onConfirm, initialData }: OCRRe
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="value">Valor do Contrato (R$)</Label>
+            <Label htmlFor="value">Valor Base (R$)</Label>
             <Input
               id="value"
               value={formData.value || ''}

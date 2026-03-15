@@ -1,6 +1,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import GeneralSettings from '@/components/settings/GeneralSettings'
 import SharePointSettings from '@/components/settings/SharePointSettings'
+import AgencySettings from '@/components/settings/AgencySettings'
 
 const Settings = () => {
   return (
@@ -8,15 +9,19 @@ const Settings = () => {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Configurações do Sistema</h1>
         <p className="text-muted-foreground">
-          Gerencie contas do Microsoft 365, permissões de SharePoint e regras de aprovação SLA.
+          Gerencie o perfil da imobiliária, integrações Microsoft 365 e regras de aprovação.
         </p>
       </div>
 
-      <Tabs defaultValue="sharepoint">
-        <TabsList className="mb-4 bg-muted/50 border">
-          <TabsTrigger value="general">Geral & SLA</TabsTrigger>
+      <Tabs defaultValue="agency">
+        <TabsList className="mb-4 bg-muted/50 border flex flex-wrap h-auto">
+          <TabsTrigger value="agency">Dados da Imobiliária</TabsTrigger>
           <TabsTrigger value="sharepoint">Integração SharePoint</TabsTrigger>
+          <TabsTrigger value="general">Geral & SLA</TabsTrigger>
         </TabsList>
+        <TabsContent value="agency">
+          <AgencySettings />
+        </TabsContent>
         <TabsContent value="general">
           <GeneralSettings />
         </TabsContent>

@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { UploadCloud, File, Search, FolderSync, PenTool, Loader2, Eye } from 'lucide-react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { UploadCloud, File, Search, FolderSync, Loader2, Eye, Building2 } from 'lucide-react'
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Table,
@@ -13,14 +13,29 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { ScannerPanel } from '@/components/ScannerPanel'
 import { OCRReviewDialog } from '@/components/OCRReviewDialog'
 import { DocumentViewer } from '@/components/DocumentViewer'
 import { mockDocuments } from '@/lib/data'
 import { useToast } from '@/hooks/use-toast'
-import useMainStore, { mainStore } from '@/stores/main'
+import useMainStore, { mainStore, SiteKey } from '@/stores/main'
 import { useAuth } from '@/contexts/AuthContext'
 import { m365Service } from '@/lib/m365'
+
+const siteNames: Record<SiteKey, string> = {
+  locacao: 'Gestão de Locação',
+  captacao: 'Captação (Leads)',
+  vendas: 'Vendas',
+  juridico: 'Jurídico',
+  financeiro: 'Financeiro',
+}
 
 const Documents = () => {
   const { toast } = useToast()
@@ -29,6 +44,7 @@ const Documents = () => {
   const [ocrLoading, setOcrLoading] = useState(false)
   const [ocrData, setOcrData] = useState<any>(null)
   const [viewDoc, setViewDoc] = useState<string | null>(null)
+  const [selectedSite, setSelectedSite] = useState<SiteKey>('locacao')
 
   const handleFileUpload = () => {
     setOcrLoading(true)
@@ -46,23 +62,66 @@ const Documents = () => {
   const handleOcrConfirm = (data: any, library: string) => {
     setOcrData(null)
     const propertyId = '104'
-    mainStore.updatePropertyStatus(propertyId, 'Análise Gerencial')
     mainStore.addAuditLog({
       propertyId,
-      action: `Upload para SharePoint: ${library}`,
+      action: `Upload via OCR para SharePoint [${siteNames[selectedSite]}]: ${library}`,
       user: user?.name || 'Sistema',
     })
     m365Service.saveToLibrary(library, `${data.name || 'Doc'}_Digitalizado.pdf`)
     m365Service.syncToList(store.sharepoint.lists.processControl, JSON.stringify(data))
+
+    toast({
+      title: 'Documento Salvo',
+      description: `Sincronizado no site ${siteNames[selectedSite]} com sucesso.`,
+    })
   }
+
+  const siteDocuments = mockDocuments.map((d, i) => ({
+    ...d,
+    name:
+      selectedSite === 'juridico'
+        ? `Processo_Legal_0${i + 1}.pdf`
+        : selectedSite === 'vendas'
+          ? `Proposta_Venda_${i + 1}.pdf`
+          : selectedSite === 'captacao'
+            ? `Lead_Captacao_${i + 1}.pdf`
+            : selectedSite === 'financeiro'
+              ? `Comprovante_Pagamento_${i + 1}.pdf`
+              : d.name,
+    type:
+      selectedSite === 'juridico'
+        ? 'Ação Judicial'
+        : selectedSite === 'financeiro'
+          ? 'Fiscal/Recibo'
+          : d.type,
+  }))
 
   return (
     <div className="space-y-6 h-full flex flex-col">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Central de Documentos (GED)</h1>
-        <p className="text-muted-foreground">
-          Gerencie o acervo digital, OCR avançado e integrações M365.
-        </p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Central de Documentos (GED)</h1>
+          <p className="text-muted-foreground">
+            Gerencie o acervo digital e navegue pelos Team Sites da imobiliária.
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+            <Building2 className="w-4 h-4" /> Contexto (Site):
+          </span>
+          <Select value={selectedSite} onValueChange={(val: SiteKey) => setSelectedSite(val)}>
+            <SelectTrigger className="w-[220px] bg-background">
+              <SelectValue placeholder="Selecione o Site" />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(siteNames).map(([key, label]) => (
+                <SelectItem key={key} value={key as SiteKey}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <Tabs defaultValue="library" className="flex-1 flex flex-col">
@@ -71,8 +130,7 @@ const Documents = () => {
             value="library"
             className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary py-3"
           >
-            <FolderSync className="w-4 h-4 mr-2" /> Site:{' '}
-            {store.sharepoint.siteUrl.split('/').pop()}
+            <FolderSync className="w-4 h-4 mr-2" /> Biblioteca: {siteNames[selectedSite]}
           </TabsTrigger>
           <TabsTrigger
             value="scan"
@@ -84,9 +142,12 @@ const Documents = () => {
 
         <TabsContent value="library" className="flex-1 space-y-4">
           <div className="flex items-center justify-between">
-            <div className="relative w-72">
+            <div className="relative w-full max-w-sm">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Buscar no SharePoint..." className="pl-8" />
+              <Input placeholder={`Buscar em ${siteNames[selectedSite]}...`} className="pl-8" />
+            </div>
+            <div className="text-sm text-muted-foreground hidden md:block">
+              URL: {store.sharepoint.sites[selectedSite]}
             </div>
           </div>
           <Card>
@@ -100,7 +161,7 @@ const Documents = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {mockDocuments.map((doc) => (
+                {siteDocuments.map((doc) => (
                   <TableRow key={doc.id}>
                     <TableCell className="font-medium flex items-center gap-2">
                       <File className="h-4 w-4 text-primary" /> {doc.name}
@@ -125,7 +186,7 @@ const Documents = () => {
           <div className="grid md:grid-cols-2 gap-6 h-full min-h-[400px]">
             <ScannerPanel onScan={handleFileUpload} />
             <Card
-              className="border-dashed border-2 flex flex-col items-center justify-center p-10 cursor-pointer"
+              className="border-dashed border-2 flex flex-col items-center justify-center p-10 cursor-pointer hover:bg-muted/50 transition-colors"
               onClick={handleFileUpload}
             >
               <CardHeader className="text-center">
@@ -137,7 +198,10 @@ const Documents = () => {
                   )}
                 </div>
                 <CardTitle>{ocrLoading ? 'Processando...' : 'Upload Manual'}</CardTitle>
-                <CardDescription>Arraste arquivos para OCR e sync SharePoint.</CardDescription>
+                <CardDescription>
+                  Arraste arquivos para extração OCR e envio direto para{' '}
+                  <strong>{siteNames[selectedSite]}</strong>.
+                </CardDescription>
               </CardHeader>
             </Card>
           </div>
@@ -149,6 +213,7 @@ const Documents = () => {
         onClose={() => setOcrData(null)}
         onConfirm={handleOcrConfirm}
         initialData={ocrData}
+        contextSite={siteNames[selectedSite]}
       />
       <DocumentViewer open={!!viewDoc} onClose={() => setViewDoc(null)} docName={viewDoc} />
     </div>
