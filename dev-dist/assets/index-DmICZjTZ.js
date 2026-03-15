@@ -17366,11 +17366,11 @@ var reducer = (state, action) => {
 			};
 	}
 };
-var listeners$1 = [];
+var listeners$2 = [];
 var memoryState = { toasts: [] };
 function dispatch(action) {
 	memoryState = reducer(memoryState, action);
-	listeners$1.forEach((listener) => {
+	listeners$2.forEach((listener) => {
 		listener(memoryState);
 	});
 }
@@ -17407,10 +17407,10 @@ function toast$1({ ...props }) {
 function useToast() {
 	const [state, setState] = import_react.useState(memoryState);
 	import_react.useEffect(() => {
-		listeners$1.push(setState);
+		listeners$2.push(setState);
 		return () => {
-			const index = listeners$1.indexOf(setState);
-			if (index > -1) listeners$1.splice(index, 1);
+			const index = listeners$2.indexOf(setState);
+			if (index > -1) listeners$2.splice(index, 1);
 		};
 	}, [state]);
 	return {
@@ -19054,6 +19054,31 @@ var createLucideIcon = (iconName, iconNode) => {
 	Component.displayName = toPascalCase(iconName);
 	return Component;
 };
+var Archive = createLucideIcon("archive", [
+	["rect", {
+		width: "20",
+		height: "5",
+		x: "2",
+		y: "3",
+		rx: "1",
+		key: "1wp1u1"
+	}],
+	["path", {
+		d: "M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8",
+		key: "1s80jp"
+	}],
+	["path", {
+		d: "M10 12h4",
+		key: "a56b0p"
+	}]
+]);
+var ArrowRight = createLucideIcon("arrow-right", [["path", {
+	d: "M5 12h14",
+	key: "1ays0h"
+}], ["path", {
+	d: "m12 5 7 7-7 7",
+	key: "xquz4c"
+}]]);
 var Bell = createLucideIcon("bell", [["path", {
 	d: "M10.268 21a2 2 0 0 0 3.464 0",
 	key: "vwvbt9"
@@ -19292,6 +19317,40 @@ var Database = createLucideIcon("database", [
 		key: "mv7ke4"
 	}]
 ]);
+var Download = createLucideIcon("download", [
+	["path", {
+		d: "M12 15V3",
+		key: "m9g1x1"
+	}],
+	["path", {
+		d: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4",
+		key: "ih7n3h"
+	}],
+	["path", {
+		d: "m7 10 5 5 5-5",
+		key: "brsn70"
+	}]
+]);
+var EllipsisVertical = createLucideIcon("ellipsis-vertical", [
+	["circle", {
+		cx: "12",
+		cy: "12",
+		r: "1",
+		key: "41hilf"
+	}],
+	["circle", {
+		cx: "12",
+		cy: "5",
+		r: "1",
+		key: "gxeob9"
+	}],
+	["circle", {
+		cx: "12",
+		cy: "19",
+		r: "1",
+		key: "lyex9k"
+	}]
+]);
 var ExternalLink = createLucideIcon("external-link", [
 	["path", {
 		d: "M15 3h6v6",
@@ -19331,6 +19390,38 @@ var FilePenLine = createLucideIcon("file-pen-line", [
 	["path", {
 		d: "M8 18h1",
 		key: "13wk12"
+	}]
+]);
+var FilePen = createLucideIcon("file-pen", [
+	["path", {
+		d: "M12.659 22H18a2 2 0 0 0 2-2V8a2.4 2.4 0 0 0-.706-1.706l-3.588-3.588A2.4 2.4 0 0 0 14 2H6a2 2 0 0 0-2 2v9.34",
+		key: "o6klzx"
+	}],
+	["path", {
+		d: "M14 2v5a1 1 0 0 0 1 1h5",
+		key: "wfsgrz"
+	}],
+	["path", {
+		d: "M10.378 12.622a1 1 0 0 1 3 3.003L8.36 20.637a2 2 0 0 1-.854.506l-2.867.837a.5.5 0 0 1-.62-.62l.836-2.869a2 2 0 0 1 .506-.853z",
+		key: "zhnas1"
+	}]
+]);
+var FilePlus = createLucideIcon("file-plus", [
+	["path", {
+		d: "M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z",
+		key: "1oefj6"
+	}],
+	["path", {
+		d: "M14 2v5a1 1 0 0 0 1 1h5",
+		key: "wfsgrz"
+	}],
+	["path", {
+		d: "M9 15h6",
+		key: "cctwl0"
+	}],
+	["path", {
+		d: "M12 18v-6",
+		key: "17g6i2"
 	}]
 ]);
 var FileStack = createLucideIcon("file-stack", [
@@ -19550,6 +19641,10 @@ var MapPin = createLucideIcon("map-pin", [["path", {
 	r: "3",
 	key: "ilqhr7"
 }]]);
+var MessageSquare = createLucideIcon("message-square", [["path", {
+	d: "M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z",
+	key: "18887p"
+}]]);
 var PanelLeft = createLucideIcon("panel-left", [["rect", {
 	width: "18",
 	height: "18",
@@ -19712,6 +19807,40 @@ var Settings$1 = createLucideIcon("settings", [["path", {
 	r: "3",
 	key: "1v7zrd"
 }]]);
+var Share2 = createLucideIcon("share-2", [
+	["circle", {
+		cx: "18",
+		cy: "5",
+		r: "3",
+		key: "gq8acd"
+	}],
+	["circle", {
+		cx: "6",
+		cy: "12",
+		r: "3",
+		key: "w7nqdw"
+	}],
+	["circle", {
+		cx: "18",
+		cy: "19",
+		r: "3",
+		key: "1xt0gg"
+	}],
+	["line", {
+		x1: "8.59",
+		x2: "15.42",
+		y1: "13.51",
+		y2: "17.49",
+		key: "47mynk"
+	}],
+	["line", {
+		x1: "15.41",
+		x2: "8.59",
+		y1: "6.51",
+		y2: "10.49",
+		key: "1n3mei"
+	}]
+]);
 var ShieldAlert = createLucideIcon("shield-alert", [
 	["path", {
 		d: "M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z",
@@ -19740,6 +19869,26 @@ var SquareCheckBig = createLucideIcon("square-check-big", [["path", {
 	d: "m9 11 3 3L22 4",
 	key: "1pflzl"
 }]]);
+var Target = createLucideIcon("target", [
+	["circle", {
+		cx: "12",
+		cy: "12",
+		r: "10",
+		key: "1mglay"
+	}],
+	["circle", {
+		cx: "12",
+		cy: "12",
+		r: "6",
+		key: "1vlfrh"
+	}],
+	["circle", {
+		cx: "12",
+		cy: "12",
+		r: "2",
+		key: "1c9p78"
+	}]
+]);
 var Upload = createLucideIcon("upload", [
 	["path", {
 		d: "M12 3v12",
@@ -26903,6 +27052,11 @@ var navigation$1 = [
 		icon: UserCheck
 	},
 	{
+		title: "Ciclo de Contratos",
+		url: "/contracts",
+		icon: FilePenLine
+	},
+	{
 		title: "Documentos (GED)",
 		url: "/documents",
 		icon: FolderOpen
@@ -26931,62 +27085,62 @@ var navigation$1 = [
 function AppSidebar() {
 	const location = useLocation();
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sidebar, {
-		"data-uid": "src/components/AppSidebar.tsx:38:5",
+		"data-uid": "src/components/AppSidebar.tsx:40:5",
 		"data-prohibitions": "[editContent]",
 		variant: "inset",
 		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(SidebarHeader, {
-			"data-uid": "src/components/AppSidebar.tsx:39:7",
+			"data-uid": "src/components/AppSidebar.tsx:41:7",
 			"data-prohibitions": "[]",
 			className: "border-b p-4",
 			children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				"data-uid": "src/components/AppSidebar.tsx:40:9",
+				"data-uid": "src/components/AppSidebar.tsx:42:9",
 				"data-prohibitions": "[]",
 				className: "flex items-center gap-2 font-semibold text-primary",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Building, {
-					"data-uid": "src/components/AppSidebar.tsx:41:11",
+					"data-uid": "src/components/AppSidebar.tsx:43:11",
 					"data-prohibitions": "[editContent]",
 					className: "h-6 w-6"
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-					"data-uid": "src/components/AppSidebar.tsx:42:11",
+					"data-uid": "src/components/AppSidebar.tsx:44:11",
 					"data-prohibitions": "[]",
 					className: "text-lg",
 					children: "ImobGED"
 				})]
 			})
 		}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SidebarContent, {
-			"data-uid": "src/components/AppSidebar.tsx:45:7",
+			"data-uid": "src/components/AppSidebar.tsx:47:7",
 			"data-prohibitions": "[editContent]",
 			children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(SidebarGroup, {
-				"data-uid": "src/components/AppSidebar.tsx:46:9",
+				"data-uid": "src/components/AppSidebar.tsx:48:9",
 				"data-prohibitions": "[editContent]",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(SidebarGroupLabel, {
-					"data-uid": "src/components/AppSidebar.tsx:47:11",
+					"data-uid": "src/components/AppSidebar.tsx:49:11",
 					"data-prohibitions": "[]",
 					children: "Menu Principal"
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SidebarGroupContent, {
-					"data-uid": "src/components/AppSidebar.tsx:48:11",
+					"data-uid": "src/components/AppSidebar.tsx:50:11",
 					"data-prohibitions": "[editContent]",
 					children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SidebarMenu, {
-						"data-uid": "src/components/AppSidebar.tsx:49:13",
+						"data-uid": "src/components/AppSidebar.tsx:51:13",
 						"data-prohibitions": "[editContent]",
 						children: navigation$1.map((item) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SidebarMenuItem, {
-							"data-uid": "src/components/AppSidebar.tsx:51:17",
+							"data-uid": "src/components/AppSidebar.tsx:53:17",
 							"data-prohibitions": "[editContent]",
 							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SidebarMenuButton, {
-								"data-uid": "src/components/AppSidebar.tsx:52:19",
+								"data-uid": "src/components/AppSidebar.tsx:54:19",
 								"data-prohibitions": "[editContent]",
 								asChild: true,
 								isActive: location.pathname === item.url,
 								children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Link$1, {
-									"data-uid": "src/components/AppSidebar.tsx:53:21",
+									"data-uid": "src/components/AppSidebar.tsx:55:21",
 									"data-prohibitions": "[editContent]",
 									to: item.url,
 									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(item.icon, {
-										"data-uid": "src/components/AppSidebar.tsx:54:23",
+										"data-uid": "src/components/AppSidebar.tsx:56:23",
 										"data-prohibitions": "[editContent]",
 										className: "h-4 w-4"
 									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-										"data-uid": "src/components/AppSidebar.tsx:55:23",
+										"data-uid": "src/components/AppSidebar.tsx:57:23",
 										"data-prohibitions": "[editContent]",
 										children: item.title
 									})]
@@ -28836,46 +28990,61 @@ function GlobalFAB() {
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DropdownMenuItem, {
 						"data-uid": "src/components/GlobalFAB.tsx:31:11",
 						"data-prohibitions": "[]",
-						onClick: () => navigate("/documents"),
+						onClick: () => navigate("/contracts"),
 						className: "cursor-pointer",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Upload, {
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FilePlus, {
 							"data-uid": "src/components/GlobalFAB.tsx:32:13",
 							"data-prohibitions": "[editContent]",
 							className: "mr-2 h-4 w-4"
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 							"data-uid": "src/components/GlobalFAB.tsx:33:13",
 							"data-prohibitions": "[]",
-							children: "Upload Rápido (GED)"
+							children: "Criar Minuta (Wizard)"
 						})]
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DropdownMenuItem, {
 						"data-uid": "src/components/GlobalFAB.tsx:35:11",
 						"data-prohibitions": "[]",
-						onClick: () => navigate("/inspections"),
+						onClick: () => navigate("/documents"),
 						className: "cursor-pointer",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Camera, {
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Upload, {
 							"data-uid": "src/components/GlobalFAB.tsx:36:13",
 							"data-prohibitions": "[editContent]",
 							className: "mr-2 h-4 w-4"
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 							"data-uid": "src/components/GlobalFAB.tsx:37:13",
 							"data-prohibitions": "[]",
-							children: "Nova Vistoria (Fotos)"
+							children: "Upload Rápido (GED)"
 						})]
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DropdownMenuItem, {
 						"data-uid": "src/components/GlobalFAB.tsx:39:11",
 						"data-prohibitions": "[]",
-						onClick: () => navigate("/legal"),
+						onClick: () => navigate("/inspections"),
 						className: "cursor-pointer",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PenTool, {
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Camera, {
 							"data-uid": "src/components/GlobalFAB.tsx:40:13",
 							"data-prohibitions": "[editContent]",
 							className: "mr-2 h-4 w-4"
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 							"data-uid": "src/components/GlobalFAB.tsx:41:13",
 							"data-prohibitions": "[]",
-							children: "Gerar Contrato Padrão"
+							children: "Nova Vistoria (Fotos)"
+						})]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DropdownMenuItem, {
+						"data-uid": "src/components/GlobalFAB.tsx:43:11",
+						"data-prohibitions": "[]",
+						onClick: () => navigate("/legal"),
+						className: "cursor-pointer",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PenTool, {
+							"data-uid": "src/components/GlobalFAB.tsx:44:13",
+							"data-prohibitions": "[editContent]",
+							className: "mr-2 h-4 w-4"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+							"data-uid": "src/components/GlobalFAB.tsx:45:13",
+							"data-prohibitions": "[]",
+							children: "Abrir Chamado Jurídico"
 						})]
 					})
 				]
@@ -52710,41 +52879,41 @@ function getPayloadConfigFromPayload(config, payload, key) {
 //#region src/components/DashboardChart.tsx
 var chartData = [
 	{
-		name: "Aprovados",
-		value: 450,
-		fill: "var(--color-approved)"
+		name: "Ativos",
+		value: 320,
+		fill: "var(--color-active)"
 	},
 	{
-		name: "Em Revisão",
-		value: 120,
-		fill: "var(--color-review)"
+		name: "Em Andamento",
+		value: 85,
+		fill: "var(--color-progress)"
 	},
 	{
-		name: "Aguardando",
-		value: 80,
-		fill: "var(--color-awaiting)"
+		name: "Assinatura",
+		value: 45,
+		fill: "var(--color-signature)"
 	},
 	{
-		name: "Rejeitados",
-		value: 30,
-		fill: "var(--color-rejected)"
+		name: "Renovação",
+		value: 25,
+		fill: "var(--color-renewal)"
 	}
 ];
 var chartConfig = {
-	approved: {
-		label: "Aprovados",
+	active: {
+		label: "Ativos",
 		color: "hsl(var(--chart-2))"
 	},
-	review: {
-		label: "Em Revisão",
-		color: "hsl(var(--chart-3))"
-	},
-	awaiting: {
-		label: "Aguardando",
+	progress: {
+		label: "Em Andamento",
 		color: "hsl(var(--chart-1))"
 	},
-	rejected: {
-		label: "Rejeitados",
+	signature: {
+		label: "Assinatura",
+		color: "hsl(var(--chart-3))"
+	},
+	renewal: {
+		label: "Renovação",
 		color: "hsl(var(--chart-4))"
 	}
 };
@@ -52760,21 +52929,21 @@ function DashboardChart() {
 			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardTitle, {
 				"data-uid": "src/components/DashboardChart.tsx:23:9",
 				"data-prohibitions": "[]",
-				children: "Status do Fluxo de Trabalho"
+				children: "Distribuição de Contratos"
 			}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardDescription, {
 				"data-uid": "src/components/DashboardChart.tsx:24:9",
 				"data-prohibitions": "[]",
-				children: "Volume de documentos por estágio (Mês Atual)"
+				children: "Volume de contratos no SharePoint por estágio"
 			})]
-		}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardContent, {
+		}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardContent, {
 			"data-uid": "src/components/DashboardChart.tsx:26:7",
 			"data-prohibitions": "[editContent]",
 			className: "flex-1 pb-0",
-			children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChartContainer, {
+			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChartContainer, {
 				"data-uid": "src/components/DashboardChart.tsx:27:9",
 				"data-prohibitions": "[editContent]",
 				config: chartConfig,
-				className: "mx-auto aspect-square max-h-[250px]",
+				className: "mx-auto aspect-square max-h-[280px]",
 				children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(PieChart, {
 					"data-uid": "src/components/DashboardChart.tsx:28:11",
 					"data-prohibitions": "[editContent]",
@@ -52804,112 +52973,105 @@ function DashboardChart() {
 						}, `cell-${index}`))
 					})]
 				})
-			})
+			}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				"data-uid": "src/components/DashboardChart.tsx:45:9",
+				"data-prohibitions": "[editContent]",
+				className: "grid grid-cols-2 gap-2 mt-4 text-sm text-center mb-4",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					"data-uid": "src/components/DashboardChart.tsx:46:11",
+					"data-prohibitions": "[editContent]",
+					className: "bg-emerald-50 text-emerald-700 p-2 rounded-md font-medium border border-emerald-100",
+					children: [chartData[0].value, " Ativos"]
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					"data-uid": "src/components/DashboardChart.tsx:49:11",
+					"data-prohibitions": "[editContent]",
+					className: "bg-blue-50 text-blue-700 p-2 rounded-md font-medium border border-blue-100",
+					children: [chartData[1].value, " Workflow"]
+				})]
+			})]
 		})]
 	});
 }
 //#endregion
 //#region src/stores/main.ts
-var getInitialSlaStart = (h) => (/* @__PURE__ */ new Date(Date.now() - h * 60 * 60 * 1e3)).toISOString();
-var state = {
+var state$1 = {
 	settings: {
-		managementEmails: "gerencia@imobged.onmicrosoft.com",
-		administrativeEmails: "admin@imobged.onmicrosoft.com",
-		operationalEmails: "operacao@imobged.onmicrosoft.com",
+		managementEmails: "gerencia@imobged.com",
+		administrativeEmails: "admin@imobged.com",
+		operationalEmails: "operacao@imobged.com",
 		slaHours: 24
 	},
 	sharepoint: {
 		siteUrl: "https://imobged.sharepoint.com/sites/GestaoDeLocacao",
-		tenantId: "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+		tenantId: "a1b2c3d4-e5f6",
+		teamsWebhookUrl: "https://imobged.webhook.office.com/teams",
 		libraries: {
 			contracts: "Contratos",
-			ownerDocs: "Documentos de Proprietários",
-			tenantDocs: "Documentos de Inquilinos"
+			ownerDocs: "Doc Proprietários",
+			tenantDocs: "Doc Inquilinos",
+			archive: "Arquivo Permanente",
+			templates: "Modelos de Contrato"
 		},
 		lists: {
 			processControl: "Dados Contratuais",
 			auditLog: "Audit Log"
 		}
 	},
-	properties: [
-		{
-			id: "101",
-			title: "Apartamento Centro",
-			address: "Rua das Flores, 123",
-			type: "Residencial",
-			status: "Análise Gerencial",
-			image: "https://img.usecurling.com/p/400/300?q=apartment",
-			slaStart: getInitialSlaStart(36),
-			tenant: "João Pedro"
-		},
-		{
-			id: "102",
-			title: "Sala Comercial",
-			address: "Av. Paulista, 1000",
-			type: "Comercial",
-			status: "Análise Gerencial",
-			image: "https://img.usecurling.com/p/400/300?q=office",
-			slaStart: getInitialSlaStart(10),
-			tenant: "Empresa Alpha Ltda"
-		},
-		{
-			id: "103",
-			title: "Casa Jardim",
-			address: "Rua dos Ipês, 45",
-			type: "Residencial",
-			status: "Confecção de Contrato",
-			image: "https://img.usecurling.com/p/400/300?q=house",
-			tenant: "Maria Souza"
-		}
-	],
+	properties: [{
+		id: "101",
+		title: "Apto Centro",
+		address: "Rua Flores, 123",
+		type: "Residencial",
+		status: "Análise Gerencial",
+		image: "https://img.usecurling.com/p/400/300?q=apartment",
+		tenant: "João Pedro"
+	}, {
+		id: "103",
+		title: "Casa Jardim",
+		address: "Rua dos Ipês, 45",
+		type: "Residencial",
+		status: "Confecção de Contrato",
+		image: "https://img.usecurling.com/p/400/300?q=house",
+		tenant: "Maria Souza"
+	}],
 	auditLogs: [{
 		id: "log1",
 		propertyId: "101",
-		action: "Upload SharePoint",
-		user: "Ana Silva",
-		timestamp: getInitialSlaStart(36)
-	}, {
-		id: "log2",
-		propertyId: "102",
-		action: "Upload SharePoint",
-		user: "Carlos Santos",
-		timestamp: getInitialSlaStart(10)
+		action: "Upload SP",
+		user: "Ana",
+		timestamp: (/* @__PURE__ */ new Date()).toISOString()
 	}],
-	inspectionsData: { "103": {
-		propertyId: "103",
-		wallCondition: "Pintura nova",
-		furnitureNotes: "Cozinha com armários intactos"
-	} }
+	inspectionsData: {}
 };
-var listeners = [];
-var emit = () => listeners.forEach((l) => l());
+var listeners$1 = [];
+var emit$1 = () => listeners$1.forEach((l) => l());
 var mainStore = {
-	getState: () => state,
+	getState: () => state$1,
 	subscribe: (l) => {
-		listeners.push(l);
+		listeners$1.push(l);
 		return () => {
-			listeners = listeners.filter((fn) => fn !== l);
+			listeners$1 = listeners$1.filter((fn) => fn !== l);
 		};
 	},
 	updateSettings: (s) => {
-		state = {
-			...state,
+		state$1 = {
+			...state$1,
 			settings: {
-				...state.settings,
+				...state$1.settings,
 				...s
 			}
 		};
-		emit();
+		emit$1();
 	},
 	updateSharePointSettings: (s) => {
-		state = {
-			...state,
+		state$1 = {
+			...state$1,
 			sharepoint: {
-				...state.sharepoint,
+				...state$1.sharepoint,
 				...s
 			}
 		};
-		emit();
+		emit$1();
 	},
 	addAuditLog: (log) => {
 		const newLog = {
@@ -52917,32 +53079,31 @@ var mainStore = {
 			id: Math.random().toString(36).substring(2, 9),
 			timestamp: (/* @__PURE__ */ new Date()).toISOString()
 		};
-		state = {
-			...state,
-			auditLogs: [newLog, ...state.auditLogs]
+		state$1 = {
+			...state$1,
+			auditLogs: [newLog, ...state$1.auditLogs]
 		};
-		emit();
+		emit$1();
 	},
 	updatePropertyStatus: (id, status) => {
-		state = {
-			...state,
-			properties: state.properties.map((p) => p.id === id ? {
+		state$1 = {
+			...state$1,
+			properties: state$1.properties.map((p) => p.id === id ? {
 				...p,
-				status,
-				slaStart: status === "Análise Gerencial" ? (/* @__PURE__ */ new Date()).toISOString() : void 0
+				status
 			} : p)
 		};
-		emit();
+		emit$1();
 	},
 	saveInspection: (data) => {
-		state = {
-			...state,
+		state$1 = {
+			...state$1,
 			inspectionsData: {
-				...state.inspectionsData,
+				...state$1.inspectionsData,
 				[data.propertyId]: data
 			}
 		};
-		emit();
+		emit$1();
 	}
 };
 function useMainStore() {
@@ -52953,132 +53114,162 @@ var isSlaBreached = (slaStart, slaHours) => {
 	return (Date.now() - new Date(slaStart).getTime()) / (1e3 * 60 * 60) > slaHours;
 };
 //#endregion
+//#region src/stores/contracts.ts
+var state = { contracts: [{
+	id: "CTR-001",
+	propertyId: "101",
+	tenantName: "João Pedro",
+	template: "Apartamento Padrão (Caução)",
+	status: "Ativo",
+	documentName: "Contrato_Joao_Pedro.docx",
+	updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+}, {
+	id: "CTR-002",
+	propertyId: "103",
+	tenantName: "Maria Souza",
+	template: "Residencial (Fiador)",
+	status: "Rascunho",
+	documentName: "Minuta_Maria_Souza.docx",
+	updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+}] };
+var listeners = [];
+var emit = () => listeners.forEach((l) => l());
+var contractsStore = {
+	getState: () => state,
+	subscribe: (l) => {
+		listeners.push(l);
+		return () => {
+			listeners = listeners.filter((fn) => fn !== l);
+		};
+	},
+	addContract: (c) => {
+		const newContract = {
+			...c,
+			id: `CTR-${Math.floor(Math.random() * 1e3).toString().padStart(3, "0")}`,
+			updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+		};
+		state = {
+			...state,
+			contracts: [newContract, ...state.contracts]
+		};
+		emit();
+	},
+	updateStatus: (id, status) => {
+		state = {
+			...state,
+			contracts: state.contracts.map((c) => c.id === id ? {
+				...c,
+				status,
+				updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+			} : c)
+		};
+		emit();
+	}
+};
+function useContractsStore() {
+	return (0, import_react.useSyncExternalStore)(contractsStore.subscribe, contractsStore.getState);
+}
+//#endregion
 //#region src/pages/Index.tsx
 var Index = () => {
 	const navigate = useNavigate();
 	const store = useMainStore();
-	const pendingApprovals = store.properties.filter((p) => p.status === "Análise Gerencial");
-	const slaBreachedCount = pendingApprovals.filter((p) => isSlaBreached(p.slaStart, store.settings.slaHours)).length;
-	const pendingInspections = store.properties.filter((p) => p.status === "Vistoria").length;
-	const signed = store.properties.filter((p) => p.status === "Assinatura").length;
+	const { contracts } = useContractsStore();
+	const slaBreachedCount = store.properties.filter((p) => p.status === "Análise Gerencial").filter((p) => isSlaBreached(p.slaStart, store.settings.slaHours)).length;
+	store.properties.filter((p) => p.status === "Vistoria").length;
+	const activeContracts = contracts.filter((c) => c.status === "Ativo").length;
+	const awaitingSignature = contracts.filter((c) => c.status === "Aguardando Assinatura").length;
+	const awaitingRenewal = contracts.filter((c) => c.status === "Aguardando Renovação").length;
 	const recentLogs = store.auditLogs.slice(0, 5);
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-		"data-uid": "src/pages/Index.tsx:39:5",
+		"data-uid": "src/pages/Index.tsx:46:5",
 		"data-prohibitions": "[editContent]",
 		className: "space-y-6",
 		children: [
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				"data-uid": "src/pages/Index.tsx:40:7",
+				"data-uid": "src/pages/Index.tsx:47:7",
 				"data-prohibitions": "[]",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", {
-					"data-uid": "src/pages/Index.tsx:41:9",
+					"data-uid": "src/pages/Index.tsx:48:9",
 					"data-prohibitions": "[]",
 					className: "text-3xl font-bold tracking-tight",
 					children: "Painel de Controle"
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-					"data-uid": "src/pages/Index.tsx:42:9",
+					"data-uid": "src/pages/Index.tsx:49:9",
 					"data-prohibitions": "[]",
 					className: "text-muted-foreground",
-					children: "Bem-vindo ao ImobGED. Visão geral da sua operação digital integrada ao SharePoint."
+					children: "Visão geral da sua operação digital, contratos e integrações com o Microsoft 365."
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				"data-uid": "src/pages/Index.tsx:47:7",
+				"data-uid": "src/pages/Index.tsx:54:7",
 				"data-prohibitions": "[editContent]",
 				className: "grid gap-4 md:grid-cols-2 lg:grid-cols-4",
 				children: [
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
-						"data-uid": "src/pages/Index.tsx:48:9",
+						"data-uid": "src/pages/Index.tsx:55:9",
 						"data-prohibitions": "[editContent]",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardHeader, {
-							"data-uid": "src/pages/Index.tsx:49:11",
+							"data-uid": "src/pages/Index.tsx:56:11",
 							"data-prohibitions": "[]",
 							className: "flex flex-row items-center justify-between space-y-0 pb-2",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardTitle, {
-								"data-uid": "src/pages/Index.tsx:50:13",
+								"data-uid": "src/pages/Index.tsx:57:13",
 								"data-prohibitions": "[]",
 								className: "text-sm font-medium",
-								children: "Contratos em Assinatura"
-							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(FileStack, {
-								"data-uid": "src/pages/Index.tsx:51:13",
+								children: "Contratos Ativos"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(FileText, {
+								"data-uid": "src/pages/Index.tsx:58:13",
 								"data-prohibitions": "[editContent]",
-								className: "h-4 w-4 text-muted-foreground"
-							})]
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardContent, {
-							"data-uid": "src/pages/Index.tsx:53:11",
-							"data-prohibitions": "[editContent]",
-							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-								"data-uid": "src/pages/Index.tsx:54:13",
-								"data-prohibitions": "[editContent]",
-								className: "text-2xl font-bold",
-								children: signed
-							})
-						})]
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
-						"data-uid": "src/pages/Index.tsx:57:9",
-						"data-prohibitions": "[editContent]",
-						className: slaBreachedCount > 0 ? "border-destructive/50 bg-destructive/5" : "",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardHeader, {
-							"data-uid": "src/pages/Index.tsx:58:11",
-							"data-prohibitions": "[editContent]",
-							className: "flex flex-row items-center justify-between space-y-0 pb-2",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardTitle, {
-								"data-uid": "src/pages/Index.tsx:59:13",
-								"data-prohibitions": "[editContent]",
-								className: `text-sm font-medium ${slaBreachedCount > 0 ? "text-destructive" : ""}`,
-								children: "SLA Violado (Gestão)"
-							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ShieldAlert, {
-								"data-uid": "src/pages/Index.tsx:64:13",
-								"data-prohibitions": "[editContent]",
-								className: `h-4 w-4 ${slaBreachedCount > 0 ? "text-destructive" : "text-muted-foreground"}`
+								className: "h-4 w-4 text-emerald-600"
 							})]
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardContent, {
-							"data-uid": "src/pages/Index.tsx:68:11",
+							"data-uid": "src/pages/Index.tsx:60:11",
 							"data-prohibitions": "[editContent]",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-								"data-uid": "src/pages/Index.tsx:69:13",
+								"data-uid": "src/pages/Index.tsx:61:13",
 								"data-prohibitions": "[editContent]",
-								className: `text-2xl font-bold ${slaBreachedCount > 0 ? "text-destructive" : ""}`,
-								children: slaBreachedCount
+								className: "text-2xl font-bold text-emerald-600",
+								children: activeContracts
 							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-								"data-uid": "src/pages/Index.tsx:72:13",
+								"data-uid": "src/pages/Index.tsx:62:13",
 								"data-prohibitions": "[]",
 								className: "text-xs text-muted-foreground",
-								children: "Requer atenção imediata"
+								children: "Sincronizados no Arquivo Permanente"
 							})]
 						})]
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
-						"data-uid": "src/pages/Index.tsx:75:9",
+						"data-uid": "src/pages/Index.tsx:66:9",
 						"data-prohibitions": "[editContent]",
+						className: awaitingRenewal > 0 ? "border-orange-200 bg-orange-50/50" : "",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardHeader, {
-							"data-uid": "src/pages/Index.tsx:76:11",
-							"data-prohibitions": "[]",
+							"data-uid": "src/pages/Index.tsx:67:11",
+							"data-prohibitions": "[editContent]",
 							className: "flex flex-row items-center justify-between space-y-0 pb-2",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardTitle, {
-								"data-uid": "src/pages/Index.tsx:77:13",
-								"data-prohibitions": "[]",
-								className: "text-sm font-medium",
-								children: "Aprovações Pendentes"
-							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Clock, {
+								"data-uid": "src/pages/Index.tsx:68:13",
+								"data-prohibitions": "[editContent]",
+								className: `text-sm font-medium ${awaitingRenewal > 0 ? "text-orange-700" : ""}`,
+								children: "Renovações Pendentes"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(RefreshCw, {
+								"data-uid": "src/pages/Index.tsx:73:13",
+								"data-prohibitions": "[editContent]",
+								className: `h-4 w-4 ${awaitingRenewal > 0 ? "text-orange-600" : "text-muted-foreground"}`
+							})]
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardContent, {
+							"data-uid": "src/pages/Index.tsx:77:11",
+							"data-prohibitions": "[editContent]",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 								"data-uid": "src/pages/Index.tsx:78:13",
 								"data-prohibitions": "[editContent]",
-								className: "h-4 w-4 text-muted-foreground"
-							})]
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardContent, {
-							"data-uid": "src/pages/Index.tsx:80:11",
-							"data-prohibitions": "[editContent]",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-								"data-uid": "src/pages/Index.tsx:81:13",
-								"data-prohibitions": "[editContent]",
-								className: "text-2xl font-bold text-amber-600",
-								children: pendingApprovals.length
+								className: `text-2xl font-bold ${awaitingRenewal > 0 ? "text-orange-700" : ""}`,
+								children: awaitingRenewal
 							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-								"data-uid": "src/pages/Index.tsx:82:13",
+								"data-uid": "src/pages/Index.tsx:81:13",
 								"data-prohibitions": "[]",
 								className: "text-xs text-muted-foreground",
-								children: "Aguardando análise jurídica/gerencial"
+								children: "Aproximação da data de vencimento"
 							})]
 						})]
 					}),
@@ -53093,11 +53284,11 @@ var Index = () => {
 								"data-uid": "src/pages/Index.tsx:87:13",
 								"data-prohibitions": "[]",
 								className: "text-sm font-medium",
-								children: "Vistorias Pendentes"
-							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CircleCheckBig, {
+								children: "Em Assinatura"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(FileStack, {
 								"data-uid": "src/pages/Index.tsx:88:13",
 								"data-prohibitions": "[editContent]",
-								className: "h-4 w-4 text-muted-foreground"
+								className: "h-4 w-4 text-purple-600"
 							})]
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardContent, {
 							"data-uid": "src/pages/Index.tsx:90:11",
@@ -53105,168 +53296,202 @@ var Index = () => {
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 								"data-uid": "src/pages/Index.tsx:91:13",
 								"data-prohibitions": "[editContent]",
-								className: "text-2xl font-bold text-blue-600",
-								children: pendingInspections
+								className: "text-2xl font-bold text-purple-600",
+								children: awaitingSignature
 							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 								"data-uid": "src/pages/Index.tsx:92:13",
 								"data-prohibitions": "[]",
 								className: "text-xs text-muted-foreground",
-								children: "Aguardando checklist em campo"
+								children: "Aguardando partes envolvidas"
+							})]
+						})]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
+						"data-uid": "src/pages/Index.tsx:96:9",
+						"data-prohibitions": "[editContent]",
+						className: slaBreachedCount > 0 ? "border-destructive/50 bg-destructive/5" : "",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardHeader, {
+							"data-uid": "src/pages/Index.tsx:97:11",
+							"data-prohibitions": "[editContent]",
+							className: "flex flex-row items-center justify-between space-y-0 pb-2",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardTitle, {
+								"data-uid": "src/pages/Index.tsx:98:13",
+								"data-prohibitions": "[editContent]",
+								className: `text-sm font-medium ${slaBreachedCount > 0 ? "text-destructive" : ""}`,
+								children: "SLA Violado (Gestão)"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ShieldAlert, {
+								"data-uid": "src/pages/Index.tsx:103:13",
+								"data-prohibitions": "[editContent]",
+								className: `h-4 w-4 ${slaBreachedCount > 0 ? "text-destructive" : "text-muted-foreground"}`
+							})]
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardContent, {
+							"data-uid": "src/pages/Index.tsx:107:11",
+							"data-prohibitions": "[editContent]",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								"data-uid": "src/pages/Index.tsx:108:13",
+								"data-prohibitions": "[editContent]",
+								className: `text-2xl font-bold ${slaBreachedCount > 0 ? "text-destructive" : ""}`,
+								children: slaBreachedCount
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								"data-uid": "src/pages/Index.tsx:111:13",
+								"data-prohibitions": "[]",
+								className: "text-xs text-muted-foreground",
+								children: "Aprovações gerenciais atrasadas"
 							})]
 						})]
 					})
 				]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				"data-uid": "src/pages/Index.tsx:97:7",
+				"data-uid": "src/pages/Index.tsx:116:7",
 				"data-prohibitions": "[editContent]",
 				className: "grid gap-4 md:grid-cols-2 lg:grid-cols-7",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					"data-uid": "src/pages/Index.tsx:98:9",
+					"data-uid": "src/pages/Index.tsx:117:9",
 					"data-prohibitions": "[editContent]",
 					className: "lg:col-span-4 space-y-4",
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						"data-uid": "src/pages/Index.tsx:99:11",
+						"data-uid": "src/pages/Index.tsx:118:11",
 						"data-prohibitions": "[]",
 						className: "grid gap-4 md:grid-cols-2",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Card, {
-							"data-uid": "src/pages/Index.tsx:100:13",
+							"data-uid": "src/pages/Index.tsx:119:13",
 							"data-prohibitions": "[]",
 							className: "hover:border-primary/50 cursor-pointer transition-colors",
-							onClick: () => navigate("/inspections"),
+							onClick: () => navigate("/contracts"),
 							children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardHeader, {
-								"data-uid": "src/pages/Index.tsx:104:15",
+								"data-uid": "src/pages/Index.tsx:123:15",
 								"data-prohibitions": "[]",
 								className: "pb-2",
 								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Search, {
-										"data-uid": "src/pages/Index.tsx:105:17",
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FilePenLine, {
+										"data-uid": "src/pages/Index.tsx:124:17",
 										"data-prohibitions": "[editContent]",
 										className: "h-8 w-8 text-primary mb-2"
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardTitle, {
-										"data-uid": "src/pages/Index.tsx:106:17",
+										"data-uid": "src/pages/Index.tsx:125:17",
+										"data-prohibitions": "[]",
+										children: "Ciclo de Contratos"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardDescription, {
+										"data-uid": "src/pages/Index.tsx:126:17",
+										"data-prohibitions": "[]",
+										children: "Gerar minutas via templates e acompanhar workflow."
+									})
+								]
+							})
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Card, {
+							"data-uid": "src/pages/Index.tsx:131:13",
+							"data-prohibitions": "[]",
+							className: "hover:border-primary/50 cursor-pointer transition-colors",
+							onClick: () => navigate("/inspections"),
+							children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardHeader, {
+								"data-uid": "src/pages/Index.tsx:135:15",
+								"data-prohibitions": "[]",
+								className: "pb-2",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Search, {
+										"data-uid": "src/pages/Index.tsx:136:17",
+										"data-prohibitions": "[editContent]",
+										className: "h-8 w-8 text-primary mb-2"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardTitle, {
+										"data-uid": "src/pages/Index.tsx:137:17",
 										"data-prohibitions": "[]",
 										children: "Iniciar Vistoria"
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardDescription, {
-										"data-uid": "src/pages/Index.tsx:107:17",
+										"data-uid": "src/pages/Index.tsx:138:17",
 										"data-prohibitions": "[]",
 										children: "Preencher checklist inteligente offline/online."
 									})
 								]
 							})
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Card, {
-							"data-uid": "src/pages/Index.tsx:110:13",
-							"data-prohibitions": "[]",
-							className: "hover:border-primary/50 cursor-pointer transition-colors",
-							onClick: () => navigate("/documents"),
-							children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardHeader, {
-								"data-uid": "src/pages/Index.tsx:114:15",
-								"data-prohibitions": "[]",
-								className: "pb-2",
-								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FilePenLine, {
-										"data-uid": "src/pages/Index.tsx:115:17",
-										"data-prohibitions": "[editContent]",
-										className: "h-8 w-8 text-primary mb-2"
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardTitle, {
-										"data-uid": "src/pages/Index.tsx:116:17",
-										"data-prohibitions": "[]",
-										children: "Processar OCR"
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardDescription, {
-										"data-uid": "src/pages/Index.tsx:117:17",
-										"data-prohibitions": "[]",
-										children: "Digitalizar contrato e iniciar fluxo de aprovação."
-									})
-								]
-							})
 						})]
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
-						"data-uid": "src/pages/Index.tsx:124:11",
+						"data-uid": "src/pages/Index.tsx:143:11",
 						"data-prohibitions": "[editContent]",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardHeader, {
-							"data-uid": "src/pages/Index.tsx:125:13",
+							"data-uid": "src/pages/Index.tsx:144:13",
 							"data-prohibitions": "[]",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardTitle, {
-								"data-uid": "src/pages/Index.tsx:126:15",
+								"data-uid": "src/pages/Index.tsx:145:15",
 								"data-prohibitions": "[]",
 								className: "flex items-center gap-2",
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(List$1, {
-									"data-uid": "src/pages/Index.tsx:127:17",
+									"data-uid": "src/pages/Index.tsx:146:17",
 									"data-prohibitions": "[editContent]",
 									className: "h-5 w-5 text-primary"
 								}), " Trilha de Auditoria (SharePoint List)"]
 							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardDescription, {
-								"data-uid": "src/pages/Index.tsx:129:15",
+								"data-uid": "src/pages/Index.tsx:148:15",
 								"data-prohibitions": "[]",
 								children: "Ações recentes registradas pelo M365 SSO na lista do site Gestão de Locação."
 							})]
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardContent, {
-							"data-uid": "src/pages/Index.tsx:133:13",
+							"data-uid": "src/pages/Index.tsx:152:13",
 							"data-prohibitions": "[editContent]",
 							children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Table, {
-								"data-uid": "src/pages/Index.tsx:134:15",
+								"data-uid": "src/pages/Index.tsx:153:15",
 								"data-prohibitions": "[editContent]",
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableHeader, {
-									"data-uid": "src/pages/Index.tsx:135:17",
+									"data-uid": "src/pages/Index.tsx:154:17",
 									"data-prohibitions": "[]",
 									children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(TableRow, {
-										"data-uid": "src/pages/Index.tsx:136:19",
+										"data-uid": "src/pages/Index.tsx:155:19",
 										"data-prohibitions": "[]",
 										children: [
 											/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableHead, {
-												"data-uid": "src/pages/Index.tsx:137:21",
+												"data-uid": "src/pages/Index.tsx:156:21",
 												"data-prohibitions": "[]",
-												children: "Imóvel ID"
+												children: "Ref ID"
 											}),
 											/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableHead, {
-												"data-uid": "src/pages/Index.tsx:138:21",
+												"data-uid": "src/pages/Index.tsx:157:21",
 												"data-prohibitions": "[]",
 												children: "Ação Realizada"
 											}),
 											/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableHead, {
-												"data-uid": "src/pages/Index.tsx:139:21",
+												"data-uid": "src/pages/Index.tsx:158:21",
 												"data-prohibitions": "[]",
 												children: "Usuário M365"
 											}),
 											/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableHead, {
-												"data-uid": "src/pages/Index.tsx:140:21",
+												"data-uid": "src/pages/Index.tsx:159:21",
 												"data-prohibitions": "[]",
 												className: "text-right",
-												children: "Hora"
+												children: "Data/Hora"
 											})
 										]
 									})
 								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(TableBody, {
-									"data-uid": "src/pages/Index.tsx:143:17",
+									"data-uid": "src/pages/Index.tsx:162:17",
 									"data-prohibitions": "[editContent]",
 									children: [recentLogs.map((log) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(TableRow, {
-										"data-uid": "src/pages/Index.tsx:145:21",
+										"data-uid": "src/pages/Index.tsx:164:21",
 										"data-prohibitions": "[editContent]",
 										children: [
 											/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableCell, {
-												"data-uid": "src/pages/Index.tsx:146:23",
+												"data-uid": "src/pages/Index.tsx:165:23",
 												"data-prohibitions": "[editContent]",
 												className: "font-mono text-xs",
 												children: log.propertyId
 											}),
 											/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableCell, {
-												"data-uid": "src/pages/Index.tsx:147:23",
+												"data-uid": "src/pages/Index.tsx:166:23",
 												"data-prohibitions": "[editContent]",
 												className: "font-medium text-sm",
 												children: log.action
 											}),
 											/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableCell, {
-												"data-uid": "src/pages/Index.tsx:148:23",
+												"data-uid": "src/pages/Index.tsx:167:23",
 												"data-prohibitions": "[editContent]",
 												className: "text-sm text-muted-foreground",
 												children: log.user
 											}),
 											/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableCell, {
-												"data-uid": "src/pages/Index.tsx:149:23",
+												"data-uid": "src/pages/Index.tsx:168:23",
 												"data-prohibitions": "[editContent]",
 												className: "text-right text-xs text-muted-foreground",
 												children: new Date(log.timestamp).toLocaleTimeString([], {
@@ -53276,10 +53501,10 @@ var Index = () => {
 											})
 										]
 									}, log.id)), recentLogs.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableRow, {
-										"data-uid": "src/pages/Index.tsx:158:21",
+										"data-uid": "src/pages/Index.tsx:177:21",
 										"data-prohibitions": "[]",
 										children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableCell, {
-											"data-uid": "src/pages/Index.tsx:159:23",
+											"data-uid": "src/pages/Index.tsx:178:23",
 											"data-prohibitions": "[]",
 											colSpan: 4,
 											className: "text-center text-muted-foreground",
@@ -53291,11 +53516,11 @@ var Index = () => {
 						})]
 					})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-					"data-uid": "src/pages/Index.tsx:170:9",
+					"data-uid": "src/pages/Index.tsx:189:9",
 					"data-prohibitions": "[]",
 					className: "lg:col-span-3",
 					children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(DashboardChart, {
-						"data-uid": "src/pages/Index.tsx:171:11",
+						"data-uid": "src/pages/Index.tsx:190:11",
 						"data-prohibitions": "[editContent]"
 					})
 				})]
@@ -55197,6 +55422,172 @@ function OCRReviewDialog({ open, onClose, onConfirm, initialData }) {
 	});
 }
 //#endregion
+//#region src/components/DocumentViewer.tsx
+function DocumentViewer({ open, onClose, docName }) {
+	if (!docName) return null;
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Dialog, {
+		"data-uid": "src/components/DocumentViewer.tsx:21:5",
+		"data-prohibitions": "[editContent]",
+		open,
+		onOpenChange: (val) => !val && onClose(),
+		children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DialogContent, {
+			"data-uid": "src/components/DocumentViewer.tsx:22:7",
+			"data-prohibitions": "[editContent]",
+			className: "max-w-5xl h-[85vh] flex flex-col p-0 overflow-hidden bg-muted/30",
+			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DialogHeader, {
+				"data-uid": "src/components/DocumentViewer.tsx:23:9",
+				"data-prohibitions": "[editContent]",
+				className: "p-4 border-b bg-background flex flex-row items-center justify-between shrink-0",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					"data-uid": "src/components/DocumentViewer.tsx:24:11",
+					"data-prohibitions": "[editContent]",
+					className: "space-y-1",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DialogTitle, {
+						"data-uid": "src/components/DocumentViewer.tsx:25:13",
+						"data-prohibitions": "[editContent]",
+						className: "flex items-center gap-2",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FileText, {
+							"data-uid": "src/components/DocumentViewer.tsx:26:15",
+							"data-prohibitions": "[editContent]",
+							className: "w-5 h-5 text-blue-600"
+						}), docName]
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(DialogDescription, {
+						"data-uid": "src/components/DocumentViewer.tsx:29:13",
+						"data-prohibitions": "[]",
+						children: "Visualização nativa via SharePoint Online (Modo Leitura)"
+					})]
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					"data-uid": "src/components/DocumentViewer.tsx:33:11",
+					"data-prohibitions": "[]",
+					className: "flex items-center gap-2 mr-6",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+						"data-uid": "src/components/DocumentViewer.tsx:34:13",
+						"data-prohibitions": "[]",
+						variant: "outline",
+						size: "sm",
+						className: "hidden sm:flex",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Share2, {
+							"data-uid": "src/components/DocumentViewer.tsx:35:15",
+							"data-prohibitions": "[editContent]",
+							className: "w-4 h-4 mr-2"
+						}), " Compartilhar"]
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+						"data-uid": "src/components/DocumentViewer.tsx:37:13",
+						"data-prohibitions": "[]",
+						variant: "outline",
+						size: "sm",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Download, {
+							"data-uid": "src/components/DocumentViewer.tsx:38:15",
+							"data-prohibitions": "[editContent]",
+							className: "w-4 h-4 mr-2"
+						}), " Baixar"]
+					})]
+				})]
+			}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				"data-uid": "src/components/DocumentViewer.tsx:42:9",
+				"data-prohibitions": "[]",
+				className: "flex-1 overflow-y-auto p-4 md:p-8 flex justify-center",
+				children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					"data-uid": "src/components/DocumentViewer.tsx:43:11",
+					"data-prohibitions": "[]",
+					className: "bg-background shadow-lg border p-10 md:p-16 w-full max-w-3xl min-h-full",
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							"data-uid": "src/components/DocumentViewer.tsx:44:13",
+							"data-prohibitions": "[]",
+							className: "text-center mb-10",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", {
+								"data-uid": "src/components/DocumentViewer.tsx:45:15",
+								"data-prohibitions": "[]",
+								className: "text-2xl font-bold uppercase underline",
+								children: "Contrato de Locação"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								"data-uid": "src/components/DocumentViewer.tsx:46:15",
+								"data-prohibitions": "[]",
+								className: "text-muted-foreground mt-2",
+								children: "Documento de referência integrado ao M365"
+							})]
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							"data-uid": "src/components/DocumentViewer.tsx:50:13",
+							"data-prohibitions": "[]",
+							className: "space-y-6 text-sm text-foreground/90 text-justify leading-relaxed",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+									"data-uid": "src/components/DocumentViewer.tsx:51:15",
+									"data-prohibitions": "[]",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", {
+										"data-uid": "src/components/DocumentViewer.tsx:52:17",
+										"data-prohibitions": "[]",
+										children: "CLÁUSULA PRIMEIRA - DO OBJETO:"
+									}), " O objeto do presente contrato é a locação do imóvel residencial situado no endereço qualificado nos anexos deste instrumento, em perfeitas condições de uso, conforme laudo de vistoria."]
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+									"data-uid": "src/components/DocumentViewer.tsx:56:15",
+									"data-prohibitions": "[]",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", {
+										"data-uid": "src/components/DocumentViewer.tsx:57:17",
+										"data-prohibitions": "[]",
+										children: "CLÁUSULA SEGUNDA - DO PRAZO:"
+									}), " O prazo da locação é de 30 (trinta) meses, iniciando-se na data da assinatura digital e encerrando-se na mesma data de vencimento no ano correspondente."]
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+									"data-uid": "src/components/DocumentViewer.tsx:61:15",
+									"data-prohibitions": "[]",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", {
+										"data-uid": "src/components/DocumentViewer.tsx:62:17",
+										"data-prohibitions": "[]",
+										children: "CLÁUSULA TERCEIRA - DO VALOR DO ALUGUEL:"
+									}), " O valor mensal da locação fica estabelecido no quadro resumo, reajustado anualmente pelo índice IGPM/FGV ou IPCA, de acordo com o que for mais favorável."]
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									"data-uid": "src/components/DocumentViewer.tsx:66:15",
+									"data-prohibitions": "[]",
+									children: "Este documento é uma representação de leitura renderizada diretamente da biblioteca do SharePoint. Para edições, utilize o botão \"Editar no Word Online\" no painel de ações."
+								})
+							]
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							"data-uid": "src/components/DocumentViewer.tsx:72:13",
+							"data-prohibitions": "[]",
+							className: "mt-16 pt-8 border-t flex justify-between px-8 opacity-50",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								"data-uid": "src/components/DocumentViewer.tsx:73:15",
+								"data-prohibitions": "[]",
+								className: "text-center",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									"data-uid": "src/components/DocumentViewer.tsx:74:17",
+									"data-prohibitions": "[]",
+									className: "w-48 border-b border-foreground/50 mb-2"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									"data-uid": "src/components/DocumentViewer.tsx:75:17",
+									"data-prohibitions": "[]",
+									className: "text-xs",
+									children: "Assinatura Locador"
+								})]
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								"data-uid": "src/components/DocumentViewer.tsx:77:15",
+								"data-prohibitions": "[]",
+								className: "text-center",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									"data-uid": "src/components/DocumentViewer.tsx:78:17",
+									"data-prohibitions": "[]",
+									className: "w-48 border-b border-foreground/50 mb-2"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									"data-uid": "src/components/DocumentViewer.tsx:79:17",
+									"data-prohibitions": "[]",
+									className: "text-xs",
+									children: "Assinatura Locatário"
+								})]
+							})]
+						})
+					]
+				})
+			})]
+		})
+	});
+}
+//#endregion
 //#region src/lib/data.ts
 var mockDocuments = [
 	{
@@ -55273,6 +55664,19 @@ var m365Service = {
 			title: `Lista SharePoint: ${listName}`,
 			description: "Sincronizado com sucesso."
 		});
+	},
+	sendTeamsMessage: (webhookUrl, message) => {
+		if (!webhookUrl) return;
+		toast$1({
+			title: "Notificação Microsoft Teams",
+			description: message
+		});
+	},
+	moveDocument: (fileName, targetLibrary) => {
+		toast$1({
+			title: "Sincronização Condicional Ativa",
+			description: `Arquivo ${fileName} movido automaticamente para a biblioteca "${targetLibrary}".`
+		});
 	}
 };
 //#endregion
@@ -55283,6 +55687,7 @@ var Documents = () => {
 	const store = useMainStore();
 	const [ocrLoading, setOcrLoading] = (0, import_react.useState)(false);
 	const [ocrData, setOcrData] = (0, import_react.useState)(null);
+	const [viewDoc, setViewDoc] = (0, import_react.useState)(null);
 	const handleFileUpload = () => {
 		setOcrLoading(true);
 		setTimeout(() => {
@@ -55306,137 +55711,118 @@ var Documents = () => {
 		});
 		m365Service.saveToLibrary(library, `${data.name || "Doc"}_Digitalizado.pdf`);
 		m365Service.syncToList(store.sharepoint.lists.processControl, JSON.stringify(data));
-		m365Service.sendEmail(store.settings.managementEmails, `Nova Análise Pendente (Gerência) - ID: ${propertyId}`, "Um novo documento foi processado (OCR) e salvo no SharePoint. Aguarda aprovação.");
 	};
-	const handleSendSignature = (docName) => {
-		toast({
-			title: "Enviado para Assinatura",
-			description: `O documento ${docName} foi enviado para os envolvidos. Acompanhe o status.`
-		});
-		m365Service.syncToList(store.sharepoint.lists.auditLog, `Documento ${docName} enviado para assinatura.`);
-	};
-	const siteName = store.sharepoint.siteUrl.split("/").pop() || "Gestão de Locação";
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-		"data-uid": "src/pages/Documents.tsx:77:5",
+		"data-uid": "src/pages/Documents.tsx:60:5",
 		"data-prohibitions": "[editContent]",
 		className: "space-y-6 h-full flex flex-col",
 		children: [
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				"data-uid": "src/pages/Documents.tsx:78:7",
+				"data-uid": "src/pages/Documents.tsx:61:7",
 				"data-prohibitions": "[]",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", {
-					"data-uid": "src/pages/Documents.tsx:79:9",
+					"data-uid": "src/pages/Documents.tsx:62:9",
 					"data-prohibitions": "[]",
 					className: "text-3xl font-bold tracking-tight",
 					children: "Central de Documentos (GED)"
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-					"data-uid": "src/pages/Documents.tsx:80:9",
+					"data-uid": "src/pages/Documents.tsx:63:9",
 					"data-prohibitions": "[]",
 					className: "text-muted-foreground",
-					children: "Gerencie o acervo digital, OCR avançado e integrações com SharePoint Online."
+					children: "Gerencie o acervo digital, OCR avançado e integrações M365."
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Tabs, {
-				"data-uid": "src/pages/Documents.tsx:85:7",
+				"data-uid": "src/pages/Documents.tsx:68:7",
 				"data-prohibitions": "[editContent]",
 				defaultValue: "library",
 				className: "flex-1 flex flex-col",
 				children: [
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(TabsList, {
-						"data-uid": "src/pages/Documents.tsx:86:9",
+						"data-uid": "src/pages/Documents.tsx:69:9",
 						"data-prohibitions": "[editContent]",
-						className: "w-full justify-start border-b rounded-none h-auto p-0 bg-transparent",
+						className: "w-full justify-start border-b rounded-none h-auto p-0 bg-transparent mb-4",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(TabsTrigger, {
-							"data-uid": "src/pages/Documents.tsx:87:11",
+							"data-uid": "src/pages/Documents.tsx:70:11",
 							"data-prohibitions": "[editContent]",
 							value: "library",
 							className: "rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary py-3",
 							children: [
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FolderSync, {
-									"data-uid": "src/pages/Documents.tsx:91:13",
+									"data-uid": "src/pages/Documents.tsx:74:13",
 									"data-prohibitions": "[editContent]",
 									className: "w-4 h-4 mr-2"
 								}),
-								" Site: ",
-								siteName
+								" Site:",
+								" ",
+								store.sharepoint.siteUrl.split("/").pop()
 							]
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(TabsTrigger, {
-							"data-uid": "src/pages/Documents.tsx:93:11",
+							"data-uid": "src/pages/Documents.tsx:77:11",
 							"data-prohibitions": "[]",
 							value: "scan",
 							className: "rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary py-3",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CloudUpload, {
-								"data-uid": "src/pages/Documents.tsx:97:13",
+								"data-uid": "src/pages/Documents.tsx:81:13",
 								"data-prohibitions": "[editContent]",
 								className: "w-4 h-4 mr-2"
 							}), " Digitalização & OCR"]
 						})]
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(TabsContent, {
-						"data-uid": "src/pages/Documents.tsx:101:9",
+						"data-uid": "src/pages/Documents.tsx:85:9",
 						"data-prohibitions": "[editContent]",
 						value: "library",
-						className: "flex-1 py-4 space-y-4",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							"data-uid": "src/pages/Documents.tsx:102:11",
-							"data-prohibitions": "[editContent]",
+						className: "flex-1 space-y-4",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							"data-uid": "src/pages/Documents.tsx:86:11",
+							"data-prohibitions": "[]",
 							className: "flex items-center justify-between",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								"data-uid": "src/pages/Documents.tsx:103:13",
+							children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								"data-uid": "src/pages/Documents.tsx:87:13",
 								"data-prohibitions": "[]",
 								className: "relative w-72",
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Search, {
-									"data-uid": "src/pages/Documents.tsx:104:15",
+									"data-uid": "src/pages/Documents.tsx:88:15",
 									"data-prohibitions": "[editContent]",
 									className: "absolute left-2 top-2.5 h-4 w-4 text-muted-foreground"
 								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-									"data-uid": "src/pages/Documents.tsx:105:15",
+									"data-uid": "src/pages/Documents.tsx:89:15",
 									"data-prohibitions": "[editContent]",
 									placeholder: "Buscar no SharePoint...",
 									className: "pl-8"
 								})]
-							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Badge, {
-								"data-uid": "src/pages/Documents.tsx:107:13",
-								"data-prohibitions": "[editContent]",
-								variant: "outline",
-								className: "bg-primary/5 text-primary",
-								children: ["Team Site: ", siteName]
-							})]
+							})
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Card, {
-							"data-uid": "src/pages/Documents.tsx:111:11",
+							"data-uid": "src/pages/Documents.tsx:92:11",
 							"data-prohibitions": "[editContent]",
 							children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Table, {
-								"data-uid": "src/pages/Documents.tsx:112:13",
+								"data-uid": "src/pages/Documents.tsx:93:13",
 								"data-prohibitions": "[editContent]",
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableHeader, {
-									"data-uid": "src/pages/Documents.tsx:113:15",
+									"data-uid": "src/pages/Documents.tsx:94:15",
 									"data-prohibitions": "[]",
 									children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(TableRow, {
-										"data-uid": "src/pages/Documents.tsx:114:17",
+										"data-uid": "src/pages/Documents.tsx:95:17",
 										"data-prohibitions": "[]",
 										children: [
 											/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableHead, {
-												"data-uid": "src/pages/Documents.tsx:115:19",
+												"data-uid": "src/pages/Documents.tsx:96:19",
 												"data-prohibitions": "[]",
 												children: "Documento"
 											}),
 											/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableHead, {
-												"data-uid": "src/pages/Documents.tsx:116:19",
+												"data-uid": "src/pages/Documents.tsx:97:19",
 												"data-prohibitions": "[]",
 												children: "Tipo"
 											}),
 											/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableHead, {
-												"data-uid": "src/pages/Documents.tsx:117:19",
+												"data-uid": "src/pages/Documents.tsx:98:19",
 												"data-prohibitions": "[]",
-												children: "Status SharePoint"
+												children: "Status"
 											}),
 											/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableHead, {
-												"data-uid": "src/pages/Documents.tsx:118:19",
-												"data-prohibitions": "[]",
-												children: "Assinatura"
-											}),
-											/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableHead, {
-												"data-uid": "src/pages/Documents.tsx:119:19",
+												"data-uid": "src/pages/Documents.tsx:99:19",
 												"data-prohibitions": "[]",
 												className: "text-right",
 												children: "Ações"
@@ -55444,20 +55830,19 @@ var Documents = () => {
 										]
 									})
 								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableBody, {
-									"data-uid": "src/pages/Documents.tsx:122:15",
+									"data-uid": "src/pages/Documents.tsx:102:15",
 									"data-prohibitions": "[editContent]",
 									children: mockDocuments.map((doc) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(TableRow, {
-										"data-uid": "src/pages/Documents.tsx:124:19",
+										"data-uid": "src/pages/Documents.tsx:104:19",
 										"data-prohibitions": "[editContent]",
-										className: "hover:bg-muted/50",
 										children: [
 											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(TableCell, {
-												"data-uid": "src/pages/Documents.tsx:125:21",
+												"data-uid": "src/pages/Documents.tsx:105:21",
 												"data-prohibitions": "[editContent]",
 												className: "font-medium flex items-center gap-2",
 												children: [
 													/* @__PURE__ */ (0, import_jsx_runtime.jsx)(File, {
-														"data-uid": "src/pages/Documents.tsx:126:23",
+														"data-uid": "src/pages/Documents.tsx:106:23",
 														"data-prohibitions": "[editContent]",
 														className: "h-4 w-4 text-primary"
 													}),
@@ -55466,52 +55851,35 @@ var Documents = () => {
 												]
 											}),
 											/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableCell, {
-												"data-uid": "src/pages/Documents.tsx:128:21",
+												"data-uid": "src/pages/Documents.tsx:108:21",
 												"data-prohibitions": "[editContent]",
 												children: doc.type
 											}),
 											/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableCell, {
-												"data-uid": "src/pages/Documents.tsx:129:21",
+												"data-uid": "src/pages/Documents.tsx:109:21",
 												"data-prohibitions": "[editContent]",
 												children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badge, {
-													"data-uid": "src/pages/Documents.tsx:130:23",
+													"data-uid": "src/pages/Documents.tsx:110:23",
 													"data-prohibitions": "[editContent]",
 													variant: "outline",
-													className: doc.status === "Aprovado" ? "border-emerald-500 text-emerald-600" : "",
 													children: doc.status
 												})
 											}),
-											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(TableCell, {
-												"data-uid": "src/pages/Documents.tsx:139:21",
-												"data-prohibitions": "[editContent]",
-												children: [doc.signatureStatus !== "N/A" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badge, {
-													"data-uid": "src/pages/Documents.tsx:141:25",
-													"data-prohibitions": "[editContent]",
-													variant: doc.signatureStatus === "Assinado" ? "default" : "secondary",
-													className: doc.signatureStatus === "Assinado" ? "bg-emerald-500" : "",
-													children: doc.signatureStatus
-												}), doc.signatureStatus === "N/A" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-													"data-uid": "src/pages/Documents.tsx:149:25",
-													"data-prohibitions": "[]",
-													className: "text-xs text-muted-foreground",
-													children: "Não aplicável"
-												})]
-											}),
 											/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableCell, {
-												"data-uid": "src/pages/Documents.tsx:152:21",
-												"data-prohibitions": "[editContent]",
+												"data-uid": "src/pages/Documents.tsx:112:21",
+												"data-prohibitions": "[]",
 												className: "text-right",
-												children: doc.signatureStatus === "Pendente" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
-													"data-uid": "src/pages/Documents.tsx:154:25",
+												children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+													"data-uid": "src/pages/Documents.tsx:113:23",
 													"data-prohibitions": "[]",
 													size: "sm",
-													variant: "outline",
-													onClick: () => handleSendSignature(doc.name),
-													children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PenTool, {
-														"data-uid": "src/pages/Documents.tsx:159:27",
+													variant: "ghost",
+													onClick: () => setViewDoc(doc.name),
+													children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Eye, {
+														"data-uid": "src/pages/Documents.tsx:114:25",
 														"data-prohibitions": "[editContent]",
 														className: "h-4 w-4 mr-2"
-													}), " Enviar p/ Assinar"]
+													}), " Visualizar"]
 												})
 											})
 										]
@@ -55521,51 +55889,51 @@ var Documents = () => {
 						})]
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TabsContent, {
-						"data-uid": "src/pages/Documents.tsx:170:9",
+						"data-uid": "src/pages/Documents.tsx:124:9",
 						"data-prohibitions": "[editContent]",
 						value: "scan",
-						className: "flex-1 py-4",
+						className: "flex-1",
 						children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							"data-uid": "src/pages/Documents.tsx:171:11",
+							"data-uid": "src/pages/Documents.tsx:125:11",
 							"data-prohibitions": "[editContent]",
 							className: "grid md:grid-cols-2 gap-6 h-full min-h-[400px]",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ScannerPanel, {
-								"data-uid": "src/pages/Documents.tsx:172:13",
+								"data-uid": "src/pages/Documents.tsx:126:13",
 								"data-prohibitions": "[editContent]",
 								onScan: handleFileUpload
 							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Card, {
-								"data-uid": "src/pages/Documents.tsx:173:13",
+								"data-uid": "src/pages/Documents.tsx:127:13",
 								"data-prohibitions": "[editContent]",
-								className: "border-dashed border-2 flex flex-col items-center justify-center p-10 bg-muted/20 hover:bg-muted/40 transition-colors cursor-pointer",
+								className: "border-dashed border-2 flex flex-col items-center justify-center p-10 cursor-pointer",
 								onClick: handleFileUpload,
 								children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardHeader, {
-									"data-uid": "src/pages/Documents.tsx:177:15",
+									"data-uid": "src/pages/Documents.tsx:131:15",
 									"data-prohibitions": "[editContent]",
 									className: "text-center",
 									children: [
 										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-											"data-uid": "src/pages/Documents.tsx:178:17",
+											"data-uid": "src/pages/Documents.tsx:132:17",
 											"data-prohibitions": "[editContent]",
 											className: "mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4",
 											children: ocrLoading ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LoaderCircle, {
-												"data-uid": "src/pages/Documents.tsx:180:21",
+												"data-uid": "src/pages/Documents.tsx:134:21",
 												"data-prohibitions": "[editContent]",
-												className: "h-8 w-8 text-primary animate-spin"
+												className: "h-8 w-8 animate-spin"
 											}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CloudUpload, {
-												"data-uid": "src/pages/Documents.tsx:182:21",
+												"data-uid": "src/pages/Documents.tsx:136:21",
 												"data-prohibitions": "[editContent]",
 												className: "h-8 w-8 text-primary"
 											})
 										}),
 										/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardTitle, {
-											"data-uid": "src/pages/Documents.tsx:185:17",
+											"data-uid": "src/pages/Documents.tsx:139:17",
 											"data-prohibitions": "[editContent]",
-											children: ocrLoading ? "Processando OCR..." : "Upload Manual"
+											children: ocrLoading ? "Processando..." : "Upload Manual"
 										}),
 										/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardDescription, {
-											"data-uid": "src/pages/Documents.tsx:186:17",
-											"data-prohibitions": "[editContent]",
-											children: ocrLoading ? "Extraindo metadados e analisando contrato. Aguarde..." : "Arraste e solte arquivos aqui para iniciar o OCR e sincronizar ao SharePoint."
+											"data-uid": "src/pages/Documents.tsx:140:17",
+											"data-prohibitions": "[]",
+											children: "Arraste arquivos para OCR e sync SharePoint."
 										})
 									]
 								})
@@ -55575,12 +55943,19 @@ var Documents = () => {
 				]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(OCRReviewDialog, {
-				"data-uid": "src/pages/Documents.tsx:197:7",
+				"data-uid": "src/pages/Documents.tsx:147:7",
 				"data-prohibitions": "[editContent]",
 				open: !!ocrData,
 				onClose: () => setOcrData(null),
 				onConfirm: handleOcrConfirm,
 				initialData: ocrData
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DocumentViewer, {
+				"data-uid": "src/pages/Documents.tsx:153:7",
+				"data-prohibitions": "[editContent]",
+				open: !!viewDoc,
+				onClose: () => setViewDoc(null),
+				docName: viewDoc
 			})
 		]
 	});
@@ -57594,6 +57969,518 @@ var ManagerApproval = () => {
 	});
 };
 //#endregion
+//#region src/components/ContractWizard.tsx
+var TEMPLATES = [
+	"Apartamento Padrão (Caução)",
+	"Apartamento (Seguro Fiança)",
+	"Comercial (Fiador)",
+	"Residencial (Fiador)"
+];
+function ContractWizard({ open, onClose }) {
+	const store = useMainStore();
+	const [template, setTemplate] = (0, import_react.useState)("");
+	const [propertyId, setPropertyId] = (0, import_react.useState)("");
+	const [tenantName, setTenantName] = (0, import_react.useState)("");
+	const handleCreate = () => {
+		if (!template || !propertyId || !tenantName) return;
+		const docName = `Rascunho_${tenantName.replace(/\s+/g, "_")}_${propertyId}.docx`;
+		contractsStore.addContract({
+			propertyId,
+			tenantName,
+			template,
+			status: "Rascunho",
+			documentName: docName
+		});
+		m365Service.sendTeamsMessage(store.sharepoint.teamsWebhookUrl, `Novo Rascunho Criado: ${template} para o imóvel ID ${propertyId}. Inquilino: ${tenantName}.`);
+		mainStore.addAuditLog({
+			propertyId,
+			action: "Minuta Gerada via Wizard (SharePoint Templates)",
+			user: "Equipe de Contratos"
+		});
+		setTemplate("");
+		setPropertyId("");
+		setTenantName("");
+		onClose();
+	};
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Dialog, {
+		"data-uid": "src/components/ContractWizard.tsx:67:5",
+		"data-prohibitions": "[editContent]",
+		open,
+		onOpenChange: (val) => !val && onClose(),
+		children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DialogContent, {
+			"data-uid": "src/components/ContractWizard.tsx:68:7",
+			"data-prohibitions": "[editContent]",
+			className: "sm:max-w-[500px]",
+			children: [
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DialogHeader, {
+					"data-uid": "src/components/ContractWizard.tsx:69:9",
+					"data-prohibitions": "[]",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DialogTitle, {
+						"data-uid": "src/components/ContractWizard.tsx:70:11",
+						"data-prohibitions": "[]",
+						className: "flex items-center gap-2",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FilePlus, {
+							"data-uid": "src/components/ContractWizard.tsx:71:13",
+							"data-prohibitions": "[editContent]",
+							className: "w-5 h-5 text-primary"
+						}), " Novo Contrato (Wizard)"]
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(DialogDescription, {
+						"data-uid": "src/components/ContractWizard.tsx:73:11",
+						"data-prohibitions": "[]",
+						children: "Selecione o modelo hospedado no SharePoint para gerar um rascunho dinâmico (DOCX)."
+					})]
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					"data-uid": "src/components/ContractWizard.tsx:77:9",
+					"data-prohibitions": "[editContent]",
+					className: "grid gap-5 py-4",
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							"data-uid": "src/components/ContractWizard.tsx:78:11",
+							"data-prohibitions": "[editContent]",
+							className: "grid gap-2",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Label$1, {
+								"data-uid": "src/components/ContractWizard.tsx:79:13",
+								"data-prohibitions": "[]",
+								className: "flex items-center gap-2",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Target, {
+									"data-uid": "src/components/ContractWizard.tsx:80:15",
+									"data-prohibitions": "[editContent]",
+									className: "w-4 h-4 text-muted-foreground"
+								}), " Imóvel Referência"]
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Select, {
+								"data-uid": "src/components/ContractWizard.tsx:82:13",
+								"data-prohibitions": "[editContent]",
+								value: propertyId,
+								onValueChange: setPropertyId,
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectTrigger, {
+									"data-uid": "src/components/ContractWizard.tsx:83:15",
+									"data-prohibitions": "[]",
+									children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectValue, {
+										"data-uid": "src/components/ContractWizard.tsx:84:17",
+										"data-prohibitions": "[editContent]",
+										placeholder: "Selecione o imóvel..."
+									})
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectContent, {
+									"data-uid": "src/components/ContractWizard.tsx:86:15",
+									"data-prohibitions": "[editContent]",
+									children: store.properties.map((p) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(SelectItem, {
+										"data-uid": "src/components/ContractWizard.tsx:88:19",
+										"data-prohibitions": "[editContent]",
+										value: p.id,
+										children: [
+											"ID: ",
+											p.id,
+											" - ",
+											p.title
+										]
+									}, p.id))
+								})]
+							})]
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							"data-uid": "src/components/ContractWizard.tsx:95:11",
+							"data-prohibitions": "[editContent]",
+							className: "grid gap-2",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Label$1, {
+								"data-uid": "src/components/ContractWizard.tsx:96:13",
+								"data-prohibitions": "[]",
+								className: "flex items-center gap-2",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FilePlus, {
+									"data-uid": "src/components/ContractWizard.tsx:97:15",
+									"data-prohibitions": "[editContent]",
+									className: "w-4 h-4 text-muted-foreground"
+								}), " Modelo de Documento (Template)"]
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Select, {
+								"data-uid": "src/components/ContractWizard.tsx:99:13",
+								"data-prohibitions": "[editContent]",
+								value: template,
+								onValueChange: setTemplate,
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectTrigger, {
+									"data-uid": "src/components/ContractWizard.tsx:100:15",
+									"data-prohibitions": "[]",
+									children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectValue, {
+										"data-uid": "src/components/ContractWizard.tsx:101:17",
+										"data-prohibitions": "[editContent]",
+										placeholder: "Selecione um template da biblioteca..."
+									})
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectContent, {
+									"data-uid": "src/components/ContractWizard.tsx:103:15",
+									"data-prohibitions": "[editContent]",
+									children: TEMPLATES.map((t) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectItem, {
+										"data-uid": "src/components/ContractWizard.tsx:105:19",
+										"data-prohibitions": "[editContent]",
+										value: t,
+										children: t
+									}, t))
+								})]
+							})]
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							"data-uid": "src/components/ContractWizard.tsx:112:11",
+							"data-prohibitions": "[]",
+							className: "grid gap-2",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Label$1, {
+								"data-uid": "src/components/ContractWizard.tsx:113:13",
+								"data-prohibitions": "[]",
+								className: "flex items-center gap-2",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Users, {
+									"data-uid": "src/components/ContractWizard.tsx:114:15",
+									"data-prohibitions": "[editContent]",
+									className: "w-4 h-4 text-muted-foreground"
+								}), " Nome do Locatário Principal"]
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+								"data-uid": "src/components/ContractWizard.tsx:116:13",
+								"data-prohibitions": "[editContent]",
+								placeholder: "Ex: Carlos Eduardo da Silva",
+								value: tenantName,
+								onChange: (e) => setTenantName(e.target.value)
+							})]
+						})
+					]
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DialogFooter, {
+					"data-uid": "src/components/ContractWizard.tsx:123:9",
+					"data-prohibitions": "[]",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+						"data-uid": "src/components/ContractWizard.tsx:124:11",
+						"data-prohibitions": "[]",
+						variant: "outline",
+						onClick: onClose,
+						children: "Cancelar"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+						"data-uid": "src/components/ContractWizard.tsx:127:11",
+						"data-prohibitions": "[]",
+						onClick: handleCreate,
+						disabled: !template || !propertyId || !tenantName,
+						children: "Gerar Rascunho"
+					})]
+				})
+			]
+		})
+	});
+}
+//#endregion
+//#region src/pages/Contracts.tsx
+var statusColors = {
+	Rascunho: "bg-gray-100 text-gray-800 border-gray-200",
+	"Em Análise": "bg-amber-100 text-amber-800 border-amber-200",
+	"Aprovado para Ajuste": "bg-blue-100 text-blue-800 border-blue-200",
+	Finalizado: "bg-indigo-100 text-indigo-800 border-indigo-200",
+	"Aguardando Assinatura": "bg-purple-100 text-purple-800 border-purple-200",
+	Ativo: "bg-emerald-100 text-emerald-800 border-emerald-200",
+	"Aguardando Renovação": "bg-orange-100 text-orange-800 border-orange-200"
+};
+var getNextActions = (status) => {
+	switch (status) {
+		case "Rascunho": return ["Em Análise"];
+		case "Em Análise": return ["Aprovado para Ajuste"];
+		case "Aprovado para Ajuste": return ["Finalizado"];
+		case "Finalizado": return ["Aguardando Assinatura"];
+		case "Aguardando Assinatura": return ["Ativo"];
+		case "Ativo": return ["Aguardando Renovação"];
+		default: return [];
+	}
+};
+function Contracts() {
+	const { contracts } = useContractsStore();
+	const mainSettings = useMainStore().sharepoint;
+	const [wizardOpen, setWizardOpen] = (0, import_react.useState)(false);
+	const [viewDoc, setViewDoc] = (0, import_react.useState)(null);
+	const handleStatusChange = (contract, newStatus) => {
+		contractsStore.updateStatus(contract.id, newStatus);
+		mainStore.addAuditLog({
+			propertyId: contract.propertyId,
+			action: `Workflow do Contrato avançou para: ${newStatus}`,
+			user: "Gestor de Contratos"
+		});
+		m365Service.sendTeamsMessage(mainSettings.teamsWebhookUrl, `Atualização de Contrato (${contract.id}): Mudou para "${newStatus}". Inquilino: ${contract.tenantName}`);
+		if (newStatus === "Ativo") m365Service.moveDocument(contract.documentName, mainSettings.libraries.archive);
+	};
+	const handleCollaborativeEdit = (contract) => {
+		mainStore.addAuditLog({
+			propertyId: contract.propertyId,
+			action: "Aberto para Edição no Word Online",
+			user: "Equipe Administrativa"
+		});
+		setViewDoc(contract.documentName);
+	};
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		"data-uid": "src/pages/Contracts.tsx:104:5",
+		"data-prohibitions": "[editContent]",
+		className: "space-y-6",
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				"data-uid": "src/pages/Contracts.tsx:105:7",
+				"data-prohibitions": "[]",
+				className: "flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					"data-uid": "src/pages/Contracts.tsx:106:9",
+					"data-prohibitions": "[]",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", {
+						"data-uid": "src/pages/Contracts.tsx:107:11",
+						"data-prohibitions": "[]",
+						className: "text-3xl font-bold tracking-tight",
+						children: "Gestão de Contratos (Ciclo de Vida)"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						"data-uid": "src/pages/Contracts.tsx:108:11",
+						"data-prohibitions": "[]",
+						className: "text-muted-foreground",
+						children: "Acompanhe o workflow, gere minutas via templates e utilize a sincronização condicional M365."
+					})]
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+					"data-uid": "src/pages/Contracts.tsx:113:9",
+					"data-prohibitions": "[]",
+					onClick: () => setWizardOpen(true),
+					className: "shrink-0 gap-2",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Plus, {
+						"data-uid": "src/pages/Contracts.tsx:114:11",
+						"data-prohibitions": "[editContent]",
+						className: "w-4 h-4"
+					}), " Novo Contrato"]
+				})]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
+				"data-uid": "src/pages/Contracts.tsx:118:7",
+				"data-prohibitions": "[editContent]",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardHeader, {
+					"data-uid": "src/pages/Contracts.tsx:119:9",
+					"data-prohibitions": "[]",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardTitle, {
+						"data-uid": "src/pages/Contracts.tsx:120:11",
+						"data-prohibitions": "[]",
+						className: "flex items-center gap-2",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FileText, {
+							"data-uid": "src/pages/Contracts.tsx:121:13",
+							"data-prohibitions": "[editContent]",
+							className: "w-5 h-5 text-primary"
+						}), " Acervo de Contratos em Andamento"]
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardDescription, {
+						"data-uid": "src/pages/Contracts.tsx:123:11",
+						"data-prohibitions": "[]",
+						children: "Painel integrado à lista de Controle de Processos do SharePoint."
+					})]
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardContent, {
+					"data-uid": "src/pages/Contracts.tsx:127:9",
+					"data-prohibitions": "[editContent]",
+					className: "p-0",
+					children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Table, {
+						"data-uid": "src/pages/Contracts.tsx:128:11",
+						"data-prohibitions": "[editContent]",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableHeader, {
+							"data-uid": "src/pages/Contracts.tsx:129:13",
+							"data-prohibitions": "[]",
+							children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(TableRow, {
+								"data-uid": "src/pages/Contracts.tsx:130:15",
+								"data-prohibitions": "[]",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableHead, {
+										"data-uid": "src/pages/Contracts.tsx:131:17",
+										"data-prohibitions": "[]",
+										children: "ID"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableHead, {
+										"data-uid": "src/pages/Contracts.tsx:132:17",
+										"data-prohibitions": "[]",
+										children: "Documento / Template"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableHead, {
+										"data-uid": "src/pages/Contracts.tsx:133:17",
+										"data-prohibitions": "[]",
+										children: "Inquilino"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableHead, {
+										"data-uid": "src/pages/Contracts.tsx:134:17",
+										"data-prohibitions": "[]",
+										children: "Status M365"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableHead, {
+										"data-uid": "src/pages/Contracts.tsx:135:17",
+										"data-prohibitions": "[]",
+										className: "text-right",
+										children: "Ações"
+									})
+								]
+							})
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableBody, {
+							"data-uid": "src/pages/Contracts.tsx:138:13",
+							"data-prohibitions": "[editContent]",
+							children: contracts.map((contract) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(TableRow, {
+								"data-uid": "src/pages/Contracts.tsx:140:17",
+								"data-prohibitions": "[editContent]",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableCell, {
+										"data-uid": "src/pages/Contracts.tsx:141:19",
+										"data-prohibitions": "[editContent]",
+										className: "font-mono text-xs",
+										children: contract.id
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(TableCell, {
+										"data-uid": "src/pages/Contracts.tsx:142:19",
+										"data-prohibitions": "[editContent]",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											"data-uid": "src/pages/Contracts.tsx:143:21",
+											"data-prohibitions": "[editContent]",
+											className: "font-medium text-sm flex items-center gap-2",
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FileText, {
+													"data-uid": "src/pages/Contracts.tsx:144:23",
+													"data-prohibitions": "[editContent]",
+													className: "w-4 h-4 text-primary"
+												}),
+												" ",
+												contract.documentName
+											]
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											"data-uid": "src/pages/Contracts.tsx:146:21",
+											"data-prohibitions": "[editContent]",
+											className: "text-xs text-muted-foreground mt-1",
+											children: ["Modelo: ", contract.template]
+										})]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableCell, {
+										"data-uid": "src/pages/Contracts.tsx:150:19",
+										"data-prohibitions": "[editContent]",
+										children: contract.tenantName
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableCell, {
+										"data-uid": "src/pages/Contracts.tsx:151:19",
+										"data-prohibitions": "[editContent]",
+										children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badge, {
+											"data-uid": "src/pages/Contracts.tsx:152:21",
+											"data-prohibitions": "[editContent]",
+											variant: "outline",
+											className: `shadow-sm ${statusColors[contract.status]}`,
+											children: contract.status
+										})
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableCell, {
+										"data-uid": "src/pages/Contracts.tsx:159:19",
+										"data-prohibitions": "[editContent]",
+										className: "text-right",
+										children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DropdownMenu, {
+											"data-uid": "src/pages/Contracts.tsx:160:21",
+											"data-prohibitions": "[editContent]",
+											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DropdownMenuTrigger, {
+												"data-uid": "src/pages/Contracts.tsx:161:23",
+												"data-prohibitions": "[]",
+												asChild: true,
+												children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+													"data-uid": "src/pages/Contracts.tsx:162:25",
+													"data-prohibitions": "[]",
+													variant: "ghost",
+													size: "icon",
+													children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(EllipsisVertical, {
+														"data-uid": "src/pages/Contracts.tsx:163:27",
+														"data-prohibitions": "[editContent]",
+														className: "w-4 h-4"
+													})
+												})
+											}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DropdownMenuContent, {
+												"data-uid": "src/pages/Contracts.tsx:166:23",
+												"data-prohibitions": "[editContent]",
+												align: "end",
+												className: "w-56",
+												children: [
+													/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DropdownMenuLabel, {
+														"data-uid": "src/pages/Contracts.tsx:167:25",
+														"data-prohibitions": "[]",
+														children: "Ações do Documento"
+													}),
+													/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DropdownMenuItem, {
+														"data-uid": "src/pages/Contracts.tsx:168:25",
+														"data-prohibitions": "[]",
+														onClick: () => setViewDoc(contract.documentName),
+														children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Eye, {
+															"data-uid": "src/pages/Contracts.tsx:169:27",
+															"data-prohibitions": "[editContent]",
+															className: "w-4 h-4 mr-2"
+														}), " Pré-visualizar (Nativo)"]
+													}),
+													contract.status === "Aprovado para Ajuste" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DropdownMenuItem, {
+														"data-uid": "src/pages/Contracts.tsx:172:27",
+														"data-prohibitions": "[]",
+														onClick: () => handleCollaborativeEdit(contract),
+														children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FilePen, {
+															"data-uid": "src/pages/Contracts.tsx:173:29",
+															"data-prohibitions": "[editContent]",
+															className: "w-4 h-4 mr-2"
+														}), " Editar no Word Online"]
+													}),
+													/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DropdownMenuSeparator, {
+														"data-uid": "src/pages/Contracts.tsx:176:25",
+														"data-prohibitions": "[editContent]"
+													}),
+													/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DropdownMenuLabel, {
+														"data-uid": "src/pages/Contracts.tsx:177:25",
+														"data-prohibitions": "[]",
+														children: "Avançar Workflow"
+													}),
+													getNextActions(contract.status).map((action) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DropdownMenuItem, {
+														"data-uid": "src/pages/Contracts.tsx:179:27",
+														"data-prohibitions": "[editContent]",
+														onClick: () => handleStatusChange(contract, action),
+														children: [
+															action === "Ativo" ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Archive, {
+																"data-uid": "src/pages/Contracts.tsx:184:31",
+																"data-prohibitions": "[editContent]",
+																className: "w-4 h-4 mr-2 text-emerald-600"
+															}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ArrowRight, {
+																"data-uid": "src/pages/Contracts.tsx:186:31",
+																"data-prohibitions": "[editContent]",
+																className: "w-4 h-4 mr-2"
+															}),
+															"Avançar p/ ",
+															action
+														]
+													}, action)),
+													contract.status === "Ativo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DropdownMenuItem, {
+														"data-uid": "src/pages/Contracts.tsx:192:27",
+														"data-prohibitions": "[]",
+														onClick: () => handleStatusChange(contract, "Aguardando Renovação"),
+														children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(RefreshCw, {
+															"data-uid": "src/pages/Contracts.tsx:195:29",
+															"data-prohibitions": "[editContent]",
+															className: "w-4 h-4 mr-2 text-orange-600"
+														}), " Iniciar Renovação"]
+													}),
+													contract.status === "Aguardando Renovação" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DropdownMenuItem, {
+														"data-uid": "src/pages/Contracts.tsx:199:27",
+														"data-prohibitions": "[]",
+														disabled: true,
+														children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CircleCheckBig, {
+															"data-uid": "src/pages/Contracts.tsx:200:29",
+															"data-prohibitions": "[editContent]",
+															className: "w-4 h-4 mr-2 text-muted-foreground"
+														}), " Fluxo Concluído"]
+													})
+												]
+											})]
+										})
+									})
+								]
+							}, contract.id))
+						})]
+					})
+				})]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ContractWizard, {
+				"data-uid": "src/pages/Contracts.tsx:214:7",
+				"data-prohibitions": "[editContent]",
+				open: wizardOpen,
+				onClose: () => setWizardOpen(false)
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DocumentViewer, {
+				"data-uid": "src/pages/Contracts.tsx:215:7",
+				"data-prohibitions": "[editContent]",
+				open: !!viewDoc,
+				onClose: () => setViewDoc(null),
+				docName: viewDoc
+			})
+		]
+	});
+}
+//#endregion
 //#region src/components/settings/GeneralSettings.tsx
 function GeneralSettings() {
 	const { toast } = useToast();
@@ -57823,7 +58710,7 @@ function SharePointSettings() {
 		mainStore.updateSharePointSettings(formData);
 		toast({
 			title: "Integração SharePoint Salva",
-			description: "Mapeamento de site, bibliotecas e listas atualizados com sucesso."
+			description: "Mapeamento de site, bibliotecas e Webhooks atualizados com sucesso."
 		});
 	};
 	const testConnection = () => {
@@ -57831,230 +58718,232 @@ function SharePointSettings() {
 		setTestResult("idle");
 		setTimeout(() => {
 			setIsTesting(false);
-			if (!formData.siteUrl || !formData.libraries.contracts) {
-				setTestResult("error");
-				toast({
-					variant: "destructive",
-					title: "Erro de Conexão",
-					description: "Não foi possível acessar a biblioteca no Site especificado."
-				});
-			} else {
-				setTestResult("success");
-				toast({
-					title: "Conexão Bem-Sucedida",
-					description: "Acesso confirmado ao Site, Bibliotecas e Listas via Microsoft Graph API."
-				});
-			}
+			setTestResult(formData.siteUrl && formData.libraries.contracts ? "success" : "error");
 		}, 1500);
 	};
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-		"data-uid": "src/components/settings/SharePointSettings.tsx:66:5",
+		"data-uid": "src/components/settings/SharePointSettings.tsx:56:5",
 		"data-prohibitions": "[editContent]",
 		className: "space-y-6",
 		children: [
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
-				"data-uid": "src/components/settings/SharePointSettings.tsx:67:7",
+				"data-uid": "src/components/settings/SharePointSettings.tsx:57:7",
 				"data-prohibitions": "[]",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardHeader, {
-					"data-uid": "src/components/settings/SharePointSettings.tsx:68:9",
+					"data-uid": "src/components/settings/SharePointSettings.tsx:58:9",
 					"data-prohibitions": "[]",
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardTitle, {
-						"data-uid": "src/components/settings/SharePointSettings.tsx:69:11",
+						"data-uid": "src/components/settings/SharePointSettings.tsx:59:11",
 						"data-prohibitions": "[]",
 						className: "flex items-center gap-2",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Server, {
-							"data-uid": "src/components/settings/SharePointSettings.tsx:70:13",
+							"data-uid": "src/components/settings/SharePointSettings.tsx:60:13",
 							"data-prohibitions": "[editContent]",
 							className: "w-5 h-5 text-primary"
-						}), " Conexão com Site"]
+						}), " Conexão M365"]
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardDescription, {
-						"data-uid": "src/components/settings/SharePointSettings.tsx:72:11",
+						"data-uid": "src/components/settings/SharePointSettings.tsx:62:11",
 						"data-prohibitions": "[]",
-						children: "Parâmetros principais do site SharePoint no Microsoft 365."
+						children: "Parâmetros principais do site SharePoint e integrações (Graph API)."
 					})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardContent, {
-					"data-uid": "src/components/settings/SharePointSettings.tsx:76:9",
+					"data-uid": "src/components/settings/SharePointSettings.tsx:66:9",
 					"data-prohibitions": "[]",
-					className: "space-y-4",
+					className: "grid md:grid-cols-2 gap-4",
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						"data-uid": "src/components/settings/SharePointSettings.tsx:77:11",
+						"data-uid": "src/components/settings/SharePointSettings.tsx:67:11",
 						"data-prohibitions": "[]",
-						className: "grid gap-2",
-						children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label$1, {
-								"data-uid": "src/components/settings/SharePointSettings.tsx:78:13",
-								"data-prohibitions": "[]",
-								children: "Tenant ID (Microsoft 365)"
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-								"data-uid": "src/components/settings/SharePointSettings.tsx:79:13",
-								"data-prohibitions": "[editContent]",
-								value: formData.tenantId,
-								readOnly: true,
-								className: "bg-muted text-muted-foreground"
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-								"data-uid": "src/components/settings/SharePointSettings.tsx:80:13",
-								"data-prohibitions": "[]",
-								className: "text-xs text-muted-foreground",
-								children: "O ID do Tenant é gerenciado pela autenticação M365 e é somente leitura."
-							})
-						]
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						"data-uid": "src/components/settings/SharePointSettings.tsx:84:11",
-						"data-prohibitions": "[]",
-						className: "grid gap-2",
+						className: "space-y-2",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label$1, {
-							"data-uid": "src/components/settings/SharePointSettings.tsx:85:13",
+							"data-uid": "src/components/settings/SharePointSettings.tsx:68:13",
 							"data-prohibitions": "[]",
-							children: "SharePoint Site URL ou Site ID"
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							"data-uid": "src/components/settings/SharePointSettings.tsx:86:13",
+							children: "Tenant ID"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+							"data-uid": "src/components/settings/SharePointSettings.tsx:69:13",
+							"data-prohibitions": "[editContent]",
+							value: formData.tenantId,
+							readOnly: true,
+							className: "bg-muted text-muted-foreground"
+						})]
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						"data-uid": "src/components/settings/SharePointSettings.tsx:71:11",
+						"data-prohibitions": "[]",
+						className: "space-y-2",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label$1, {
+							"data-uid": "src/components/settings/SharePointSettings.tsx:72:13",
 							"data-prohibitions": "[]",
-							className: "flex gap-2",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Link, {
-								"data-uid": "src/components/settings/SharePointSettings.tsx:87:15",
-								"data-prohibitions": "[editContent]",
-								className: "w-5 h-5 text-muted-foreground mt-2"
-							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-								"data-uid": "src/components/settings/SharePointSettings.tsx:88:15",
-								"data-prohibitions": "[editContent]",
-								value: formData.siteUrl,
-								onChange: (e) => handleChange("siteUrl", e.target.value),
-								placeholder: "https://suaempresa.sharepoint.com/sites/GestaoDeLocacao"
-							})]
+							children: "SharePoint Site URL"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+							"data-uid": "src/components/settings/SharePointSettings.tsx:73:13",
+							"data-prohibitions": "[editContent]",
+							value: formData.siteUrl,
+							onChange: (e) => handleChange("siteUrl", e.target.value)
 						})]
 					})]
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				"data-uid": "src/components/settings/SharePointSettings.tsx:98:7",
+				"data-uid": "src/components/settings/SharePointSettings.tsx:81:7",
 				"data-prohibitions": "[]",
 				className: "grid md:grid-cols-2 gap-6",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
-					"data-uid": "src/components/settings/SharePointSettings.tsx:99:9",
+					"data-uid": "src/components/settings/SharePointSettings.tsx:82:9",
 					"data-prohibitions": "[]",
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardHeader, {
-						"data-uid": "src/components/settings/SharePointSettings.tsx:100:11",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardHeader, {
+						"data-uid": "src/components/settings/SharePointSettings.tsx:83:11",
 						"data-prohibitions": "[]",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardTitle, {
-							"data-uid": "src/components/settings/SharePointSettings.tsx:101:13",
+						children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardTitle, {
+							"data-uid": "src/components/settings/SharePointSettings.tsx:84:13",
 							"data-prohibitions": "[]",
 							className: "flex items-center gap-2",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Database, {
-								"data-uid": "src/components/settings/SharePointSettings.tsx:102:15",
+								"data-uid": "src/components/settings/SharePointSettings.tsx:85:15",
 								"data-prohibitions": "[editContent]",
 								className: "w-5 h-5 text-primary"
-							}), " Bibliotecas"]
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardDescription, {
-							"data-uid": "src/components/settings/SharePointSettings.tsx:104:13",
-							"data-prohibitions": "[]",
-							children: "Onde os arquivos processados serão armazenados."
-						})]
+							}), " Bibliotecas Documentais"]
+						})
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardContent, {
-						"data-uid": "src/components/settings/SharePointSettings.tsx:106:11",
+						"data-uid": "src/components/settings/SharePointSettings.tsx:88:11",
 						"data-prohibitions": "[]",
 						className: "space-y-4",
 						children: [
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								"data-uid": "src/components/settings/SharePointSettings.tsx:107:13",
+								"data-uid": "src/components/settings/SharePointSettings.tsx:89:13",
 								"data-prohibitions": "[]",
-								className: "grid gap-2",
+								className: "space-y-2",
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label$1, {
-									"data-uid": "src/components/settings/SharePointSettings.tsx:108:15",
+									"data-uid": "src/components/settings/SharePointSettings.tsx:90:15",
 									"data-prohibitions": "[]",
-									children: "Biblioteca de Contratos"
+									children: "Templates DOCX Base"
 								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-									"data-uid": "src/components/settings/SharePointSettings.tsx:109:15",
+									"data-uid": "src/components/settings/SharePointSettings.tsx:91:15",
+									"data-prohibitions": "[editContent]",
+									value: formData.libraries.templates,
+									onChange: (e) => handleLibraryChange("templates", e.target.value)
+								})]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								"data-uid": "src/components/settings/SharePointSettings.tsx:96:13",
+								"data-prohibitions": "[]",
+								className: "space-y-2",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label$1, {
+									"data-uid": "src/components/settings/SharePointSettings.tsx:97:15",
+									"data-prohibitions": "[]",
+									children: "Contratos em Elaboração"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+									"data-uid": "src/components/settings/SharePointSettings.tsx:98:15",
 									"data-prohibitions": "[editContent]",
 									value: formData.libraries.contracts,
 									onChange: (e) => handleLibraryChange("contracts", e.target.value)
 								})]
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								"data-uid": "src/components/settings/SharePointSettings.tsx:114:13",
+								"data-uid": "src/components/settings/SharePointSettings.tsx:103:13",
 								"data-prohibitions": "[]",
-								className: "grid gap-2",
+								className: "space-y-2",
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label$1, {
-									"data-uid": "src/components/settings/SharePointSettings.tsx:115:15",
+									"data-uid": "src/components/settings/SharePointSettings.tsx:104:15",
 									"data-prohibitions": "[]",
-									children: "Documentos de Proprietários"
+									children: "Arquivo Permanente (Ativos)"
 								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-									"data-uid": "src/components/settings/SharePointSettings.tsx:116:15",
+									"data-uid": "src/components/settings/SharePointSettings.tsx:105:15",
 									"data-prohibitions": "[editContent]",
-									value: formData.libraries.ownerDocs,
-									onChange: (e) => handleLibraryChange("ownerDocs", e.target.value)
-								})]
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								"data-uid": "src/components/settings/SharePointSettings.tsx:121:13",
-								"data-prohibitions": "[]",
-								className: "grid gap-2",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label$1, {
-									"data-uid": "src/components/settings/SharePointSettings.tsx:122:15",
-									"data-prohibitions": "[]",
-									children: "Documentos de Inquilinos"
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-									"data-uid": "src/components/settings/SharePointSettings.tsx:123:15",
-									"data-prohibitions": "[editContent]",
-									value: formData.libraries.tenantDocs,
-									onChange: (e) => handleLibraryChange("tenantDocs", e.target.value)
+									value: formData.libraries.archive,
+									onChange: (e) => handleLibraryChange("archive", e.target.value)
 								})]
 							})
 						]
 					})]
-				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
-					"data-uid": "src/components/settings/SharePointSettings.tsx:131:9",
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					"data-uid": "src/components/settings/SharePointSettings.tsx:113:9",
 					"data-prohibitions": "[]",
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardHeader, {
-						"data-uid": "src/components/settings/SharePointSettings.tsx:132:11",
+					className: "space-y-6",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
+						"data-uid": "src/components/settings/SharePointSettings.tsx:114:11",
 						"data-prohibitions": "[]",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardTitle, {
-							"data-uid": "src/components/settings/SharePointSettings.tsx:133:13",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardHeader, {
+							"data-uid": "src/components/settings/SharePointSettings.tsx:115:13",
 							"data-prohibitions": "[]",
-							className: "flex items-center gap-2",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Database, {
-								"data-uid": "src/components/settings/SharePointSettings.tsx:134:15",
-								"data-prohibitions": "[editContent]",
-								className: "w-5 h-5 text-primary"
-							}), " Listas SharePoint"]
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardDescription, {
-							"data-uid": "src/components/settings/SharePointSettings.tsx:136:13",
+							children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardTitle, {
+								"data-uid": "src/components/settings/SharePointSettings.tsx:116:15",
+								"data-prohibitions": "[]",
+								className: "flex items-center gap-2",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Database, {
+									"data-uid": "src/components/settings/SharePointSettings.tsx:117:17",
+									"data-prohibitions": "[editContent]",
+									className: "w-5 h-5 text-primary"
+								}), " Listas SharePoint"]
+							})
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardContent, {
+							"data-uid": "src/components/settings/SharePointSettings.tsx:120:13",
 							"data-prohibitions": "[]",
-							children: "Onde os metadados e logs serão sincronizados."
+							className: "space-y-4",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								"data-uid": "src/components/settings/SharePointSettings.tsx:121:15",
+								"data-prohibitions": "[]",
+								className: "space-y-2",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label$1, {
+									"data-uid": "src/components/settings/SharePointSettings.tsx:122:17",
+									"data-prohibitions": "[]",
+									children: "Controle de Processos"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+									"data-uid": "src/components/settings/SharePointSettings.tsx:123:17",
+									"data-prohibitions": "[editContent]",
+									value: formData.lists.processControl,
+									onChange: (e) => handleListChange("processControl", e.target.value)
+								})]
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								"data-uid": "src/components/settings/SharePointSettings.tsx:128:15",
+								"data-prohibitions": "[]",
+								className: "space-y-2",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label$1, {
+									"data-uid": "src/components/settings/SharePointSettings.tsx:129:17",
+									"data-prohibitions": "[]",
+									children: "Audit Log (Trilha)"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+									"data-uid": "src/components/settings/SharePointSettings.tsx:130:17",
+									"data-prohibitions": "[editContent]",
+									value: formData.lists.auditLog,
+									onChange: (e) => handleListChange("auditLog", e.target.value)
+								})]
+							})]
 						})]
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardContent, {
-						"data-uid": "src/components/settings/SharePointSettings.tsx:138:11",
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
+						"data-uid": "src/components/settings/SharePointSettings.tsx:137:11",
 						"data-prohibitions": "[]",
-						className: "space-y-4",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							"data-uid": "src/components/settings/SharePointSettings.tsx:139:13",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardHeader, {
+							"data-uid": "src/components/settings/SharePointSettings.tsx:138:13",
 							"data-prohibitions": "[]",
-							className: "grid gap-2",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label$1, {
-								"data-uid": "src/components/settings/SharePointSettings.tsx:140:15",
+							className: "pb-3",
+							children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardTitle, {
+								"data-uid": "src/components/settings/SharePointSettings.tsx:139:15",
 								"data-prohibitions": "[]",
-								children: "Lista de Controle de Processos"
-							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-								"data-uid": "src/components/settings/SharePointSettings.tsx:141:15",
-								"data-prohibitions": "[editContent]",
-								value: formData.lists.processControl,
-								onChange: (e) => handleListChange("processControl", e.target.value)
-							})]
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							"data-uid": "src/components/settings/SharePointSettings.tsx:146:13",
+								className: "flex items-center gap-2 text-lg",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(MessageSquare, {
+									"data-uid": "src/components/settings/SharePointSettings.tsx:140:17",
+									"data-prohibitions": "[editContent]",
+									className: "w-5 h-5 text-indigo-500"
+								}), " Webhooks Teams"]
+							})
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardContent, {
+							"data-uid": "src/components/settings/SharePointSettings.tsx:143:13",
 							"data-prohibitions": "[]",
-							className: "grid gap-2",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label$1, {
-								"data-uid": "src/components/settings/SharePointSettings.tsx:147:15",
+							children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								"data-uid": "src/components/settings/SharePointSettings.tsx:144:15",
 								"data-prohibitions": "[]",
-								children: "Lista de Audit Log"
-							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-								"data-uid": "src/components/settings/SharePointSettings.tsx:148:15",
-								"data-prohibitions": "[editContent]",
-								value: formData.lists.auditLog,
-								onChange: (e) => handleListChange("auditLog", e.target.value)
-							})]
+								className: "space-y-2",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label$1, {
+									"data-uid": "src/components/settings/SharePointSettings.tsx:145:17",
+									"data-prohibitions": "[]",
+									children: "Canal de Alertas (URL)"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+									"data-uid": "src/components/settings/SharePointSettings.tsx:146:17",
+									"data-prohibitions": "[editContent]",
+									value: formData.teamsWebhookUrl || "",
+									onChange: (e) => handleChange("teamsWebhookUrl", e.target.value),
+									placeholder: "https://..."
+								})]
+							})
 						})]
 					})]
 				})]
@@ -58075,47 +58964,47 @@ function SharePointSettings() {
 							onClick: testConnection,
 							disabled: isTesting,
 							children: [
-								isTesting && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LoaderCircle, {
-									"data-uid": "src/components/settings/SharePointSettings.tsx:160:27",
+								isTesting ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LoaderCircle, {
+									"data-uid": "src/components/settings/SharePointSettings.tsx:161:15",
 									"data-prohibitions": "[editContent]",
 									className: "w-4 h-4 mr-2 animate-spin"
-								}),
-								!isTesting && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Link, {
-									"data-uid": "src/components/settings/SharePointSettings.tsx:161:28",
+								}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Link, {
+									"data-uid": "src/components/settings/SharePointSettings.tsx:163:15",
 									"data-prohibitions": "[editContent]",
 									className: "w-4 h-4 mr-2"
 								}),
-								"Testar Conexão"
+								" ",
+								"Testar Acessos"
 							]
 						}),
 						testResult === "success" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-							"data-uid": "src/components/settings/SharePointSettings.tsx:165:13",
+							"data-uid": "src/components/settings/SharePointSettings.tsx:168:13",
 							"data-prohibitions": "[]",
 							className: "flex items-center text-sm text-emerald-600 font-medium",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CircleCheck, {
-								"data-uid": "src/components/settings/SharePointSettings.tsx:166:15",
+								"data-uid": "src/components/settings/SharePointSettings.tsx:169:15",
 								"data-prohibitions": "[editContent]",
 								className: "w-4 h-4 mr-1"
-							}), " Conexão Verificada"]
+							}), " OK"]
 						}),
 						testResult === "error" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-							"data-uid": "src/components/settings/SharePointSettings.tsx:170:13",
+							"data-uid": "src/components/settings/SharePointSettings.tsx:173:13",
 							"data-prohibitions": "[]",
 							className: "flex items-center text-sm text-destructive font-medium",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CircleAlert, {
-								"data-uid": "src/components/settings/SharePointSettings.tsx:171:15",
+								"data-uid": "src/components/settings/SharePointSettings.tsx:174:15",
 								"data-prohibitions": "[editContent]",
 								className: "w-4 h-4 mr-1"
-							}), " Falha na Conexão"]
+							}), " Falha"]
 						})
 					]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
-					"data-uid": "src/components/settings/SharePointSettings.tsx:175:9",
+					"data-uid": "src/components/settings/SharePointSettings.tsx:178:9",
 					"data-prohibitions": "[]",
 					onClick: handleSave,
 					className: "gap-2",
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Save, {
-						"data-uid": "src/components/settings/SharePointSettings.tsx:176:11",
+						"data-uid": "src/components/settings/SharePointSettings.tsx:179:11",
 						"data-prohibitions": "[editContent]",
 						className: "w-4 h-4"
 					}), " Salvar Configurações"]
@@ -58359,7 +59248,7 @@ function Login() {
 var ProtectedRoute = ({ children }) => {
 	const { user } = useAuth();
 	if (!user) return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Navigate, {
-		"data-uid": "src/App.tsx:19:21",
+		"data-uid": "src/App.tsx:20:21",
 		"data-prohibitions": "[editContent]",
 		to: "/login",
 		replace: true
@@ -58367,130 +59256,139 @@ var ProtectedRoute = ({ children }) => {
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_jsx_runtime.Fragment, { children });
 };
 var AppRoutes = () => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Routes, {
-	"data-uid": "src/App.tsx:24:3",
+	"data-uid": "src/App.tsx:25:3",
 	"data-prohibitions": "[]",
 	children: [
 		/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Route, {
-			"data-uid": "src/App.tsx:25:5",
+			"data-uid": "src/App.tsx:26:5",
 			"data-prohibitions": "[editContent]",
 			path: "/login",
 			element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Login, {
-				"data-uid": "src/App.tsx:25:35",
+				"data-uid": "src/App.tsx:26:35",
 				"data-prohibitions": "[editContent]"
 			})
 		}),
 		/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Route, {
-			"data-uid": "src/App.tsx:26:5",
+			"data-uid": "src/App.tsx:27:5",
 			"data-prohibitions": "[]",
 			element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ProtectedRoute, {
-				"data-uid": "src/App.tsx:28:9",
+				"data-uid": "src/App.tsx:29:9",
 				"data-prohibitions": "[]",
 				children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Layout, {
-					"data-uid": "src/App.tsx:29:11",
+					"data-uid": "src/App.tsx:30:11",
 					"data-prohibitions": "[editContent]"
 				})
 			}),
 			children: [
 				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Route, {
-					"data-uid": "src/App.tsx:33:7",
+					"data-uid": "src/App.tsx:34:7",
 					"data-prohibitions": "[editContent]",
 					path: "/",
 					element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Index, {
-						"data-uid": "src/App.tsx:33:32",
-						"data-prohibitions": "[editContent]"
-					})
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Route, {
-					"data-uid": "src/App.tsx:34:7",
-					"data-prohibitions": "[editContent]",
-					path: "/manager-approval",
-					element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ManagerApproval, {
-						"data-uid": "src/App.tsx:34:48",
+						"data-uid": "src/App.tsx:34:32",
 						"data-prohibitions": "[editContent]"
 					})
 				}),
 				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Route, {
 					"data-uid": "src/App.tsx:35:7",
 					"data-prohibitions": "[editContent]",
-					path: "/documents",
-					element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Documents, {
-						"data-uid": "src/App.tsx:35:41",
+					path: "/manager-approval",
+					element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ManagerApproval, {
+						"data-uid": "src/App.tsx:35:48",
 						"data-prohibitions": "[editContent]"
 					})
 				}),
 				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Route, {
 					"data-uid": "src/App.tsx:36:7",
 					"data-prohibitions": "[editContent]",
-					path: "/properties",
-					element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Properties, {
-						"data-uid": "src/App.tsx:36:42",
+					path: "/contracts",
+					element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Contracts, {
+						"data-uid": "src/App.tsx:36:41",
 						"data-prohibitions": "[editContent]"
 					})
 				}),
 				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Route, {
 					"data-uid": "src/App.tsx:37:7",
 					"data-prohibitions": "[editContent]",
-					path: "/inspections",
-					element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Inspections, {
-						"data-uid": "src/App.tsx:37:43",
+					path: "/documents",
+					element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Documents, {
+						"data-uid": "src/App.tsx:37:41",
 						"data-prohibitions": "[editContent]"
 					})
 				}),
 				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Route, {
 					"data-uid": "src/App.tsx:38:7",
 					"data-prohibitions": "[editContent]",
-					path: "/legal",
-					element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LegalReview, {
-						"data-uid": "src/App.tsx:38:37",
+					path: "/properties",
+					element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Properties, {
+						"data-uid": "src/App.tsx:38:42",
 						"data-prohibitions": "[editContent]"
 					})
 				}),
 				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Route, {
 					"data-uid": "src/App.tsx:39:7",
 					"data-prohibitions": "[editContent]",
+					path: "/inspections",
+					element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Inspections, {
+						"data-uid": "src/App.tsx:39:43",
+						"data-prohibitions": "[editContent]"
+					})
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Route, {
+					"data-uid": "src/App.tsx:40:7",
+					"data-prohibitions": "[editContent]",
+					path: "/legal",
+					element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LegalReview, {
+						"data-uid": "src/App.tsx:40:37",
+						"data-prohibitions": "[editContent]"
+					})
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Route, {
+					"data-uid": "src/App.tsx:41:7",
+					"data-prohibitions": "[editContent]",
 					path: "/settings",
 					element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Settings, {
-						"data-uid": "src/App.tsx:39:40",
+						"data-uid": "src/App.tsx:41:40",
 						"data-prohibitions": "[editContent]"
 					})
 				})
 			]
 		}),
 		/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Route, {
-			"data-uid": "src/App.tsx:41:5",
+			"data-uid": "src/App.tsx:43:5",
 			"data-prohibitions": "[editContent]",
 			path: "*",
 			element: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(NotFound, {
-				"data-uid": "src/App.tsx:41:30",
+				"data-uid": "src/App.tsx:43:30",
 				"data-prohibitions": "[editContent]"
 			})
 		})
 	]
 });
 var App = () => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(BrowserRouter, {
-	"data-uid": "src/App.tsx:46:3",
+	"data-uid": "src/App.tsx:48:3",
 	"data-prohibitions": "[]",
 	future: {
 		v7_startTransition: false,
 		v7_relativeSplatPath: false
 	},
 	children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AuthProvider, {
-		"data-uid": "src/App.tsx:47:5",
+		"data-uid": "src/App.tsx:49:5",
 		"data-prohibitions": "[]",
 		children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(TooltipProvider, {
-			"data-uid": "src/App.tsx:48:7",
+			"data-uid": "src/App.tsx:50:7",
 			"data-prohibitions": "[]",
 			children: [
 				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Toaster$2, {
-					"data-uid": "src/App.tsx:49:9",
+					"data-uid": "src/App.tsx:51:9",
 					"data-prohibitions": "[editContent]"
 				}),
 				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Toaster, {
-					"data-uid": "src/App.tsx:50:9",
+					"data-uid": "src/App.tsx:52:9",
 					"data-prohibitions": "[editContent]"
 				}),
 				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(AppRoutes, {
-					"data-uid": "src/App.tsx:51:9",
+					"data-uid": "src/App.tsx:53:9",
 					"data-prohibitions": "[editContent]"
 				})
 			]
@@ -58505,4 +59403,4 @@ var App = () => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(BrowserRouter, {
 }));
 //#endregion
 
-//# sourceMappingURL=index-BFGGwE7J.js.map
+//# sourceMappingURL=index-DmICZjTZ.js.map

@@ -8,6 +8,7 @@ import {
   Settings,
   Building,
   UserCheck,
+  FileSignature,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -24,6 +25,7 @@ import {
 const navigation = [
   { title: 'Painel', url: '/', icon: LayoutDashboard },
   { title: 'Análise do Gerente', url: '/manager-approval', icon: UserCheck },
+  { title: 'Ciclo de Contratos', url: '/contracts', icon: FileSignature },
   { title: 'Documentos (GED)', url: '/documents', icon: FolderOpen },
   { title: 'Imóveis', url: '/properties', icon: Home },
   { title: 'Vistorias', url: '/inspections', icon: ClipboardCheck },

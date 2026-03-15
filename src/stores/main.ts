@@ -10,7 +10,14 @@ export type RoleSettings = {
 export type SharePointSettings = {
   siteUrl: string
   tenantId: string
-  libraries: { contracts: string; ownerDocs: string; tenantDocs: string }
+  teamsWebhookUrl?: string
+  libraries: {
+    contracts: string
+    ownerDocs: string
+    tenantDocs: string
+    archive: string
+    templates: string
+  }
   lists: { processControl: string; auditLog: string }
 }
 
@@ -23,12 +30,7 @@ export type AuditLog = {
   details?: string
 }
 
-export type InspectionData = {
-  propertyId: string
-  wallCondition: string
-  furnitureNotes: string
-}
-
+export type InspectionData = { propertyId: string; wallCondition: string; furnitureNotes: string }
 export type PropertyStatus =
   | 'Pendente/Rascunho'
   | 'Análise Gerencial'
@@ -55,48 +57,35 @@ type State = {
   inspectionsData: Record<string, InspectionData>
 }
 
-const getInitialSlaStart = (h: number) => new Date(Date.now() - h * 60 * 60 * 1000).toISOString()
-
 let state: State = {
   settings: {
-    managementEmails: 'gerencia@imobged.onmicrosoft.com',
-    administrativeEmails: 'admin@imobged.onmicrosoft.com',
-    operationalEmails: 'operacao@imobged.onmicrosoft.com',
+    managementEmails: 'gerencia@imobged.com',
+    administrativeEmails: 'admin@imobged.com',
+    operationalEmails: 'operacao@imobged.com',
     slaHours: 24,
   },
   sharepoint: {
     siteUrl: 'https://imobged.sharepoint.com/sites/GestaoDeLocacao',
-    tenantId: 'a1b2c3d4-e5f6-7890-1234-567890abcdef',
+    tenantId: 'a1b2c3d4-e5f6',
+    teamsWebhookUrl: 'https://imobged.webhook.office.com/teams',
     libraries: {
       contracts: 'Contratos',
-      ownerDocs: 'Documentos de Proprietários',
-      tenantDocs: 'Documentos de Inquilinos',
+      ownerDocs: 'Doc Proprietários',
+      tenantDocs: 'Doc Inquilinos',
+      archive: 'Arquivo Permanente',
+      templates: 'Modelos de Contrato',
     },
-    lists: {
-      processControl: 'Dados Contratuais',
-      auditLog: 'Audit Log',
-    },
+    lists: { processControl: 'Dados Contratuais', auditLog: 'Audit Log' },
   },
   properties: [
     {
       id: '101',
-      title: 'Apartamento Centro',
-      address: 'Rua das Flores, 123',
+      title: 'Apto Centro',
+      address: 'Rua Flores, 123',
       type: 'Residencial',
       status: 'Análise Gerencial',
       image: 'https://img.usecurling.com/p/400/300?q=apartment',
-      slaStart: getInitialSlaStart(36),
       tenant: 'João Pedro',
-    },
-    {
-      id: '102',
-      title: 'Sala Comercial',
-      address: 'Av. Paulista, 1000',
-      type: 'Comercial',
-      status: 'Análise Gerencial',
-      image: 'https://img.usecurling.com/p/400/300?q=office',
-      slaStart: getInitialSlaStart(10),
-      tenant: 'Empresa Alpha Ltda',
     },
     {
       id: '103',
@@ -112,25 +101,12 @@ let state: State = {
     {
       id: 'log1',
       propertyId: '101',
-      action: 'Upload SharePoint',
-      user: 'Ana Silva',
-      timestamp: getInitialSlaStart(36),
-    },
-    {
-      id: 'log2',
-      propertyId: '102',
-      action: 'Upload SharePoint',
-      user: 'Carlos Santos',
-      timestamp: getInitialSlaStart(10),
+      action: 'Upload SP',
+      user: 'Ana',
+      timestamp: new Date().toISOString(),
     },
   ],
-  inspectionsData: {
-    '103': {
-      propertyId: '103',
-      wallCondition: 'Pintura nova',
-      furnitureNotes: 'Cozinha com armários intactos',
-    },
-  },
+  inspectionsData: {},
 }
 
 let listeners: Array<() => void> = []
@@ -164,15 +140,7 @@ export const mainStore = {
   updatePropertyStatus: (id: string, status: PropertyStatus) => {
     state = {
       ...state,
-      properties: state.properties.map((p) =>
-        p.id === id
-          ? {
-              ...p,
-              status,
-              slaStart: status === 'Análise Gerencial' ? new Date().toISOString() : undefined,
-            }
-          : p,
-      ),
+      properties: state.properties.map((p) => (p.id === id ? { ...p, status } : p)),
     }
     emit()
   },

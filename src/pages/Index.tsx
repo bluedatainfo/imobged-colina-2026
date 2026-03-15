@@ -1,12 +1,13 @@
 import {
   FileStack,
-  HardDrive,
   Clock,
   CheckCircle,
   Search,
   FileSignature,
   ShieldAlert,
   List,
+  FileText,
+  RefreshCw,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import {
@@ -17,21 +18,27 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Badge } from '@/components/ui/badge'
 import { DashboardChart } from '@/components/DashboardChart'
 import { useNavigate } from 'react-router-dom'
 import useMainStore, { isSlaBreached } from '@/stores/main'
+import useContractsStore from '@/stores/contracts'
 
 const Index = () => {
   const navigate = useNavigate()
   const store = useMainStore()
+  const { contracts } = useContractsStore()
 
   const pendingApprovals = store.properties.filter((p) => p.status === 'Análise Gerencial')
   const slaBreachedCount = pendingApprovals.filter((p) =>
     isSlaBreached(p.slaStart, store.settings.slaHours),
   ).length
+
   const pendingInspections = store.properties.filter((p) => p.status === 'Vistoria').length
-  const signed = store.properties.filter((p) => p.status === 'Assinatura').length
+
+  // Contract Metrics
+  const activeContracts = contracts.filter((c) => c.status === 'Ativo').length
+  const awaitingSignature = contracts.filter((c) => c.status === 'Aguardando Assinatura').length
+  const awaitingRenewal = contracts.filter((c) => c.status === 'Aguardando Renovação').length
 
   const recentLogs = store.auditLogs.slice(0, 5)
 
@@ -40,20 +47,52 @@ const Index = () => {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Painel de Controle</h1>
         <p className="text-muted-foreground">
-          Bem-vindo ao ImobGED. Visão geral da sua operação digital integrada ao SharePoint.
+          Visão geral da sua operação digital, contratos e integrações com o Microsoft 365.
         </p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Contratos em Assinatura</CardTitle>
-            <FileStack className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Contratos Ativos</CardTitle>
+            <FileText className="h-4 w-4 text-emerald-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{signed}</div>
+            <div className="text-2xl font-bold text-emerald-600">{activeContracts}</div>
+            <p className="text-xs text-muted-foreground">Sincronizados no Arquivo Permanente</p>
           </CardContent>
         </Card>
+
+        <Card className={awaitingRenewal > 0 ? 'border-orange-200 bg-orange-50/50' : ''}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle
+              className={`text-sm font-medium ${awaitingRenewal > 0 ? 'text-orange-700' : ''}`}
+            >
+              Renovações Pendentes
+            </CardTitle>
+            <RefreshCw
+              className={`h-4 w-4 ${awaitingRenewal > 0 ? 'text-orange-600' : 'text-muted-foreground'}`}
+            />
+          </CardHeader>
+          <CardContent>
+            <div className={`text-2xl font-bold ${awaitingRenewal > 0 ? 'text-orange-700' : ''}`}>
+              {awaitingRenewal}
+            </div>
+            <p className="text-xs text-muted-foreground">Aproximação da data de vencimento</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Em Assinatura</CardTitle>
+            <FileStack className="h-4 w-4 text-purple-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-purple-600">{awaitingSignature}</div>
+            <p className="text-xs text-muted-foreground">Aguardando partes envolvidas</p>
+          </CardContent>
+        </Card>
+
         <Card className={slaBreachedCount > 0 ? 'border-destructive/50 bg-destructive/5' : ''}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle
@@ -69,27 +108,7 @@ const Index = () => {
             <div className={`text-2xl font-bold ${slaBreachedCount > 0 ? 'text-destructive' : ''}`}>
               {slaBreachedCount}
             </div>
-            <p className="text-xs text-muted-foreground">Requer atenção imediata</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Aprovações Pendentes</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-amber-600">{pendingApprovals.length}</div>
-            <p className="text-xs text-muted-foreground">Aguardando análise jurídica/gerencial</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Vistorias Pendentes</CardTitle>
-            <CheckCircle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{pendingInspections}</div>
-            <p className="text-xs text-muted-foreground">Aguardando checklist em campo</p>
+            <p className="text-xs text-muted-foreground">Aprovações gerenciais atrasadas</p>
           </CardContent>
         </Card>
       </div>
@@ -99,24 +118,24 @@ const Index = () => {
           <div className="grid gap-4 md:grid-cols-2">
             <Card
               className="hover:border-primary/50 cursor-pointer transition-colors"
+              onClick={() => navigate('/contracts')}
+            >
+              <CardHeader className="pb-2">
+                <FileSignature className="h-8 w-8 text-primary mb-2" />
+                <CardTitle>Ciclo de Contratos</CardTitle>
+                <CardDescription>
+                  Gerar minutas via templates e acompanhar workflow.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+            <Card
+              className="hover:border-primary/50 cursor-pointer transition-colors"
               onClick={() => navigate('/inspections')}
             >
               <CardHeader className="pb-2">
                 <Search className="h-8 w-8 text-primary mb-2" />
                 <CardTitle>Iniciar Vistoria</CardTitle>
                 <CardDescription>Preencher checklist inteligente offline/online.</CardDescription>
-              </CardHeader>
-            </Card>
-            <Card
-              className="hover:border-primary/50 cursor-pointer transition-colors"
-              onClick={() => navigate('/documents')}
-            >
-              <CardHeader className="pb-2">
-                <FileSignature className="h-8 w-8 text-primary mb-2" />
-                <CardTitle>Processar OCR</CardTitle>
-                <CardDescription>
-                  Digitalizar contrato e iniciar fluxo de aprovação.
-                </CardDescription>
               </CardHeader>
             </Card>
           </div>
@@ -134,10 +153,10 @@ const Index = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Imóvel ID</TableHead>
+                    <TableHead>Ref ID</TableHead>
                     <TableHead>Ação Realizada</TableHead>
                     <TableHead>Usuário M365</TableHead>
-                    <TableHead className="text-right">Hora</TableHead>
+                    <TableHead className="text-right">Data/Hora</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

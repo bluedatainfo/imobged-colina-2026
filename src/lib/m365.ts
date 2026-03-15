@@ -19,4 +19,17 @@ export const m365Service = {
       description: 'Sincronizado com sucesso.',
     })
   },
+  sendTeamsMessage: (webhookUrl: string | undefined, message: string) => {
+    if (!webhookUrl) return
+    toast({
+      title: 'Notificação Microsoft Teams',
+      description: message,
+    })
+  },
+  moveDocument: (fileName: string, targetLibrary: string) => {
+    toast({
+      title: 'Sincronização Condicional Ativa',
+      description: `Arquivo ${fileName} movido automaticamente para a biblioteca "${targetLibrary}".`,
+    })
+  },
 }

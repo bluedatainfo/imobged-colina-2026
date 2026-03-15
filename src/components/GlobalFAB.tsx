@@ -1,4 +1,4 @@
-import { Plus, Camera, Upload, PenTool } from 'lucide-react'
+import { Plus, Camera, Upload, PenTool, FilePlus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -28,6 +28,10 @@ export function GlobalFAB() {
         <DropdownMenuContent align="end" className="w-56" sideOffset={12}>
           <DropdownMenuLabel>Ações Rápidas</DropdownMenuLabel>
           <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => navigate('/contracts')} className="cursor-pointer">
+            <FilePlus className="mr-2 h-4 w-4" />
+            <span>Criar Minuta (Wizard)</span>
+          </DropdownMenuItem>
           <DropdownMenuItem onClick={() => navigate('/documents')} className="cursor-pointer">
             <Upload className="mr-2 h-4 w-4" />
             <span>Upload Rápido (GED)</span>
@@ -38,7 +42,7 @@ export function GlobalFAB() {
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => navigate('/legal')} className="cursor-pointer">
             <PenTool className="mr-2 h-4 w-4" />
-            <span>Gerar Contrato Padrão</span>
+            <span>Abrir Chamado Jurídico</span>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
