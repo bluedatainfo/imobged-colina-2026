@@ -1432,10 +1432,6 @@ section[aria-label='Notifications alt+T'] {
   max-width: 48rem;
 }
 
-.max-w-4xl{
-  max-width: 56rem;
-}
-
 .max-w-5xl{
   max-width: 64rem;
 }
@@ -1467,6 +1463,10 @@ section[aria-label='Notifications alt+T'] {
 
 .max-w-sm{
   max-width: 24rem;
+}
+
+.max-w-xl{
+  max-width: 36rem;
 }
 
 .flex-1{

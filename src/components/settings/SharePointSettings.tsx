@@ -13,6 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/hooks/use-toast'
 import useMainStore, { mainStore } from '@/stores/main'
 
@@ -21,7 +22,9 @@ export default function SharePointSettings() {
   const store = useMainStore()
   const [formData, setFormData] = useState(store.sharepoint)
   const [isTesting, setIsTesting] = useState(false)
-  const [testResult, setTestResult] = useState<'idle' | 'success' | 'error'>('idle')
+  const [testResult, setTestResult] = useState<'idle' | 'success' | 'error'>(
+    store.sharepoint.tenantId ? 'success' : 'idle',
+  )
 
   const handleChange = (field: keyof typeof formData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
@@ -81,7 +84,21 @@ export default function SharePointSettings() {
         </CardHeader>
         <CardContent className="grid md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label>Tenant ID (Microsoft Entra ID)</Label>
+            <Label className="flex items-center justify-between">
+              <span>Tenant ID (Microsoft Entra ID)</span>
+              {testResult === 'success' && (
+                <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white border-transparent">
+                  Conectado
+                </Badge>
+              )}
+              {testResult === 'error' && <Badge variant="destructive">Erro</Badge>}
+              {testResult === 'idle' && !formData.tenantId && (
+                <Badge variant="secondary">Desconectado</Badge>
+              )}
+              {testResult === 'idle' && formData.tenantId && (
+                <Badge variant="outline">Não Testado</Badge>
+              )}
+            </Label>
             <Input
               value={formData.tenantId}
               onChange={(e) => handleChange('tenantId', e.target.value)}
@@ -221,7 +238,7 @@ export default function SharePointSettings() {
           )}
           {testResult === 'error' && (
             <span className="flex items-center text-sm text-destructive font-medium">
-              <AlertCircle className="w-4 h-4 mr-1" /> Falha na conexão de sites
+              <AlertCircle className="w-4 h-4 mr-1" /> Falha na conexão de sites ou Tenant ID
             </span>
           )}
         </div>

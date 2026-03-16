@@ -31,13 +31,21 @@ export type SharePointSettings = {
   lists: { processControl: string; auditLog: string }
 }
 
+export type SecuritySettings = {
+  restrictDomain: boolean
+  allowedIps: string
+  requireManagedDevice: boolean
+}
+
 export type AuditLog = {
   id: string
-  propertyId: string
+  propertyId?: string
   action: string
   user: string
+  userEmail?: string
   timestamp: string
   details?: string
+  ipAddress?: string
 }
 
 export type InspectionData = {
@@ -85,6 +93,7 @@ type State = {
   agencyProfile: AgencyProfile
   settings: RoleSettings
   sharepoint: SharePointSettings
+  security: SecuritySettings
   properties: Property[]
   auditLogs: AuditLog[]
   inspectionsData: Record<string, InspectionData>
@@ -123,6 +132,11 @@ let state: State = {
       templates: 'Modelos de Contrato',
     },
     lists: { processControl: 'Dados Contratuais', auditLog: 'Audit Log' },
+  },
+  security: {
+    restrictDomain: true,
+    allowedIps: '',
+    requireManagedDevice: false,
   },
   properties: [
     {
@@ -182,9 +196,35 @@ let state: State = {
     {
       id: 'log1',
       propertyId: '101',
-      action: 'Upload SP',
-      user: 'Ana',
+      action: 'Upload SP (Contrato_Locacao.pdf)',
+      user: 'Ana Silva',
+      userEmail: 'ana.silva@imobged.com',
       timestamp: new Date().toISOString(),
+      ipAddress: '192.168.0.10',
+    },
+    {
+      id: 'log2',
+      action: 'Login efetuado com sucesso',
+      user: 'Carlos Santos',
+      userEmail: 'carlos.santos@imobged.com',
+      timestamp: new Date(Date.now() - 3600000).toISOString(),
+      ipAddress: '172.16.254.1',
+    },
+    {
+      id: 'log3',
+      action: 'Visualização de Documento (RG_Locatario_Joao.pdf)',
+      user: 'Mariana Costa',
+      userEmail: 'mariana.costa@imobged.com',
+      timestamp: new Date(Date.now() - 7200000).toISOString(),
+      ipAddress: '10.0.0.15',
+    },
+    {
+      id: 'log4',
+      action: 'Configurações de Segurança Atualizadas',
+      user: 'Ana Silva',
+      userEmail: 'ana.silva@imobged.com',
+      timestamp: new Date(Date.now() - 86400000).toISOString(),
+      ipAddress: '192.168.0.10',
     },
   ],
   inspectionsData: {},
@@ -273,6 +313,10 @@ export const mainStore = {
   },
   updateSharePointSettings: (s: Partial<SharePointSettings>) => {
     state = { ...state, sharepoint: { ...state.sharepoint, ...s } }
+    emit()
+  },
+  updateSecuritySettings: (s: Partial<SecuritySettings>) => {
+    state = { ...state, security: { ...state.security, ...s } }
     emit()
   },
   addAuditLog: (log: Omit<AuditLog, 'id' | 'timestamp'>) => {
