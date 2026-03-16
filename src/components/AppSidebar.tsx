@@ -11,6 +11,7 @@ import {
   FileSignature,
   CalendarClock,
   KeyRound,
+  Wrench,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -33,6 +34,7 @@ const navigation = [
   { title: 'Ciclo de Contratos', url: '/contracts', icon: FileSignature },
   { title: 'Renovações', url: '/renewals', icon: CalendarClock },
   { title: 'Controle de Chaves', url: '/keys', icon: KeyRound },
+  { title: 'Manutenção', url: '/maintenance', icon: Wrench },
   { title: 'Documentos (GED)', url: '/documents', icon: FolderOpen },
   { title: 'Imóveis', url: '/properties', icon: Home },
   { title: 'Vistorias', url: '/inspections', icon: ClipboardCheck },

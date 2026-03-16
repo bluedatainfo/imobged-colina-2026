@@ -12,8 +12,10 @@ import {
   Image as ImageIcon,
   MapPin,
   Check,
+  List as ListIcon,
+  Map as MapIcon,
 } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
@@ -25,8 +27,10 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion'
-import useMainStore, { Property } from '@/stores/main'
+import useMainStore, { Property, mainStore } from '@/stores/main'
+import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
+import { InspectionMap } from './InspectionMap'
 
 interface Props {
   pendingInspections: Property[]
@@ -47,9 +51,11 @@ const STATUSES: Status[] = ['Novo', 'Bom', 'Usado', 'Danificado']
 
 export function MobileInspectionView({ pendingInspections, onComplete }: Props) {
   const { agencyProfile } = useMainStore()
+  const { toast } = useToast()
   const [isOffline, setIsOffline] = useState(!navigator.onLine)
 
   const [step, setStep] = useState<1 | 2 | 3>(1) // 1: Select, 2: Inspect, 3: Processing
+  const [viewMode, setViewMode] = useState<'list' | 'map'>('list')
   const [search, setSearch] = useState('')
   const [propertyId, setPropertyId] = useState<string>('')
   const [checklist, setChecklist] = useState<Record<Category, CategoryData>>({
@@ -112,9 +118,41 @@ export function MobileInspectionView({ pendingInspections, onComplete }: Props) 
   const handleSubmit = () => {
     if (!propertyId) return
     setStep(3)
+
+    const selectedAddress = selectedProp?.address || 'Endereço Desconhecido'
+    let hasAlerts = false
+
+    Object.entries(checklist).forEach(([cat, data]) => {
+      if (data.status === 'Danificado') {
+        hasAlerts = true
+        mainStore.addMaintenanceTicket({
+          propertyId,
+          address: selectedAddress,
+          item: cat,
+          notes: data.notes || 'Identificado na vistoria mobile.',
+          photo: data.photos[0] || null,
+        })
+        mainStore.addAuditLog({
+          propertyId,
+          action: `Alerta de Manutenção: ${cat}`,
+          user: 'Sistema',
+          details: 'Gerado automaticamente via status "Danificado".',
+        })
+      }
+    })
+
     // Simulate OCR and Sync
     setTimeout(() => {
       onComplete(propertyId, JSON.stringify(checklist))
+
+      if (hasAlerts) {
+        toast({
+          title: 'Alertas de Manutenção',
+          description: 'Tickets de reparo foram encaminhados ao Financeiro/Manutenção.',
+          variant: 'destructive',
+        })
+      }
+
       // Reset after complete
       setPropertyId('')
       setChecklist({
@@ -169,57 +207,95 @@ export function MobileInspectionView({ pendingInspections, onComplete }: Props) 
       <main className="flex-1 p-4 w-full max-w-md mx-auto">
         {step === 1 && (
           <div className="space-y-4 animate-fade-in-up">
-            <div className="mb-6">
-              <h1 className="text-2xl font-bold">Nova Vistoria</h1>
-              <p className="text-sm text-muted-foreground mt-1">
-                Selecione um imóvel da fila para iniciar.
-              </p>
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h1 className="text-2xl font-bold">Nova Vistoria</h1>
+                <p className="text-sm text-muted-foreground mt-1">Selecione um imóvel.</p>
+              </div>
+              <div className="bg-muted p-1 rounded-lg flex items-center border">
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={cn(
+                    'p-2 rounded-md transition-colors',
+                    viewMode === 'list'
+                      ? 'bg-background shadow-sm text-primary'
+                      : 'text-muted-foreground',
+                  )}
+                >
+                  <ListIcon className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setViewMode('map')}
+                  className={cn(
+                    'p-2 rounded-md transition-colors',
+                    viewMode === 'map'
+                      ? 'bg-background shadow-sm text-primary'
+                      : 'text-muted-foreground',
+                  )}
+                >
+                  <MapIcon className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
-            <div className="relative">
-              <Search className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por endereço ou ID..."
-                className="pl-10 h-12 text-base rounded-xl"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
+            {viewMode === 'list' ? (
+              <>
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar por endereço ou ID..."
+                    className="pl-10 h-12 text-base rounded-xl"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
+                </div>
 
-            <div className="space-y-3 mt-4">
-              {filteredProperties.map((p) => (
-                <Card
-                  key={p.id}
-                  className="overflow-hidden active:scale-[0.98] transition-transform cursor-pointer border-transparent shadow-sm hover:border-primary/20"
-                  onClick={() => {
-                    setPropertyId(p.id)
+                <div className="space-y-3 mt-4">
+                  {filteredProperties.map((p) => (
+                    <Card
+                      key={p.id}
+                      className="overflow-hidden active:scale-[0.98] transition-transform cursor-pointer border-transparent shadow-sm hover:border-primary/20"
+                      onClick={() => {
+                        setPropertyId(p.id)
+                        setStep(2)
+                      }}
+                    >
+                      <CardContent className="p-0 flex items-stretch">
+                        <div className="w-24 h-24 shrink-0 bg-muted relative">
+                          <img src={p.image} alt={p.title} className="w-full h-full object-cover" />
+                        </div>
+                        <div className="p-3 flex-1 flex flex-col justify-center">
+                          <h3 className="font-semibold text-base line-clamp-1">{p.title}</h3>
+                          <div className="flex items-start gap-1 text-xs text-muted-foreground mt-1">
+                            <MapPin className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                            <span className="line-clamp-2">{p.address}</span>
+                          </div>
+                          <Badge variant="secondary" className="w-fit mt-2 text-[10px]">
+                            ID: {p.id}
+                          </Badge>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                  {filteredProperties.length === 0 && (
+                    <div className="text-center py-12 text-muted-foreground bg-background rounded-xl border border-dashed">
+                      <CheckCircle2 className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                      <p>Nenhuma vistoria pendente encontrada.</p>
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="mt-4">
+                <InspectionMap
+                  properties={filteredProperties}
+                  onStartInspection={(id) => {
+                    setPropertyId(id)
                     setStep(2)
                   }}
-                >
-                  <CardContent className="p-0 flex items-stretch">
-                    <div className="w-24 h-24 shrink-0 bg-muted relative">
-                      <img src={p.image} alt={p.title} className="w-full h-full object-cover" />
-                    </div>
-                    <div className="p-3 flex-1 flex flex-col justify-center">
-                      <h3 className="font-semibold text-base line-clamp-1">{p.title}</h3>
-                      <div className="flex items-start gap-1 text-xs text-muted-foreground mt-1">
-                        <MapPin className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                        <span className="line-clamp-2">{p.address}</span>
-                      </div>
-                      <Badge variant="secondary" className="w-fit mt-2 text-[10px]">
-                        ID: {p.id}
-                      </Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-              {filteredProperties.length === 0 && (
-                <div className="text-center py-12 text-muted-foreground bg-background rounded-xl border border-dashed">
-                  <CheckCircle2 className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                  <p>Nenhuma vistoria pendente encontrada.</p>
-                </div>
-              )}
-            </div>
+                />
+              </div>
+            )}
           </div>
         )}
 

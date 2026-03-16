@@ -15,6 +15,7 @@ import NotFound from './pages/NotFound'
 import Login from './pages/Login'
 import Renewals from './pages/Renewals'
 import KeysControl from './pages/KeysControl'
+import Maintenance from './pages/Maintenance'
 import AccessDenied from './pages/AccessDenied'
 import Portal from './pages/Portal'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
@@ -55,6 +56,7 @@ const AppRoutes = () => (
       <Route path="/legal" element={<LegalReview />} />
       <Route path="/renewals" element={<Renewals />} />
       <Route path="/keys" element={<KeysControl />} />
+      <Route path="/maintenance" element={<Maintenance />} />
       <Route path="/settings" element={<Settings />} />
       <Route path="/access-denied" element={<AccessDenied />} />
     </Route>

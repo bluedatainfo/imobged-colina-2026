@@ -19,10 +19,11 @@ export const ROUTE_ACCESS: Record<string, Role[]> = {
     'Financeiro',
     'Gestor de Contrato',
   ],
-  '/inspections': ['Admin', 'Gerente', 'Vistoriador'],
+  '/inspections': ['Admin', 'Gerente', 'Vistoriador', 'Gestor de Contrato'],
   '/legal': ['Admin', 'Gerente', 'Jurídico'],
   '/renewals': ['Admin', 'Gerente', 'Financeiro', 'Gestor de Contrato'],
   '/keys': ['Admin', 'Gerente', 'Vistoriador', 'Gestor de Contrato'],
+  '/maintenance': ['Admin', 'Gerente', 'Financeiro'],
   '/settings': ['Admin'],
 }
 

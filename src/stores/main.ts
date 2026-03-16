@@ -46,6 +46,7 @@ export type InspectionData = {
   furnitureNotes: string
   generalNotes?: string
 }
+
 export type PropertyStatus =
   | 'Disponível para Locação'
   | 'Pendente/Rascunho'
@@ -64,6 +65,20 @@ export type Property = {
   slaStart?: string
   tenant?: string
   rentValue?: number
+  location?: { x: number; y: number }
+}
+
+export type MaintenanceStatus = 'Pendente' | 'Em Andamento' | 'Concluído'
+
+export type MaintenanceTicket = {
+  id: string
+  propertyId: string
+  address: string
+  item: string
+  notes: string
+  photo: string | null
+  status: MaintenanceStatus
+  createdAt: string
 }
 
 type State = {
@@ -73,6 +88,7 @@ type State = {
   properties: Property[]
   auditLogs: AuditLog[]
   inspectionsData: Record<string, InspectionData>
+  maintenanceTickets: MaintenanceTicket[]
 }
 
 let state: State = {
@@ -118,6 +134,18 @@ let state: State = {
       image: 'https://img.usecurling.com/p/400/300?q=apartment',
       tenant: 'João Pedro',
       rentValue: 2500,
+      location: { x: 30, y: 40 },
+    },
+    {
+      id: '102',
+      title: 'Casa Vila Nova',
+      address: 'Rua das Margaridas, 88',
+      type: 'Residencial',
+      status: 'Vistoria',
+      image: 'https://img.usecurling.com/p/400/300?q=house',
+      tenant: 'Carlos Silva',
+      location: { x: 55, y: 65 },
+      slaStart: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
     },
     {
       id: '103',
@@ -125,9 +153,10 @@ let state: State = {
       address: 'Rua dos Ipês, 45',
       type: 'Residencial',
       status: 'Confecção de Contrato',
-      image: 'https://img.usecurling.com/p/400/300?q=house',
+      image: 'https://img.usecurling.com/p/400/300?q=house+modern',
       tenant: 'Maria Souza',
       rentValue: 3200,
+      location: { x: 75, y: 25 },
     },
     {
       id: '104',
@@ -137,6 +166,16 @@ let state: State = {
       status: 'Disponível para Locação',
       image: 'https://img.usecurling.com/p/400/300?q=office',
       rentValue: 4800,
+      location: { x: 80, y: 80 },
+    },
+    {
+      id: '105',
+      title: 'Galpão Industrial',
+      address: 'Rodovia BR-116, Km 42',
+      type: 'Comercial',
+      status: 'Vistoria',
+      image: 'https://img.usecurling.com/p/400/300?q=warehouse',
+      location: { x: 20, y: 80 },
     },
   ],
   auditLogs: [
@@ -149,6 +188,18 @@ let state: State = {
     },
   ],
   inspectionsData: {},
+  maintenanceTickets: [
+    {
+      id: 'MT-8821',
+      propertyId: '104',
+      address: 'Av. Paulista, 1000',
+      item: 'Elétrica',
+      notes: 'Quadro de força com disjuntores desarmando sozinhos.',
+      photo: 'https://img.usecurling.com/p/200/200?q=electrical',
+      status: 'Pendente',
+      createdAt: new Date(Date.now() - 86400000).toISOString(),
+    },
+  ],
 }
 
 let listeners: Array<() => void> = []
@@ -200,8 +251,26 @@ export const mainStore = {
       id: Math.floor(Math.random() * 1000).toString(),
       status: 'Pendente/Rascunho',
       image: `https://img.usecurling.com/p/400/300?q=${property.type === 'Comercial' ? 'office' : 'house'}`,
+      location: { x: Math.floor(Math.random() * 80) + 10, y: Math.floor(Math.random() * 80) + 10 },
     }
     state = { ...state, properties: [...state.properties, newProperty] }
+    emit()
+  },
+  addMaintenanceTicket: (ticket: Omit<MaintenanceTicket, 'id' | 'createdAt' | 'status'>) => {
+    const newTicket: MaintenanceTicket = {
+      ...ticket,
+      id: `MT-${Math.floor(Math.random() * 10000)}`,
+      status: 'Pendente',
+      createdAt: new Date().toISOString(),
+    }
+    state = { ...state, maintenanceTickets: [newTicket, ...state.maintenanceTickets] }
+    emit()
+  },
+  updateMaintenanceStatus: (id: string, status: MaintenanceStatus) => {
+    state = {
+      ...state,
+      maintenanceTickets: state.maintenanceTickets.map((t) => (t.id === id ? { ...t, status } : t)),
+    }
     emit()
   },
 }

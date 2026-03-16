@@ -17,7 +17,6 @@ import { Label } from '@/components/ui/label'
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -31,6 +30,7 @@ import { m365Service } from '@/lib/m365'
 import { InspectionOCRDialog } from '@/components/InspectionOCRDialog'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { MobileInspectionView } from '@/components/MobileInspectionView'
+import { InspectionMap } from '@/components/InspectionMap'
 
 const Inspections = () => {
   const { toast } = useToast()
@@ -163,7 +163,8 @@ const Inspections = () => {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Vistorias Inteligentes</h1>
           <p className="text-muted-foreground">
-            Preencha offline ou utilize OCR para laudos de vistoria terceirizados.
+            Preencha offline, planeje rotas com o mapa ou utilize OCR para laudos de vistoria
+            terceirizados.
           </p>
         </div>
         <div className="flex items-center gap-4 flex-wrap">
@@ -206,6 +207,7 @@ const Inspections = () => {
       <Tabs defaultValue="fila">
         <TabsList className="mb-4">
           <TabsTrigger value="fila">Fila de Preenchimento</TabsTrigger>
+          <TabsTrigger value="mapa">Mapa de Vistorias</TabsTrigger>
           <TabsTrigger value="ocr">Upload & OCR (IA)</TabsTrigger>
         </TabsList>
 
@@ -242,6 +244,23 @@ const Inspections = () => {
                   </div>
                 )}
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="mapa">
+          <Card>
+            <CardHeader>
+              <CardTitle>Rotas e Logística (Mapa)</CardTitle>
+              <CardDescription>
+                Visualize os imóveis pendentes geograficamente para planejar as visitas da equipe.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-1 sm:p-6">
+              <InspectionMap
+                properties={pendingInspections}
+                onStartInspection={handleStartInspection}
+              />
             </CardContent>
           </Card>
         </TabsContent>
