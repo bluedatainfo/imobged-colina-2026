@@ -1097,6 +1097,10 @@ section[aria-label='Notifications alt+T'] {
   height: 1rem;
 }
 
+.h-40{
+  height: 10rem;
+}
+
 .h-48{
   height: 12rem;
 }
@@ -1986,6 +1990,10 @@ section[aria-label='Notifications alt+T'] {
   border-color: hsl(var(--destructive));
 }
 
+.border-destructive\/20{
+  border-color: hsl(var(--destructive) / 0.2);
+}
+
 .border-destructive\/50{
   border-color: hsl(var(--destructive) / 0.5);
 }
@@ -2213,6 +2221,11 @@ section[aria-label='Notifications alt+T'] {
 
 .bg-emerald-50\/50{
   background-color: rgb(236 253 245 / 0.5);
+}
+
+.bg-emerald-500{
+  --tw-bg-opacity: 1;
+  background-color: rgb(16 185 129 / var(--tw-bg-opacity, 1));
 }
 
 .bg-emerald-600{
@@ -3061,6 +3074,10 @@ section[aria-label='Notifications alt+T'] {
   opacity: 0.75;
 }
 
+.opacity-80{
+  opacity: 0.8;
+}
+
 .opacity-90{
   opacity: 0.9;
 }
@@ -3374,6 +3391,11 @@ section[aria-label='Notifications alt+T'] {
   margin-left: 0.5rem;
 }
 
+.before\:ml-5::before{
+  content: var(--tw-content);
+  margin-left: 1.25rem;
+}
+
 .before\:h-full::before{
   content: var(--tw-content);
   height: 100%;
@@ -3388,6 +3410,11 @@ section[aria-label='Notifications alt+T'] {
   content: var(--tw-content);
   --tw-translate-x: -1px;
   transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+
+.before\:bg-border::before{
+  content: var(--tw-content);
+  background-color: hsl(var(--border));
 }
 
 .before\:bg-gradient-to-b::before{
@@ -3531,6 +3558,10 @@ section[aria-label='Notifications alt+T'] {
 
 .hover\:bg-muted\/50:hover{
   background-color: hsl(var(--muted) / 0.5);
+}
+
+.hover\:bg-primary\/10:hover{
+  background-color: hsl(var(--primary) / 0.1);
 }
 
 .hover\:bg-primary\/80:hover{
@@ -4728,6 +4759,11 @@ section[aria-label='Notifications alt+T'] {
     content: var(--tw-content);
     margin-left: auto;
     margin-right: auto;
+  }
+
+  .md\:before\:ml-\[1\.25rem\]::before{
+    content: var(--tw-content);
+    margin-left: 1.25rem;
   }
 
   .md\:before\:translate-x-0::before{

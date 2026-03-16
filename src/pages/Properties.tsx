@@ -1,11 +1,21 @@
 import { useState } from 'react'
-import { Building2, MapPin, FolderOpen, AlertCircle, Clock, Plus } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import {
+  Building2,
+  MapPin,
+  FolderOpen,
+  AlertCircle,
+  Clock,
+  Plus,
+  FolderArchive,
+} from 'lucide-react'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import useMainStore, { Property } from '@/stores/main'
 import { PropertyDetailSheet } from '@/components/PropertyDetailSheet'
 import { NewPropertyDialog } from '@/components/NewPropertyDialog'
+import { useAuth } from '@/contexts/AuthContext'
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -25,12 +35,15 @@ const getStatusColor = (status: string) => {
 }
 
 const Properties = () => {
+  const navigate = useNavigate()
   const store = useMainStore()
+  const { user } = useAuth()
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null)
   const [newPropertyOpen, setNewPropertyOpen] = useState(false)
 
   const pendingAnalyses = store.properties.filter((p) => p.status === 'Análise Gerencial').length
   const pendingInspections = store.properties.filter((p) => p.status === 'Vistoria').length
+  const canViewDossier = ['Admin', 'Diretor'].includes(user?.role || '')
 
   return (
     <div className="space-y-6">
@@ -110,7 +123,7 @@ const Properties = () => {
                 <span className="line-clamp-2">{property.address}</span>
               </div>
             </CardContent>
-            <CardFooter className="pt-4 border-t bg-muted/10">
+            <CardFooter className="pt-4 border-t bg-muted/10 flex-col gap-2">
               <Button
                 variant="ghost"
                 className="w-full justify-between"
@@ -123,6 +136,21 @@ const Properties = () => {
                   →
                 </span>
               </Button>
+
+              {canViewDossier && (
+                <Button
+                  variant="secondary"
+                  className="w-full justify-between bg-primary/5 hover:bg-primary/10 border border-primary/20"
+                  onClick={() => navigate(`/properties/${property.id}/dossier`)}
+                >
+                  <span className="flex items-center gap-2 text-primary font-medium">
+                    <FolderArchive className="h-4 w-4" /> Dossiê Digital do Imóvel
+                  </span>
+                  <span className="text-primary group-hover:translate-x-1 transition-transform">
+                    →
+                  </span>
+                </Button>
+              )}
             </CardFooter>
           </Card>
         ))}

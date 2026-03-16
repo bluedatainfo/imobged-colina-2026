@@ -43,6 +43,13 @@ let state: State = {
       role: 'Gerente',
       avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=male&seed=9',
     },
+    {
+      id: 'usr-5',
+      name: 'Paulo Vieira',
+      email: 'paulo.vieira@imobged.com',
+      role: 'Diretor',
+      avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=male&seed=15',
+    },
   ],
 }
 
