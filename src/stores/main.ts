@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react'
+import { supabase } from '@/lib/supabase'
 
 export type AgencyProfile = {
   name: string
@@ -196,40 +197,80 @@ const defaultState: State = {
   maintenanceTickets: [],
 }
 
-const STORAGE_KEY = '@imobged/config_v1'
-
-const loadState = (): State => {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored) {
-      const parsed = JSON.parse(stored)
-      return { ...defaultState, ...parsed }
-    }
-  } catch (e) {
-    console.warn('Failed to load state from localStorage', e)
-  }
-  return defaultState
-}
-
-let state: State = loadState()
+let state: State = { ...defaultState }
 let listeners: Array<() => void> = []
 
-const emit = () => {
-  try {
-    // Persist configuration settings dynamically
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({
-        agencyProfile: state.agencyProfile,
-        settings: state.settings,
-        sharepoint: state.sharepoint,
-        security: state.security,
-      }),
-    )
-  } catch (e) {
-    console.warn('Failed to persist state', e)
+export const initMainStore = async () => {
+  const configs = await supabase.get('app_config')
+  let configData = Array.isArray(configs) ? configs.find((c: any) => c.id === 'default') : null
+
+  if (!configData) {
+    configData = {
+      id: 'default',
+      agencyProfile: defaultState.agencyProfile,
+      settings: defaultState.settings,
+      sharepoint: defaultState.sharepoint,
+      security: defaultState.security,
+    }
+    await supabase.upsert('app_config', configData)
   }
+
+  const properties = await supabase.get('app_properties')
+  const auditLogs = await supabase.get('app_audit_logs')
+  const inspections = await supabase.get('app_inspections')
+  const maintenanceTickets = await supabase.get('app_maintenance')
+
+  const inspectionsData = Array.isArray(inspections)
+    ? inspections.reduce((acc: any, val: any) => {
+        acc[val.propertyId] = val
+        return acc
+      }, {})
+    : {}
+
+  state = {
+    ...state,
+    agencyProfile: configData.agencyProfile || defaultState.agencyProfile,
+    settings: configData.settings || defaultState.settings,
+    sharepoint: configData.sharepoint || defaultState.sharepoint,
+    security: configData.security || defaultState.security,
+    properties:
+      Array.isArray(properties) && properties.length ? properties : defaultState.properties,
+    auditLogs: Array.isArray(auditLogs) && auditLogs.length ? auditLogs : defaultState.auditLogs,
+    inspectionsData: Object.keys(inspectionsData).length
+      ? inspectionsData
+      : defaultState.inspectionsData,
+    maintenanceTickets:
+      Array.isArray(maintenanceTickets) && maintenanceTickets.length
+        ? maintenanceTickets
+        : defaultState.maintenanceTickets,
+  }
+
+  if (!Array.isArray(properties) || !properties.length) {
+    for (const p of defaultState.properties) {
+      await supabase.upsert('app_properties', p)
+    }
+  }
+  if (!Array.isArray(auditLogs) || !auditLogs.length) {
+    for (const a of defaultState.auditLogs) {
+      await supabase.upsert('app_audit_logs', a)
+    }
+  }
+
+  emit()
+}
+
+const emit = () => {
   listeners.forEach((l) => l())
+}
+
+const syncConfig = () => {
+  supabase.upsert('app_config', {
+    id: 'default',
+    agencyProfile: state.agencyProfile,
+    settings: state.settings,
+    sharepoint: state.sharepoint,
+    security: state.security,
+  })
 }
 
 export const mainStore = {
@@ -243,18 +284,22 @@ export const mainStore = {
   updateAgencyProfile: (s: Partial<AgencyProfile>) => {
     state = { ...state, agencyProfile: { ...state.agencyProfile, ...s } }
     emit()
+    syncConfig()
   },
   updateSettings: (s: Partial<RoleSettings>) => {
     state = { ...state, settings: { ...state.settings, ...s } }
     emit()
+    syncConfig()
   },
   updateSharePointSettings: (s: Partial<SharePointSettings>) => {
     state = { ...state, sharepoint: { ...state.sharepoint, ...s } }
     emit()
+    syncConfig()
   },
   updateSecuritySettings: (s: Partial<SecuritySettings>) => {
     state = { ...state, security: { ...state.security, ...s } }
     emit()
+    syncConfig()
   },
   addAuditLog: (log: Omit<AuditLog, 'id' | 'timestamp'>) => {
     const newLog = {
@@ -264,6 +309,7 @@ export const mainStore = {
     }
     state = { ...state, auditLogs: [newLog, ...state.auditLogs] }
     emit()
+    supabase.upsert('app_audit_logs', newLog)
   },
   updatePropertyStatus: (id: string, status: PropertyStatus) => {
     state = {
@@ -271,6 +317,7 @@ export const mainStore = {
       properties: state.properties.map((p) => (p.id === id ? { ...p, status } : p)),
     }
     emit()
+    supabase.patch('app_properties', id, { status })
   },
   saveInspection: (data: InspectionData) => {
     state = {
@@ -278,6 +325,7 @@ export const mainStore = {
       inspectionsData: { ...state.inspectionsData, [data.propertyId]: data },
     }
     emit()
+    supabase.upsert('app_inspections', data, 'propertyId')
   },
   updateMaintenanceStatus: (id: string, status: MaintenanceStatus) => {
     state = {
@@ -285,6 +333,7 @@ export const mainStore = {
       maintenanceTickets: state.maintenanceTickets.map((t) => (t.id === id ? { ...t, status } : t)),
     }
     emit()
+    supabase.patch('app_maintenance', id, { status })
   },
 }
 

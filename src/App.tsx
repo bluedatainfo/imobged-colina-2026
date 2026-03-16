@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { Toaster } from '@/components/ui/toaster'
 import { Toaster as Sonner } from '@/components/ui/sonner'
@@ -7,6 +7,8 @@ import Layout from './components/Layout'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { checkAccess } from './lib/permissions'
 import { Loader2 } from 'lucide-react'
+import { initMainStore } from './stores/main'
+import { initUsersStore } from './stores/users'
 
 // Code splitting routes to prevent out-of-memory errors during build chunking
 const Index = lazy(() => import('./pages/Index'))
@@ -82,16 +84,34 @@ const AppRoutes = () => (
   </Suspense>
 )
 
-const App = () => (
-  <BrowserRouter future={{ v7_startTransition: false, v7_relativeSplatPath: false }}>
-    <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <AppRoutes />
-      </TooltipProvider>
-    </AuthProvider>
-  </BrowserRouter>
-)
+const App = () => {
+  const [ready, setReady] = useState(false)
+
+  useEffect(() => {
+    Promise.all([initMainStore(), initUsersStore()]).then(() => {
+      setReady(true)
+    })
+  }, [])
+
+  if (!ready) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-[#f0f2f5]">
+        <Loader2 className="h-8 w-8 animate-spin text-[#0067b8]" />
+      </div>
+    )
+  }
+
+  return (
+    <BrowserRouter future={{ v7_startTransition: false, v7_relativeSplatPath: false }}>
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <AppRoutes />
+        </TooltipProvider>
+      </AuthProvider>
+    </BrowserRouter>
+  )
+}
 
 export default App

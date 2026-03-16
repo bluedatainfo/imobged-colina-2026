@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, ReactNode, useEffect } from 'react'
-import { SystemUser, usersStore } from '@/stores/users'
+import useUsersStore, { SystemUser, usersStore } from '@/stores/users'
 import { mainStore } from '@/stores/main'
 import { Role } from '@/lib/permissions'
 import { toast } from '@/hooks/use-toast'
@@ -39,7 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [isExchanging, setIsExchanging] = useState(false)
 
-  const { users } = usersStore.getState()
+  const { users } = useUsersStore()
   const user = currentUserId ? users.find((u) => u.id === currentUserId) || null : null
 
   useEffect(() => {

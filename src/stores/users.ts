@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react'
 import { Role } from '@/lib/permissions'
+import { supabase } from '@/lib/supabase'
 
 export type SystemUser = {
   id: string
@@ -13,29 +14,16 @@ type State = {
   users: SystemUser[]
 }
 
-const STORAGE_KEY = '@imobged/users_v1'
-
-const loadState = (): State => {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored) {
-      return JSON.parse(stored)
-    }
-  } catch (e) {
-    console.warn('Failed to load users from localStorage', e)
-  }
-  return { users: [] }
-}
-
-let state: State = loadState()
+let state: State = { users: [] }
 let listeners: Array<() => void> = []
 
+export const initUsersStore = async () => {
+  const data = await supabase.get('app_users')
+  state = { users: Array.isArray(data) && data.length > 0 ? data : [] }
+  emit()
+}
+
 const emit = () => {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
-  } catch (e) {
-    console.warn('Failed to persist users state', e)
-  }
   listeners.forEach((l) => l())
 }
 
@@ -53,6 +41,7 @@ export const usersStore = {
       users: state.users.map((u) => (u.id === id ? { ...u, role } : u)),
     }
     emit()
+    supabase.patch('app_users', id, { role })
   },
   addUser: (user: Omit<SystemUser, 'id' | 'avatar'> & { id?: string; avatar?: string }) => {
     const newUser: SystemUser = {
@@ -74,11 +63,13 @@ export const usersStore = {
       }
       state = { ...state, users: updatedUsers }
       emit()
+      supabase.patch('app_users', updatedUsers[existingIndex].id, updatedUsers[existingIndex])
       return updatedUsers[existingIndex]
     }
 
     state = { ...state, users: [...state.users, newUser] }
     emit()
+    supabase.upsert('app_users', newUser)
     return newUser
   },
   updateUser: (id: string, data: Partial<SystemUser>) => {
@@ -87,6 +78,7 @@ export const usersStore = {
       users: state.users.map((u) => (u.id === id ? { ...u, ...data } : u)),
     }
     emit()
+    supabase.patch('app_users', id, data)
   },
   removeUser: (id: string) => {
     state = {
@@ -94,19 +86,25 @@ export const usersStore = {
       users: state.users.filter((u) => u.id !== id),
     }
     emit()
+    supabase.delete('app_users', id)
   },
   enforceDomain: (domain: string) => {
     if (!domain) {
+      const toRemove = [...state.users]
       state = { ...state, users: [] }
+      emit()
+      toRemove.forEach((u) => supabase.delete('app_users', u.id))
     } else {
-      state = {
-        ...state,
-        users: state.users.filter((u) =>
-          u.email.toLowerCase().endsWith(`@${domain.toLowerCase()}`),
-        ),
-      }
+      const toKeep = state.users.filter((u) =>
+        u.email.toLowerCase().endsWith(`@${domain.toLowerCase()}`),
+      )
+      const toRemove = state.users.filter(
+        (u) => !u.email.toLowerCase().endsWith(`@${domain.toLowerCase()}`),
+      )
+      state = { ...state, users: toKeep }
+      emit()
+      toRemove.forEach((u) => supabase.delete('app_users', u.id))
     }
-    emit()
   },
   syncUsers: (fetchedUsers: SystemUser[]) => {
     const currentUsersMap = new Map(state.users.map((u) => [u.email.toLowerCase(), u]))
@@ -120,6 +118,7 @@ export const usersStore = {
 
     state = { ...state, users: mergedUsers }
     emit()
+    mergedUsers.forEach((u) => supabase.upsert('app_users', u))
   },
 }
 
