@@ -28008,7 +28008,7 @@ function AuthProvider({ children }) {
 		setCurrentUserId(id);
 	};
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AuthContext.Provider, {
-		"data-uid": "src/contexts/AuthContext.tsx:169:5",
+		"data-uid": "src/contexts/AuthContext.tsx:171:5",
 		"data-prohibitions": "[editContent]",
 		value: {
 			user,
@@ -70418,4 +70418,4 @@ var App = () => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(BrowserRouter, {
 }));
 //#endregion
 
-//# sourceMappingURL=index-CF1qljCn.js.map
+//# sourceMappingURL=index-7ASLdfGz.js.map

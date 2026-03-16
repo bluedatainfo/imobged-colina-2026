@@ -58,7 +58,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 const blob = await pRes.blob()
                 photoUrl = URL.createObjectURL(blob)
               }
-            } catch (e) {}
+            } catch (e) {
+              // Ignore photo fetch errors
+            }
 
             const currentUsers = usersStore.getState().users
             const emailToMatch = (data.mail || data.userPrincipalName || '').toLowerCase()
