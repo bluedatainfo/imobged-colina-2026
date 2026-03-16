@@ -10,32 +10,23 @@ import useMainStore, { mainStore } from '@/stores/main'
 import { usersStore } from '@/stores/users'
 import { cn } from '@/lib/utils'
 
-const mockDomains = [
-  'imobged.com',
-  'imobiliariacolina.com.br',
-  'primeimoveis.com.br',
-  'litoralbeta.com.br',
-  'sullocacoes.com',
-  'imoveisgold.com.br',
-  'alugacerto.com',
-  'hausimoveis.com.br',
-  'nacionalimobiliaria.com',
-  'urbanalocacoes.com.br',
-]
+const tenantMappings: Record<string, string> = {
+  'a1b2c3d4-e5f6-4a1b-9c2d-3e4f5a6b7c8d': 'imobged.com',
+  'bf7f8315-5eb1-44a0-bb92-c6640af6a671': 'imobiliariacolina.com.br',
+  '12345678-1234-1234-1234-1234567890ab': 'primeimoveis.com.br',
+  '87654321-4321-4321-4321-ba0987654321': 'litoralbeta.com.br',
+}
 
 const resolveDomainAsync = async (tenantId: string): Promise<string> => {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     setTimeout(() => {
       const normalized = tenantId.toLowerCase().trim()
-      if (normalized === 'a1b2c3d4-e5f6-4a1b-9c2d-3e4f5a6b7c8d') return resolve('imobged.com')
-      if (normalized === 'bf7f8315-5eb1-44a0-bb92-c6640af6a671')
-        return resolve('imobiliariacolina.com.br')
-
-      let hash = 0
-      for (let i = 0; i < normalized.length; i++) {
-        hash = normalized.charCodeAt(i) + ((hash << 5) - hash)
+      const domain = tenantMappings[normalized]
+      if (domain) {
+        resolve(domain)
+      } else {
+        reject(new Error('Domínio não encontrado para este Tenant ID.'))
       }
-      resolve(mockDomains[Math.abs(hash) % mockDomains.length])
     }, 800)
   })
 }
@@ -59,7 +50,11 @@ export default function SharePointSettings() {
   const [isTesting, setIsTesting] = useState(false)
   const [testResult, setTestResult] = useState<'idle' | 'success' | 'error'>('idle')
   const [tenantStatus, setTenantStatus] = useState<'idle' | 'validating' | 'active' | 'invalid'>(
-    () => (isValidTenantId(store.sharepoint.tenantId) ? 'active' : 'idle'),
+    () => {
+      if (!store.sharepoint.tenantId) return 'idle'
+      if (!isValidTenantId(store.sharepoint.tenantId)) return 'invalid'
+      return 'active'
+    },
   )
   const [tenantIdError, setTenantIdError] = useState<string | null>(null)
 
@@ -101,6 +96,7 @@ export default function SharePointSettings() {
     if (!isValidTenantId(currentId)) {
       setTenantStatus('invalid')
       setTenantIdError('Insira um ID de locatário (Tenant ID) válido.')
+      setFormData((prev) => ({ ...prev, tenantDomain: '' }))
       return
     }
 
@@ -113,22 +109,16 @@ export default function SharePointSettings() {
         if (!isMounted) return
 
         setTenantStatus('active')
+        setTenantIdError(null)
 
         if (currentId !== store.sharepoint.tenantId) {
-          const newPrefix = `https://${resolvedDomain.split('.')[0]}.sharepoint.com/sites/`
-          const updatedSites = { ...formData.sites }
-
-          Object.keys(updatedSites).forEach((k) => {
-            const key = k as keyof typeof updatedSites
-            const path = (updatedSites[key] || '').split('/').pop() || ''
-            updatedSites[key] = path ? `${newPrefix}${path}` : ''
-          })
+          const emptySites = { locacao: '', captacao: '', vendas: '', juridico: '', financeiro: '' }
 
           const newSettings = {
             tenantId: currentId,
             tenantDomain: resolvedDomain,
             teamsWebhookUrl: '',
-            sites: updatedSites,
+            sites: emptySites,
           }
 
           setFormData((prev) => ({ ...prev, ...newSettings }))
@@ -142,13 +132,16 @@ export default function SharePointSettings() {
 
           toast({
             title: 'Novo Domínio Vinculado',
-            description: `Domínio ${resolvedDomain} detectado. Configurações sincronizadas.`,
+            description: `Domínio ${resolvedDomain} detectado. Configurações redefinidas para o novo Tenant.`,
           })
+        } else if (resolvedDomain !== formData.tenantDomain) {
+          setFormData((prev) => ({ ...prev, tenantDomain: resolvedDomain }))
         }
       } catch (e) {
         if (isMounted) {
           setTenantStatus('invalid')
-          setTenantIdError('Erro ao resolver domínio do Tenant.')
+          setTenantIdError((e as Error).message || 'Erro ao resolver domínio do Tenant.')
+          setFormData((prev) => ({ ...prev, tenantDomain: '' }))
         }
       }
     }, 600)
