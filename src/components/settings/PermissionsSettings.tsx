@@ -119,7 +119,7 @@ export default function PermissionsSettings() {
                 </span>
               ) : (
                 <span className="inline-flex items-center text-xs font-medium text-destructive bg-destructive/10 border border-destructive/20 px-2 py-1 rounded w-fit mt-1">
-                  <AlertCircle className="w-3 h-3 mr-1" /> Configure um Tenant ID para gerenciar
+                  <AlertCircle className="w-3 h-3 mr-1" /> Configure um Domínio para gerenciar
                   acessos
                 </span>
               )}
@@ -190,7 +190,7 @@ export default function PermissionsSettings() {
                   <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
                     {tenantDomain
                       ? 'Nenhum usuário cadastrado para este domínio.'
-                      : 'Cadastre um Tenant ID para começar a adicionar usuários.'}
+                      : 'Cadastre um Domínio na Integração SharePoint para começar a adicionar usuários.'}
                   </TableCell>
                 </TableRow>
               )}

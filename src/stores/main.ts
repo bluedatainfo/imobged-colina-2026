@@ -20,6 +20,7 @@ export type SiteKey = 'locacao' | 'captacao' | 'vendas' | 'juridico' | 'financei
 export type SharePointSettings = {
   tenantId: string
   tenantDomain: string
+  tenantName: string
   teamsWebhookUrl?: string
   sites: Record<SiteKey, string>
   libraries: {
@@ -118,6 +119,7 @@ let state: State = {
   sharepoint: {
     tenantId: 'a1b2c3d4-e5f6-4a1b-9c2d-3e4f5a6b7c8d',
     tenantDomain: 'imobged.onmicrosoft.com',
+    tenantName: 'IMOBGED Corp',
     teamsWebhookUrl: 'https://imobged.onmicrosoft.com.webhook.office.com/teams/alertas-gerais',
     sites: {
       locacao: 'https://imobged.sharepoint.com/sites/GestaoDeLocacao',

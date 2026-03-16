@@ -46,7 +46,7 @@ export default function GeneralSettings() {
       toast({
         variant: 'destructive',
         title: 'Erro de Configuração',
-        description: 'Um Tenant ID válido é necessário para salvar configurações de e-mail.',
+        description: 'Um Domínio válido é necessário para salvar configurações de e-mail.',
       })
       return
     }
@@ -73,7 +73,7 @@ export default function GeneralSettings() {
           {!tenantDomain && (
             <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md flex items-center gap-2 border border-destructive/20 mb-4">
               <AlertCircle className="w-4 h-4 shrink-0" />
-              Forneça um Tenant ID válido na aba Integração SharePoint para configurar contas.
+              Forneça um Domínio válido na aba Integração SharePoint para configurar contas.
             </div>
           )}
           <div className="grid gap-2">
