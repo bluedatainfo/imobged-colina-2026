@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Save, Users, Clock, Mail } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Save, Users, Clock, Mail, AlertCircle } from 'lucide-react'
 import {
   Card,
   CardContent,
@@ -17,8 +17,12 @@ import useMainStore, { mainStore } from '@/stores/main'
 export default function GeneralSettings() {
   const { toast } = useToast()
   const store = useMainStore()
-  const tenantDomain = store.sharepoint.tenantDomain || 'imobged.com'
+  const tenantDomain = store.sharepoint.tenantDomain
   const [formData, setFormData] = useState(store.settings)
+
+  useEffect(() => {
+    setFormData(store.settings)
+  }, [store.settings])
 
   const handleChange = (field: keyof typeof formData, value: string | number) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
@@ -34,10 +38,18 @@ export default function GeneralSettings() {
     val: string,
   ) => {
     const cleanVal = val.replace(/@.*/, '').trim()
-    handleChange(field, cleanVal ? `${cleanVal}@${tenantDomain}` : '')
+    handleChange(field, cleanVal && tenantDomain ? `${cleanVal}@${tenantDomain}` : '')
   }
 
   const handleSave = () => {
+    if (!tenantDomain) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro de Configuração',
+        description: 'Um Tenant ID válido é necessário para salvar configurações de e-mail.',
+      })
+      return
+    }
     mainStore.updateSettings(formData)
     toast({
       title: 'Configurações Gerais Salvas',
@@ -54,10 +66,16 @@ export default function GeneralSettings() {
           </CardTitle>
           <CardDescription>
             Atribua contas do Microsoft 365 para as funções que receberão e-mails automatizados.
-            Apenas endereços do domínio validado ({tenantDomain}) são permitidos.
+            Apenas endereços do domínio validado são permitidos.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {!tenantDomain && (
+            <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md flex items-center gap-2 border border-destructive/20 mb-4">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              Forneça um Tenant ID válido na aba Integração SharePoint para configurar contas.
+            </div>
+          )}
           <div className="grid gap-2">
             <Label>Conta M365 (Gerência)</Label>
             <div className="flex gap-2 items-center">
@@ -68,9 +86,10 @@ export default function GeneralSettings() {
                   value={getLocalPart(formData.managementEmails)}
                   placeholder="gerencia"
                   onChange={(e) => handleEmailChange('managementEmails', e.target.value)}
+                  disabled={!tenantDomain}
                 />
                 <span className="inline-flex items-center px-3 border border-l-0 border-input rounded-r-md bg-muted text-muted-foreground text-sm">
-                  @{tenantDomain}
+                  @{tenantDomain || 'dominio.com'}
                 </span>
               </div>
             </div>
@@ -85,9 +104,10 @@ export default function GeneralSettings() {
                   value={getLocalPart(formData.administrativeEmails)}
                   placeholder="admin"
                   onChange={(e) => handleEmailChange('administrativeEmails', e.target.value)}
+                  disabled={!tenantDomain}
                 />
                 <span className="inline-flex items-center px-3 border border-l-0 border-input rounded-r-md bg-muted text-muted-foreground text-sm">
-                  @{tenantDomain}
+                  @{tenantDomain || 'dominio.com'}
                 </span>
               </div>
             </div>
@@ -102,9 +122,10 @@ export default function GeneralSettings() {
                   value={getLocalPart(formData.operationalEmails)}
                   placeholder="operacao"
                   onChange={(e) => handleEmailChange('operationalEmails', e.target.value)}
+                  disabled={!tenantDomain}
                 />
                 <span className="inline-flex items-center px-3 border border-l-0 border-input rounded-r-md bg-muted text-muted-foreground text-sm">
-                  @{tenantDomain}
+                  @{tenantDomain || 'dominio.com'}
                 </span>
               </div>
             </div>
@@ -130,7 +151,7 @@ export default function GeneralSettings() {
                 type="number"
                 min="1"
                 value={formData.slaHours}
-                onChange={(e) => handleChange('slaHours', parseInt(e.target.value))}
+                onChange={(e) => handleChange('slaHours', parseInt(e.target.value) || 24)}
                 className="w-32"
               />
             </div>

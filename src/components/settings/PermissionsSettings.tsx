@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Shield, UserCog, Plus, Pencil, Trash2, CheckCircle2 } from 'lucide-react'
+import { Shield, UserCog, Plus, Pencil, Trash2, CheckCircle2, AlertCircle } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Table,
@@ -45,7 +45,7 @@ const availableRoles: Role[] = [
 
 export default function PermissionsSettings() {
   const { users } = useUsersStore()
-  const tenantDomain = useMainStore().sharepoint.tenantDomain || 'imobged.com'
+  const tenantDomain = useMainStore().sharepoint.tenantDomain
   const { toast } = useToast()
 
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -83,7 +83,7 @@ export default function PermissionsSettings() {
   }
 
   const handleSave = () => {
-    if (!formData.name || !localEmailPart) {
+    if (!formData.name || !localEmailPart || !tenantDomain) {
       toast({ variant: 'destructive', title: 'Erro', description: 'Preencha todos os campos.' })
       return
     }
@@ -112,13 +112,20 @@ export default function PermissionsSettings() {
               <span>
                 Gerencie quais emails corporativos têm permissão para acessar a plataforma.
               </span>
-              <span className="inline-flex items-center text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-1 rounded w-fit mt-1">
-                <CheckCircle2 className="w-3 h-3 mr-1" /> Permissões restritas ao domínio vinculado:
-                @{tenantDomain}
-              </span>
+              {tenantDomain ? (
+                <span className="inline-flex items-center text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-1 rounded w-fit mt-1">
+                  <CheckCircle2 className="w-3 h-3 mr-1" /> Permissões restritas ao domínio
+                  vinculado: @{tenantDomain}
+                </span>
+              ) : (
+                <span className="inline-flex items-center text-xs font-medium text-destructive bg-destructive/10 border border-destructive/20 px-2 py-1 rounded w-fit mt-1">
+                  <AlertCircle className="w-3 h-3 mr-1" /> Configure um Tenant ID para gerenciar
+                  acessos
+                </span>
+              )}
             </CardDescription>
           </div>
-          <Button onClick={handleOpenNew} className="gap-2">
+          <Button onClick={handleOpenNew} className="gap-2" disabled={!tenantDomain}>
             <Plus className="w-4 h-4" /> Novo Usuário
           </Button>
         </CardHeader>
@@ -181,7 +188,9 @@ export default function PermissionsSettings() {
               {users.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
-                    Nenhum usuário cadastrado para este domínio.
+                    {tenantDomain
+                      ? 'Nenhum usuário cadastrado para este domínio.'
+                      : 'Cadastre um Tenant ID para começar a adicionar usuários.'}
                   </TableCell>
                 </TableRow>
               )}

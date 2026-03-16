@@ -34,58 +34,94 @@ export default function SharePointSettings() {
 
   useEffect(() => {
     const handler = setTimeout(() => {
-      if (!formData.tenantId || !formData.tenantId.trim()) {
+      const currentId = formData.tenantId?.trim() || ''
+
+      if (!currentId) {
         setTenantStatus('idle')
         setTenantIdError(null)
+        if (store.sharepoint.tenantDomain) {
+          const emptySites = { locacao: '', captacao: '', vendas: '', juridico: '', financeiro: '' }
+          mainStore.updateSharePointSettings({
+            tenantDomain: '',
+            teamsWebhookUrl: '',
+            sites: emptySites,
+          })
+          mainStore.updateSettings({
+            managementEmails: '',
+            administrativeEmails: '',
+            operationalEmails: '',
+          })
+          usersStore.enforceDomain('')
+          setFormData((prev) => ({
+            ...prev,
+            tenantDomain: '',
+            teamsWebhookUrl: '',
+            sites: emptySites,
+          }))
+          toast({
+            title: 'Tenant Removido',
+            description: 'Configurações vinculadas ao domínio foram limpas.',
+          })
+        }
         return
       }
 
       setTenantStatus('validating')
       setTimeout(() => {
-        if (isValidTenantId(formData.tenantId.trim())) {
+        if (isValidTenantId(currentId)) {
           setTenantStatus('active')
           setTenantIdError(null)
 
-          const resolvedDomain = getDomainFromTenant(formData.tenantId.trim())
+          const resolvedDomain = getDomainFromTenant(currentId)
 
-          setFormData((prev) => {
-            if (resolvedDomain !== prev.tenantDomain) {
-              const newPrefix = `https://${resolvedDomain.split('.')[0]}.sharepoint.com/sites/`
-              const updatedSites = { ...prev.sites }
+          if (resolvedDomain !== store.sharepoint.tenantDomain) {
+            const newPrefix = `https://${resolvedDomain.split('.')[0]}.sharepoint.com/sites/`
+            const updatedSites = { ...formData.sites }
 
-              Object.keys(updatedSites).forEach((k) => {
-                const key = k as keyof typeof updatedSites
-                const path = updatedSites[key].split('/').pop() || ''
-                updatedSites[key] = path ? `${newPrefix}${path}` : ''
-              })
+            Object.keys(updatedSites).forEach((k) => {
+              const key = k as keyof typeof updatedSites
+              const path = (updatedSites[key] || '').split('/').pop() || ''
+              updatedSites[key] = path ? `${newPrefix}${path}` : ''
+            })
 
-              setTimeout(() => {
-                toast({
-                  title: 'Novo Domínio Identificado',
-                  description: `O domínio ${resolvedDomain} foi vinculado ao Tenant e os sites foram atualizados.`,
-                })
-              }, 0)
+            setFormData((prev) => ({
+              ...prev,
+              tenantDomain: resolvedDomain,
+              teamsWebhookUrl: '',
+              sites: updatedSites,
+            }))
 
-              return {
-                ...prev,
-                tenantDomain: resolvedDomain,
-                teamsWebhookUrl: '', // Clear path on domain change to prevent leaks
-                sites: updatedSites,
-              }
-            }
-            return prev
-          })
+            mainStore.updateSharePointSettings({
+              tenantId: currentId,
+              tenantDomain: resolvedDomain,
+              teamsWebhookUrl: '',
+              sites: updatedSites,
+            })
+
+            mainStore.updateSettings({
+              managementEmails: '',
+              administrativeEmails: '',
+              operationalEmails: '',
+            })
+
+            usersStore.enforceDomain(resolvedDomain)
+
+            toast({
+              title: 'Novo Domínio Vinculado',
+              description: `Domínio ${resolvedDomain} detectado. Configurações sincronizadas.`,
+            })
+          } else if (currentId !== store.sharepoint.tenantId) {
+            mainStore.updateSharePointSettings({ tenantId: currentId })
+          }
         } else {
           setTenantStatus('invalid')
-          setTenantIdError(
-            'Formato inválido. Insira um ID de locatário (Tenant ID) válido do Microsoft Entra ID.',
-          )
+          setTenantIdError('Insira um ID de locatário (Tenant ID) válido.')
         }
       }, 600)
     }, 500)
 
     return () => clearTimeout(handler)
-  }, [formData.tenantId, toast])
+  }, [formData.tenantId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleChange = (field: keyof typeof formData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
@@ -96,7 +132,7 @@ export default function SharePointSettings() {
   }
 
   const handleSave = () => {
-    if (tenantStatus === 'invalid' || !formData.tenantId?.trim()) {
+    if (tenantStatus !== 'active' || !formData.tenantDomain) {
       toast({
         variant: 'destructive',
         title: 'Erro de Validação',
@@ -120,27 +156,11 @@ export default function SharePointSettings() {
       return
     }
 
-    const domainChanged = formData.tenantDomain !== store.sharepoint.tenantDomain
-
     mainStore.updateSharePointSettings(formData)
-
-    if (domainChanged && formData.tenantDomain) {
-      mainStore.updateSettings({
-        managementEmails: '',
-        administrativeEmails: '',
-        operationalEmails: '',
-      })
-      usersStore.enforceDomain(formData.tenantDomain)
-      toast({
-        title: 'Integração Salva & Sincronizada',
-        description: `Dados atualizados e permissões restritas para @${formData.tenantDomain}`,
-      })
-    } else {
-      toast({
-        title: 'Integração SharePoint Salva',
-        description: 'Mapeamento de sites e configurações atualizados.',
-      })
-    }
+    toast({
+      title: 'Integração SharePoint Salva',
+      description: 'Mapeamento de sites e configurações atualizados.',
+    })
   }
 
   const testConnection = () => {
@@ -148,29 +168,36 @@ export default function SharePointSettings() {
     setTestResult('idle')
     setTimeout(() => {
       setIsTesting(false)
+      if (tenantStatus !== 'active' || !formData.tenantDomain) {
+        setTestResult('error')
+        return
+      }
       const sitePrefix = `https://${formData.tenantDomain.split('.')[0]}.sharepoint.com/sites/`
       const allSitesValid = Object.values(formData.sites).every(
         (url) => url && url.startsWith(sitePrefix),
       )
-      setTestResult(allSitesValid && tenantStatus === 'active' ? 'success' : 'error')
+      setTestResult(allSitesValid ? 'success' : 'error')
     }, 2000)
   }
 
-  const domainPrefix = `https://${formData.tenantDomain || 'dominio'}.webhook.office.com/teams/`
+  const domainPrefix = formData.tenantDomain
+    ? `https://${formData.tenantDomain}.webhook.office.com/teams/`
+    : 'https://dominio.webhook.office.com/teams/'
+
   const webhookPath = formData.teamsWebhookUrl?.startsWith(domainPrefix)
-    ? formData.teamsWebhookUrl.replace(domainPrefix, '')
+    ? formData.teamsWebhookUrl.substring(domainPrefix.length)
     : formData.teamsWebhookUrl || ''
 
-  const sitePrefix = `https://${(formData.tenantDomain || 'dominio').split('.')[0]}.sharepoint.com/sites/`
+  const sitePrefix = formData.tenantDomain
+    ? `https://${formData.tenantDomain.split('.')[0]}.sharepoint.com/sites/`
+    : 'https://dominio.sharepoint.com/sites/'
 
   const renderSiteInput = (label: string, siteKey: keyof typeof formData.sites) => {
-    const value = formData.sites[siteKey]
-    const path = value?.startsWith(sitePrefix)
+    const value = formData.sites[siteKey] || ''
+    const path = value.startsWith(sitePrefix)
       ? value.substring(sitePrefix.length)
-      : value
-        ? value.split('/').pop() || ''
-        : ''
-    const isValid = value?.startsWith(sitePrefix) && path.length > 0 && tenantStatus === 'active'
+      : value.split('/').pop() || ''
+    const isValid = value.startsWith(sitePrefix) && path.length > 0 && tenantStatus === 'active'
 
     return (
       <div className="space-y-2">
@@ -199,7 +226,7 @@ export default function SharePointSettings() {
             onChange={(e) =>
               handleSiteChange(siteKey, e.target.value ? `${sitePrefix}${e.target.value}` : '')
             }
-            disabled={tenantStatus !== 'active'}
+            disabled={tenantStatus !== 'active' || !formData.tenantDomain}
             placeholder="nome-do-setor"
           />
         </div>
@@ -275,7 +302,7 @@ export default function SharePointSettings() {
                   )
                 }
                 placeholder="id-do-canal-xyz"
-                disabled={tenantStatus !== 'active'}
+                disabled={tenantStatus !== 'active' || !formData.tenantDomain}
               />
             </div>
           </div>
@@ -303,6 +330,7 @@ export default function SharePointSettings() {
             {renderSiteInput('Vendas (Site URL)', 'vendas')}
             {renderSiteInput('Captação de Imóveis (Site URL)', 'captacao')}
             {renderSiteInput('Jurídico (Site URL)', 'juridico')}
+            {renderSiteInput('Financeiro (Site URL)', 'financeiro')}
           </div>
         </CardContent>
       </Card>
@@ -312,7 +340,7 @@ export default function SharePointSettings() {
           <Button
             variant="outline"
             onClick={testConnection}
-            disabled={isTesting || tenantStatus !== 'active'}
+            disabled={isTesting || tenantStatus !== 'active' || !formData.tenantDomain}
           >
             {isTesting ? (
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />

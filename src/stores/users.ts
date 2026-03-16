@@ -95,9 +95,13 @@ export const usersStore = {
     emit()
   },
   enforceDomain: (domain: string) => {
-    state = {
-      ...state,
-      users: state.users.filter((u) => u.email.endsWith(`@${domain}`)),
+    if (!domain) {
+      state = { ...state, users: [] }
+    } else {
+      state = {
+        ...state,
+        users: state.users.filter((u) => u.email.endsWith(`@${domain}`)),
+      }
     }
     emit()
   },
