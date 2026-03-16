@@ -12,6 +12,7 @@ import {
   CalendarClock,
   KeyRound,
   Wrench,
+  BellRing,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -36,6 +37,7 @@ const navigation = [
   { title: 'Controle de Chaves', url: '/keys', icon: KeyRound },
   { title: 'Manutenção', url: '/maintenance', icon: Wrench },
   { title: 'Documentos (GED)', url: '/documents', icon: FolderOpen },
+  { title: 'Alertas GED', url: '/document-alerts', icon: BellRing },
   { title: 'Imóveis', url: '/properties', icon: Home },
   { title: 'Vistorias', url: '/inspections', icon: ClipboardCheck },
   { title: 'Jurídico', url: '/legal', icon: Scale },

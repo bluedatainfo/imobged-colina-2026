@@ -20,6 +20,14 @@ export const ROUTE_ACCESS: Record<string, Role[]> = {
   '/manager-approval': ['Admin', 'Diretor', 'Gerente', 'Gestor de Contrato'],
   '/contracts': ['Admin', 'Diretor', 'Gerente', 'Jurídico', 'Gestor de Contrato'],
   '/documents': ['Admin', 'Diretor', 'Gerente', 'Jurídico', 'Financeiro', 'Gestor de Contrato'],
+  '/document-alerts': [
+    'Admin',
+    'Diretor',
+    'Gerente',
+    'Jurídico',
+    'Financeiro',
+    'Gestor de Contrato',
+  ],
   '/properties': [
     'Admin',
     'Diretor',

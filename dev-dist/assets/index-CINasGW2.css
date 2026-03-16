@@ -1637,6 +1637,10 @@ section[aria-label='Notifications alt+T'] {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.grid-cols-3{
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .flex-row{
   flex-direction: row;
 }
@@ -2072,6 +2076,10 @@ section[aria-label='Notifications alt+T'] {
   border-color: rgb(254 202 202 / var(--tw-border-opacity, 1));
 }
 
+.border-red-500\/50{
+  border-color: rgb(239 68 68 / 0.5);
+}
+
 .border-sidebar-border{
   border-color: hsl(var(--sidebar-border));
 }
@@ -2319,6 +2327,11 @@ section[aria-label='Notifications alt+T'] {
 .bg-red-100{
   --tw-bg-opacity: 1;
   background-color: rgb(254 226 226 / var(--tw-bg-opacity, 1));
+}
+
+.bg-red-50{
+  --tw-bg-opacity: 1;
+  background-color: rgb(254 242 242 / var(--tw-bg-opacity, 1));
 }
 
 .bg-red-50\/50{
@@ -3520,6 +3533,11 @@ section[aria-label='Notifications alt+T'] {
   background-color: hsl(var(--accent));
 }
 
+.hover\:bg-amber-600:hover{
+  --tw-bg-opacity: 1;
+  background-color: rgb(217 119 6 / var(--tw-bg-opacity, 1));
+}
+
 .hover\:bg-amber-700:hover{
   --tw-bg-opacity: 1;
   background-color: rgb(180 83 9 / var(--tw-bg-opacity, 1));
@@ -3536,6 +3554,11 @@ section[aria-label='Notifications alt+T'] {
 
 .hover\:bg-destructive\/90:hover{
   background-color: hsl(var(--destructive) / 0.9);
+}
+
+.hover\:bg-emerald-600:hover{
+  --tw-bg-opacity: 1;
+  background-color: rgb(5 150 105 / var(--tw-bg-opacity, 1));
 }
 
 .hover\:bg-emerald-700:hover{
@@ -3609,6 +3632,10 @@ section[aria-label='Notifications alt+T'] {
 
 .hover\:text-muted-foreground:hover{
   color: hsl(var(--muted-foreground));
+}
+
+.hover\:text-primary:hover{
+  color: hsl(var(--primary));
 }
 
 .hover\:text-red-700:hover{
@@ -4066,8 +4093,18 @@ section[aria-label='Notifications alt+T'] {
   color: hsl(var(--accent-foreground));
 }
 
+.data-\[state\=active\]\:text-amber-700[data-state="active"]{
+  --tw-text-opacity: 1;
+  color: rgb(180 83 9 / var(--tw-text-opacity, 1));
+}
+
 .data-\[state\=active\]\:text-foreground[data-state="active"]{
   color: hsl(var(--foreground));
+}
+
+.data-\[state\=active\]\:text-red-700[data-state="active"]{
+  --tw-text-opacity: 1;
+  color: rgb(185 28 28 / var(--tw-text-opacity, 1));
 }
 
 .data-\[state\=checked\]\:text-primary-foreground[data-state="checked"]{

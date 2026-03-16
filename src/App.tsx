@@ -5,6 +5,7 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import Layout from './components/Layout'
 import Index from './pages/Index'
 import Documents from './pages/Documents'
+import DocumentAlerts from './pages/DocumentAlerts'
 import Properties from './pages/Properties'
 import PropertyDossier from './pages/PropertyDossier'
 import Inspections from './pages/Inspections'
@@ -52,6 +53,7 @@ const AppRoutes = () => (
       <Route path="/manager-approval" element={<ManagerApproval />} />
       <Route path="/contracts" element={<Contracts />} />
       <Route path="/documents" element={<Documents />} />
+      <Route path="/document-alerts" element={<DocumentAlerts />} />
       <Route path="/properties" element={<Properties />} />
       <Route path="/properties/:id/dossier" element={<PropertyDossier />} />
       <Route path="/inspections" element={<Inspections />} />
