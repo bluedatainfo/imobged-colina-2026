@@ -1,4 +1,5 @@
-import { Bell, Search, LogOut, Users, HelpCircle } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Bell, Search, LogOut, Users, HelpCircle, User } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -54,8 +55,10 @@ export function AppHeader() {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src={user?.avatar} alt={user?.name} />
-                  <AvatarFallback>{user?.name?.substring(0, 2) || 'US'}</AvatarFallback>
+                  <AvatarImage src={user?.avatar} alt={user?.name} className="object-cover" />
+                  <AvatarFallback>
+                    <User className="h-4 w-4 text-muted-foreground" />
+                  </AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
@@ -69,6 +72,13 @@ export function AppHeader() {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
+
+              <DropdownMenuItem asChild>
+                <Link to="/profile" className="w-full cursor-pointer flex items-center">
+                  <User className="mr-2 h-4 w-4" />
+                  <span>Meu Perfil</span>
+                </Link>
+              </DropdownMenuItem>
 
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger>

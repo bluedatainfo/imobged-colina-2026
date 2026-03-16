@@ -9,6 +9,7 @@ import {
   AlertCircle,
   RefreshCw,
   Loader2,
+  User,
 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -51,6 +52,7 @@ const availableRoles: Role[] = [
   'Vistoriador',
   'Jurídico',
   'Financeiro',
+  'Corretor',
 ]
 
 export default function PermissionsSettings() {
@@ -148,7 +150,7 @@ export default function PermissionsSettings() {
             name: u.displayName || 'Usuário M365',
             email: (u.mail || u.userPrincipalName).toLowerCase(),
             role: 'Vistoriador' as Role,
-            avatar: `https://img.usecurling.com/ppl/thumbnail?seed=${u.id ? u.id.charCodeAt(0) : Math.floor(Math.random() * 100)}`,
+            avatar: '',
           }))
 
         usersStore.syncUsers(validUsers)
@@ -173,28 +175,28 @@ export default function PermissionsSettings() {
             name: 'Admin Sistema',
             email: `admin@${primaryDomain}`,
             role: 'Admin' as Role,
-            avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=female&seed=2',
+            avatar: '',
           },
           {
             id: 'usr-2',
             name: 'Ismail Abdo',
             email: `ismail@${primaryDomain}`,
             role: 'Diretor' as Role,
-            avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=male&seed=4',
+            avatar: '',
           },
           {
             id: 'usr-3',
             name: 'Mariana Costa',
             email: `mariana.costa@${primaryDomain}`,
             role: 'Jurídico' as Role,
-            avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=female&seed=7',
+            avatar: '',
           },
           {
             id: 'usr-4',
             name: 'Roberto Alves',
             email: `roberto.alves@${primaryDomain}`,
             role: 'Gerente' as Role,
-            avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=male&seed=9',
+            avatar: '',
           },
         ]
         usersStore.syncUsers(mockFetched)
@@ -271,8 +273,10 @@ export default function PermissionsSettings() {
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <Avatar className="h-8 w-8">
-                        <AvatarImage src={user.avatar} />
-                        <AvatarFallback>{user.name.substring(0, 2)}</AvatarFallback>
+                        <AvatarImage src={user.avatar} className="object-cover" />
+                        <AvatarFallback>
+                          <User className="h-4 w-4 text-muted-foreground" />
+                        </AvatarFallback>
                       </Avatar>
                       <span className="font-medium">{user.name}</span>
                     </div>

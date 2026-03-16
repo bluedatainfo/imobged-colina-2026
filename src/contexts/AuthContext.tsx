@@ -136,7 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
           }
 
-          let photoUrl = `https://img.usecurling.com/ppl/thumbnail?seed=${Math.floor(Math.random() * 100)}`
+          let photoUrl = ''
           try {
             const pRes = await fetch('https://graph.microsoft.com/v1.0/me/photo/$value', {
               headers: { Authorization: `Bearer ${token}` },

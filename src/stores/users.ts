@@ -58,9 +58,7 @@ export const usersStore = {
     const newUser: SystemUser = {
       ...user,
       id: user.id || `usr-${Math.random().toString(36).substring(2, 9)}`,
-      avatar:
-        user.avatar ||
-        `https://img.usecurling.com/ppl/thumbnail?seed=${Math.floor(Math.random() * 100)}`,
+      avatar: user.avatar || '',
     }
 
     const existingIndex = state.users.findIndex(
@@ -115,7 +113,7 @@ export const usersStore = {
     const mergedUsers = fetchedUsers.map((fu) => {
       const existing = currentUsersMap.get(fu.email.toLowerCase())
       if (existing) {
-        return { ...fu, role: existing.role }
+        return { ...fu, role: existing.role, avatar: existing.avatar || fu.avatar }
       }
       return fu
     })

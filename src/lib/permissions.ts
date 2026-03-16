@@ -6,6 +6,7 @@ export type Role =
   | 'Jurídico'
   | 'Financeiro'
   | 'Gestor de Contrato'
+  | 'Corretor'
 
 export const ROUTE_ACCESS: Record<string, Role[]> = {
   '/': [
@@ -16,6 +17,7 @@ export const ROUTE_ACCESS: Record<string, Role[]> = {
     'Jurídico',
     'Financeiro',
     'Gestor de Contrato',
+    'Corretor',
   ],
   '/manager-approval': ['Admin', 'Diretor', 'Gerente', 'Gestor de Contrato'],
   '/contracts': ['Admin', 'Diretor', 'Gerente', 'Jurídico', 'Gestor de Contrato'],
@@ -36,6 +38,7 @@ export const ROUTE_ACCESS: Record<string, Role[]> = {
     'Jurídico',
     'Financeiro',
     'Gestor de Contrato',
+    'Corretor',
   ],
   '/inspections': ['Admin', 'Diretor', 'Gerente', 'Vistoriador', 'Gestor de Contrato'],
   '/legal': ['Admin', 'Diretor', 'Gerente', 'Jurídico'],
@@ -43,7 +46,17 @@ export const ROUTE_ACCESS: Record<string, Role[]> = {
   '/keys': ['Admin', 'Diretor', 'Gerente', 'Vistoriador', 'Gestor de Contrato'],
   '/maintenance': ['Admin', 'Diretor', 'Gerente', 'Financeiro'],
   '/settings': ['Admin', 'Diretor'],
-  '/properties/dossier': ['Admin', 'Diretor'],
+  '/properties/dossier': ['Admin', 'Diretor', 'Corretor'],
+  '/profile': [
+    'Admin',
+    'Diretor',
+    'Gerente',
+    'Vistoriador',
+    'Jurídico',
+    'Financeiro',
+    'Gestor de Contrato',
+    'Corretor',
+  ],
 }
 
 export const checkAccess = (path: string, role?: Role) => {

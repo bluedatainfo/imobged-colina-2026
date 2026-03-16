@@ -26,6 +26,7 @@ const KeysControl = lazy(() => import('./pages/KeysControl'))
 const Maintenance = lazy(() => import('./pages/Maintenance'))
 const AccessDenied = lazy(() => import('./pages/AccessDenied'))
 const Portal = lazy(() => import('./pages/Portal'))
+const Profile = lazy(() => import('./pages/Profile'))
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAuth()
@@ -61,6 +62,7 @@ const AppRoutes = () => (
         }
       >
         <Route path="/" element={<Index />} />
+        <Route path="/profile" element={<Profile />} />
         <Route path="/manager-approval" element={<ManagerApproval />} />
         <Route path="/contracts" element={<Contracts />} />
         <Route path="/documents" element={<Documents />} />
