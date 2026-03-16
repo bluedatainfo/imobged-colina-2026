@@ -50,17 +50,35 @@ const Inspections = () => {
   const [ocrData, setOcrData] = useState<any>(null)
 
   const processInspection = (propertyId: string, notes: string) => {
+    let parsedNotes: any = null
+    try {
+      parsedNotes = JSON.parse(notes)
+    } catch (e) {
+      // Not JSON, handle as regular text
+    }
+
+    const finalWallCondition = parsedNotes
+      ? `[${parsedNotes['Paredes']?.status || 'N/A'}] ${parsedNotes['Paredes']?.notes || ''}`
+      : 'Extraído via Mobile'
+
+    const finalFurnitureNotes = parsedNotes
+      ? `[${parsedNotes['Móveis']?.status || 'N/A'}] ${parsedNotes['Móveis']?.notes || ''}`
+      : notes
+
     mainStore.saveInspection({
       propertyId,
-      wallCondition: 'Extraído via Mobile',
-      furnitureNotes: notes,
+      wallCondition: finalWallCondition,
+      furnitureNotes: finalFurnitureNotes,
+      generalNotes: notes, // Store raw JSON string in general for later potential use
     })
+
     mainStore.updatePropertyStatus(propertyId, 'Confecção de Contrato')
     mainStore.addAuditLog({
       propertyId,
       action: 'Vistoria Mobile/OCR Concluída',
       user: user?.name || 'Sistema',
-      details: 'Upload sincronizado com a biblioteca "Gestão de Locação".',
+      details:
+        'Upload sincronizado com a biblioteca "Gestão de Locação". Dados processados via OCR.',
     })
     m365Service.saveToLibrary('Gestão de Locação', `Vistoria_${propertyId}_Mobile.pdf`)
   }
@@ -69,7 +87,7 @@ const Inspections = () => {
     processInspection(propertyId, notes)
     toast({
       title: 'Vistoria Sincronizada',
-      description: 'Documento salvo no SharePoint da Gestão de Locação.',
+      description: 'Documento salvo no SharePoint da Gestão de Locação. Dados OCR processados.',
     })
   }
 
