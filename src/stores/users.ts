@@ -17,37 +17,37 @@ let state: State = {
   users: [
     {
       id: 'usr-1',
-      name: 'Ana Silva',
-      email: 'ana.silva@imobged.onmicrosoft.com',
+      name: 'Admin Sistema',
+      email: 'admin@ismailabdo.onmicrosoft.com',
       role: 'Admin',
       avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=female&seed=2',
     },
     {
       id: 'usr-2',
-      name: 'Carlos Santos',
-      email: 'carlos.santos@imobged.onmicrosoft.com',
-      role: 'Vistoriador',
+      name: 'Ismail Abdo',
+      email: 'ismail@ismailabdo.onmicrosoft.com',
+      role: 'Diretor',
       avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=male&seed=4',
     },
     {
       id: 'usr-3',
       name: 'Mariana Costa',
-      email: 'mariana.costa@imobged.onmicrosoft.com',
+      email: 'mariana.costa@ismailabdo.onmicrosoft.com',
       role: 'Jurídico',
       avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=female&seed=7',
     },
     {
       id: 'usr-4',
       name: 'Roberto Alves',
-      email: 'roberto.alves@imobged.onmicrosoft.com',
+      email: 'roberto.alves@ismailabdo.onmicrosoft.com',
       role: 'Gerente',
       avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=male&seed=9',
     },
     {
       id: 'usr-5',
-      name: 'Paulo Vieira',
-      email: 'paulo.vieira@imobged.onmicrosoft.com',
-      role: 'Diretor',
+      name: 'Carlos Santos',
+      email: 'carlos.santos@ismailabdo.onmicrosoft.com',
+      role: 'Vistoriador',
       avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=male&seed=15',
     },
   ],
@@ -79,6 +79,7 @@ export const usersStore = {
     }
     state = { ...state, users: [...state.users, newUser] }
     emit()
+    return newUser
   },
   updateUser: (id: string, data: Partial<SystemUser>) => {
     state = {

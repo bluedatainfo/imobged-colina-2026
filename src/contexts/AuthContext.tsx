@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, ReactNode } from 'react'
 import { SystemUser, usersStore } from '@/stores/users'
 import { mainStore } from '@/stores/main'
+import { Role } from '@/lib/permissions'
 
 type AuthContextType = {
   user: SystemUser | null
@@ -34,27 +35,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const emailParts = email.split('@')
         const emailDomain = emailParts.length > 1 ? emailParts[1].toLowerCase() : ''
 
+        // Domain-Specific Auth Routing Validation
         if (emailDomain !== domain) {
           reject(
             new Error(
-              `Acesso negado. O e-mail fornecido não pertence ao domínio autorizado (${sharepoint.primaryDomain}).`,
+              `Acesso negado. O e-mail fornecido não pertence ao tenant autorizado (@${domain}).`,
             ),
           )
           return
         }
 
         const { users } = usersStore.getState()
-        const foundUser = users.find((u) => u.email.toLowerCase() === email.toLowerCase())
+        let foundUser = users.find((u) => u.email.toLowerCase() === email.toLowerCase())
+
+        if (!foundUser) {
+          // Simulate Microsoft 365 Entra ID JIT (Just-In-Time) Provisioning
+          // Retrieve the user's real profile information (mocked) and create them
+          const nameParts = emailParts[0].split('.')
+          const name = nameParts.map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ')
+
+          foundUser = usersStore.addUser({
+            name,
+            email: email.toLowerCase(),
+            role: 'Vistoriador' as Role, // Default role for newly synced users
+          })
+        }
 
         if (foundUser) {
           setCurrentUserId(foundUser.id)
           resolve()
         } else {
-          reject(
-            new Error(
-              `Acesso negado. Usuário não encontrado no domínio (${sharepoint.primaryDomain}) autorizado.`,
-            ),
-          )
+          reject(new Error('Erro ao sincronizar perfil do usuário com o Microsoft Entra ID.'))
         }
       }, 1200)
     })

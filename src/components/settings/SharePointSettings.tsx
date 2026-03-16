@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/hooks/use-toast'
 import useMainStore, { mainStore } from '@/stores/main'
 import { usersStore } from '@/stores/users'
+import { useAuth } from '@/contexts/AuthContext'
 import { cn } from '@/lib/utils'
 
 const resolveTenantByDomain = async (domain: string) => {
@@ -53,6 +54,7 @@ const SITES = [
 export default function SharePointSettings() {
   const { toast } = useToast()
   const store = useMainStore()
+  const { logout } = useAuth()
   const [formData, setFormData] = useState(store.sharepoint)
 
   const [primaryInput, setPrimaryInput] = useState(store.sharepoint.primaryDomain || '')
@@ -264,13 +266,20 @@ export default function SharePointSettings() {
         operationalEmails: '',
       })
       usersStore.enforceDomain(formData.primaryDomain)
-      if (formData.primaryDomain && usersStore.getState().users.length === 0) {
+      if (formData.primaryDomain) {
         usersStore.addUser({
           name: 'Admin Sistema',
           email: `admin@${formData.primaryDomain}`,
           role: 'Admin',
         })
       }
+      toast({
+        title: 'Tenant Alterado',
+        description:
+          'Sua sessão foi encerrada para aplicar o novo contexto de domínio. Por favor, faça login novamente.',
+      })
+      logout() // Force re-auth due to domain change state consistency
+      return
     }
 
     toast({
