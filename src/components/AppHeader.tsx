@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Bell, Search, LogOut, Users, HelpCircle, User } from 'lucide-react'
+import { Bell, Search, LogOut, Users, HelpCircle, User, Settings2 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -33,7 +33,7 @@ export function AppHeader() {
           <Input
             type="search"
             placeholder="Buscar documentos, imóveis (CMD+K)..."
-            className="w-full bg-background pl-9 md:w-[300px] lg:w-[400px]"
+            className="w-full bg-muted/50 border-transparent focus-visible:border-primary pl-9 md:w-[300px] lg:w-[400px] transition-all"
           />
         </div>
       </div>
@@ -48,67 +48,88 @@ export function AppHeader() {
         </Button>
         <Button variant="ghost" size="icon" className="relative hidden sm:flex">
           <Bell className="h-5 w-5" />
-          <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-destructive"></span>
+          <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-destructive border-2 border-background"></span>
         </Button>
         <div className="flex items-center gap-2 border-l pl-2 sm:pl-4">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                <Avatar className="h-8 w-8">
+              <Button
+                variant="ghost"
+                className="relative h-9 w-9 rounded-full ring-2 ring-transparent transition-all hover:ring-primary/20 data-[state=open]:ring-primary/30"
+              >
+                <Avatar className="h-9 w-9 border border-border">
                   <AvatarImage src={user?.avatar} alt={user?.name} className="object-cover" />
-                  <AvatarFallback>
-                    <User className="h-4 w-4 text-muted-foreground" />
+                  <AvatarFallback className="bg-muted text-muted-foreground">
+                    <User className="h-4 w-4" />
                   </AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56" align="end" forceMount>
-              <DropdownMenuLabel className="font-normal">
-                <div className="flex flex-col space-y-1">
+            <DropdownMenuContent className="w-64" align="end" forceMount>
+              <DropdownMenuLabel className="font-normal p-3">
+                <div className="flex flex-col space-y-1.5">
                   <p className="text-sm font-medium leading-none">{user?.name || 'Usuário'}</p>
-                  <p className="text-xs leading-none text-muted-foreground flex items-center gap-2 mt-1">
-                    {user?.email} <Badge variant="secondary">{user?.role}</Badge>
+                  <p className="text-xs leading-none text-muted-foreground flex items-center gap-2 mt-1 truncate">
+                    {user?.email}
                   </p>
+                  <div className="pt-1.5">
+                    <Badge
+                      variant="secondary"
+                      className="font-medium bg-primary/10 text-primary hover:bg-primary/20"
+                    >
+                      {user?.role}
+                    </Badge>
+                  </div>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
 
-              <DropdownMenuItem asChild>
-                <Link to="/profile" className="w-full cursor-pointer flex items-center">
-                  <User className="mr-2 h-4 w-4" />
-                  <span>Meu Perfil</span>
+              <DropdownMenuItem asChild className="cursor-pointer py-2">
+                <Link to="/profile" className="w-full flex items-center">
+                  <Settings2 className="mr-2 h-4 w-4 text-muted-foreground" />
+                  <span>Configurações do Perfil</span>
                 </Link>
               </DropdownMenuItem>
 
               <DropdownMenuSub>
-                <DropdownMenuSubTrigger>
-                  <Users className="mr-2 h-4 w-4" />
-                  <span>Mudar Usuário (Demo)</span>
+                <DropdownMenuSubTrigger className="py-2">
+                  <Users className="mr-2 h-4 w-4 text-muted-foreground" />
+                  <span>Alternar Conta (Demo)</span>
                 </DropdownMenuSubTrigger>
-                <DropdownMenuSubContent>
+                <DropdownMenuSubContent className="w-56">
                   {users.map((u) => (
                     <DropdownMenuItem
                       key={u.id}
                       onClick={() => switchUser(u.id)}
-                      className="justify-between"
+                      className={`justify-between cursor-pointer py-2 ${user?.id === u.id ? 'bg-accent' : ''}`}
                     >
-                      {u.name}
-                      <span className="text-xs text-muted-foreground ml-2">{u.role}</span>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{u.name}</span>
+                        <span className="text-[10px] text-muted-foreground">{u.email}</span>
+                      </div>
+                      <Badge variant="outline" className="text-[10px] h-5 ml-2 shrink-0">
+                        {u.role}
+                      </Badge>
                     </DropdownMenuItem>
                   ))}
                 </DropdownMenuSubContent>
               </DropdownMenuSub>
 
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={logout} className="text-destructive cursor-pointer">
+              <DropdownMenuItem
+                onClick={logout}
+                className="text-destructive cursor-pointer py-2 hover:bg-destructive hover:text-destructive-foreground"
+              >
                 <LogOut className="mr-2 h-4 w-4" />
-                <span>Sair (SSO)</span>
+                <span>Encerrar Sessão</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           <div className="hidden flex-col text-sm md:flex">
             <span className="font-medium leading-none">{user?.name || 'Visitante'}</span>
-            <span className="text-xs text-muted-foreground">{user?.role || 'Microsoft 365'}</span>
+            <span className="text-xs text-muted-foreground mt-1">
+              {user?.role || 'Microsoft 365'}
+            </span>
           </div>
         </div>
       </div>

@@ -19,7 +19,39 @@ let listeners: Array<() => void> = []
 
 export const initUsersStore = async () => {
   const data = await supabase.get('app_users')
-  state = { users: Array.isArray(data) && data.length > 0 ? data : [] }
+
+  if (Array.isArray(data) && data.length > 0) {
+    state = { users: data }
+  } else {
+    // Seed default demo users to enable easy testing of roles, especially the Corretor constraint
+    const demoUsers: SystemUser[] = [
+      {
+        id: 'usr-admin',
+        name: 'Administrador Demo',
+        email: 'admin@imobiliaria.local',
+        role: 'Admin',
+        avatar: '',
+      },
+      {
+        id: 'usr-corretor',
+        name: 'João (Corretor)',
+        email: 'corretor@imobiliaria.local',
+        role: 'Corretor',
+        avatar: '',
+      },
+      {
+        id: 'usr-gerente',
+        name: 'Maria (Gerente)',
+        email: 'gerente@imobiliaria.local',
+        role: 'Gerente',
+        avatar: '',
+      },
+    ]
+    state = { users: demoUsers }
+    for (const u of demoUsers) {
+      await supabase.upsert('app_users', u)
+    }
+  }
   emit()
 }
 
