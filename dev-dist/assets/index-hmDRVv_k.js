@@ -27611,7 +27611,7 @@ var state$5 = {
 		slaHours: 24
 	},
 	sharepoint: {
-		tenantId: "a1b2c3d4-e5f6",
+		tenantId: "a1b2c3d4-e5f6-4a1b-9c2d-3e4f5a6b7c8d",
 		teamsWebhookUrl: "https://imobged.webhook.office.com/teams",
 		sites: {
 			locacao: "https://imobged.sharepoint.com/sites/GestaoDeLocacao",
@@ -28042,6 +28042,13 @@ function AuthProvider({ children }) {
 					reject(/* @__PURE__ */ new Error("Acesso negado. Tenant ID não configurado nas definições do sistema."));
 					return;
 				}
+				const isValidTenantId = (id) => {
+					return /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id);
+				};
+				if (!isValidTenantId(sharepoint.tenantId.trim())) {
+					reject(/* @__PURE__ */ new Error(`Acesso negado. O Tenant configurado no sistema (${sharepoint.tenantId}) é inválido.`));
+					return;
+				}
 				const { users } = usersStore.getState();
 				const foundUser = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
 				if (foundUser) {
@@ -28058,7 +28065,7 @@ function AuthProvider({ children }) {
 		setCurrentUserId(id);
 	};
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AuthContext.Provider, {
-		"data-uid": "src/contexts/AuthContext.tsx:56:5",
+		"data-uid": "src/contexts/AuthContext.tsx:71:5",
 		"data-prohibitions": "[editContent]",
 		value: {
 			user,
@@ -66084,10 +66091,34 @@ function GeneralSettings() {
 //#region src/components/settings/SharePointSettings.tsx
 function SharePointSettings() {
 	const { toast } = useToast();
-	const store = useMainStore();
-	const [formData, setFormData] = (0, import_react.useState)(store.sharepoint);
+	const [formData, setFormData] = (0, import_react.useState)(useMainStore().sharepoint);
 	const [isTesting, setIsTesting] = (0, import_react.useState)(false);
-	const [testResult, setTestResult] = (0, import_react.useState)(store.sharepoint.tenantId ? "success" : "idle");
+	const [testResult, setTestResult] = (0, import_react.useState)("idle");
+	const [tenantStatus, setTenantStatus] = (0, import_react.useState)("idle");
+	const [tenantIdError, setTenantIdError] = (0, import_react.useState)(null);
+	const isValidTenantId = (id) => {
+		return /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id);
+	};
+	(0, import_react.useEffect)(() => {
+		const handler = setTimeout(() => {
+			if (!formData.tenantId || !formData.tenantId.trim()) {
+				setTenantStatus("idle");
+				setTenantIdError(null);
+				return;
+			}
+			setTenantStatus("validating");
+			setTimeout(() => {
+				if (isValidTenantId(formData.tenantId.trim())) {
+					setTenantStatus("active");
+					setTenantIdError(null);
+				} else {
+					setTenantStatus("invalid");
+					setTenantIdError("Formato inválido. Insira um ID de locatário (Tenant ID) válido do Microsoft Entra ID.");
+				}
+			}, 600);
+		}, 500);
+		return () => clearTimeout(handler);
+	}, [formData.tenantId]);
 	const handleChange = (field, value) => {
 		setFormData((prev) => ({
 			...prev,
@@ -66122,11 +66153,11 @@ function SharePointSettings() {
 		}));
 	};
 	const handleSave = () => {
-		if (!formData.tenantId?.trim()) {
+		if (tenantStatus === "invalid" || !formData.tenantId?.trim()) {
 			toast({
 				variant: "destructive",
 				title: "Erro de Validação",
-				description: "O Tenant ID não pode ficar vazio. Ele é essencial para a integração M365."
+				description: "Forneça um Tenant ID válido do Microsoft Entra ID antes de salvar."
 			});
 			return;
 		}
@@ -66141,94 +66172,104 @@ function SharePointSettings() {
 		setTestResult("idle");
 		setTimeout(() => {
 			setIsTesting(false);
-			setTestResult(Object.values(formData.sites).every((url) => url && url.startsWith("http")) && formData.tenantId ? "success" : "error");
+			setTestResult(Object.values(formData.sites).every((url) => url && url.startsWith("http")) && tenantStatus === "active" ? "success" : "error");
 		}, 2e3);
 	};
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-		"data-uid": "src/components/settings/SharePointSettings.tsx:75:5",
+		"data-uid": "src/components/settings/SharePointSettings.tsx:107:5",
 		"data-prohibitions": "[editContent]",
 		className: "space-y-6",
 		children: [
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
-				"data-uid": "src/components/settings/SharePointSettings.tsx:76:7",
+				"data-uid": "src/components/settings/SharePointSettings.tsx:108:7",
 				"data-prohibitions": "[editContent]",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardHeader, {
-					"data-uid": "src/components/settings/SharePointSettings.tsx:77:9",
+					"data-uid": "src/components/settings/SharePointSettings.tsx:109:9",
 					"data-prohibitions": "[]",
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardTitle, {
-						"data-uid": "src/components/settings/SharePointSettings.tsx:78:11",
+						"data-uid": "src/components/settings/SharePointSettings.tsx:110:11",
 						"data-prohibitions": "[]",
 						className: "flex items-center gap-2",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Server, {
-							"data-uid": "src/components/settings/SharePointSettings.tsx:79:13",
+							"data-uid": "src/components/settings/SharePointSettings.tsx:111:13",
 							"data-prohibitions": "[editContent]",
 							className: "w-5 h-5 text-primary"
 						}), " Conexão M365 & Tenant"]
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardDescription, {
-						"data-uid": "src/components/settings/SharePointSettings.tsx:81:11",
+						"data-uid": "src/components/settings/SharePointSettings.tsx:113:11",
 						"data-prohibitions": "[]",
 						children: "Parâmetros principais do Tenant e credenciais via Microsoft Graph API."
 					})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardContent, {
-					"data-uid": "src/components/settings/SharePointSettings.tsx:85:9",
+					"data-uid": "src/components/settings/SharePointSettings.tsx:117:9",
 					"data-prohibitions": "[editContent]",
 					className: "grid md:grid-cols-2 gap-4",
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						"data-uid": "src/components/settings/SharePointSettings.tsx:86:11",
+						"data-uid": "src/components/settings/SharePointSettings.tsx:118:11",
 						"data-prohibitions": "[editContent]",
 						className: "space-y-2",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Label, {
-							"data-uid": "src/components/settings/SharePointSettings.tsx:87:13",
-							"data-prohibitions": "[editContent]",
-							className: "flex items-center justify-between",
-							children: [
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-									"data-uid": "src/components/settings/SharePointSettings.tsx:88:15",
-									"data-prohibitions": "[]",
-									children: "Tenant ID (Microsoft Entra ID)"
-								}),
-								testResult === "success" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badge, {
-									"data-uid": "src/components/settings/SharePointSettings.tsx:90:17",
-									"data-prohibitions": "[]",
-									className: "bg-emerald-500 hover:bg-emerald-600 text-white border-transparent",
-									children: "Conectado"
-								}),
-								testResult === "error" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badge, {
-									"data-uid": "src/components/settings/SharePointSettings.tsx:94:42",
-									"data-prohibitions": "[]",
-									variant: "destructive",
-									children: "Erro"
-								}),
-								testResult === "idle" && !formData.tenantId && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badge, {
-									"data-uid": "src/components/settings/SharePointSettings.tsx:96:17",
-									"data-prohibitions": "[]",
-									variant: "secondary",
-									children: "Desconectado"
-								}),
-								testResult === "idle" && formData.tenantId && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badge, {
-									"data-uid": "src/components/settings/SharePointSettings.tsx:99:17",
-									"data-prohibitions": "[]",
-									variant: "outline",
-									children: "Não Testado"
-								})
-							]
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-							"data-uid": "src/components/settings/SharePointSettings.tsx:102:13",
-							"data-prohibitions": "[editContent]",
-							value: formData.tenantId,
-							onChange: (e) => handleChange("tenantId", e.target.value),
-							placeholder: "Ex: a1b2c3d4-e5f6-7890-..."
-						})]
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Label, {
+								"data-uid": "src/components/settings/SharePointSettings.tsx:119:13",
+								"data-prohibitions": "[editContent]",
+								className: "flex items-center justify-between",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+										"data-uid": "src/components/settings/SharePointSettings.tsx:120:15",
+										"data-prohibitions": "[]",
+										children: "Tenant ID (Microsoft Entra ID)"
+									}),
+									tenantStatus === "active" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badge, {
+										"data-uid": "src/components/settings/SharePointSettings.tsx:122:17",
+										"data-prohibitions": "[]",
+										className: "bg-emerald-500 hover:bg-emerald-600 text-white border-transparent",
+										children: "Tenant Ativo"
+									}),
+									tenantStatus === "invalid" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badge, {
+										"data-uid": "src/components/settings/SharePointSettings.tsx:126:46",
+										"data-prohibitions": "[]",
+										variant: "destructive",
+										children: "Tenant Inválido"
+									}),
+									tenantStatus === "validating" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badge, {
+										"data-uid": "src/components/settings/SharePointSettings.tsx:127:49",
+										"data-prohibitions": "[]",
+										variant: "secondary",
+										children: "Verificando..."
+									}),
+									tenantStatus === "idle" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badge, {
+										"data-uid": "src/components/settings/SharePointSettings.tsx:128:43",
+										"data-prohibitions": "[]",
+										variant: "secondary",
+										children: "Desconectado"
+									})
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+								"data-uid": "src/components/settings/SharePointSettings.tsx:130:13",
+								"data-prohibitions": "[editContent]",
+								value: formData.tenantId,
+								onChange: (e) => handleChange("tenantId", e.target.value),
+								placeholder: "Ex: a1b2c3d4-e5f6-4a1b-9c2d-3e4f5a6b7c8d",
+								className: tenantStatus === "invalid" ? "border-destructive focus-visible:ring-destructive" : ""
+							}),
+							tenantIdError && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								"data-uid": "src/components/settings/SharePointSettings.tsx:140:31",
+								"data-prohibitions": "[editContent]",
+								className: "text-sm text-destructive mt-1",
+								children: tenantIdError
+							})
+						]
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						"data-uid": "src/components/settings/SharePointSettings.tsx:108:11",
+						"data-uid": "src/components/settings/SharePointSettings.tsx:142:11",
 						"data-prohibitions": "[]",
 						className: "space-y-2",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label, {
-							"data-uid": "src/components/settings/SharePointSettings.tsx:109:13",
+							"data-uid": "src/components/settings/SharePointSettings.tsx:143:13",
 							"data-prohibitions": "[]",
 							children: "Canal de Alertas Teams (Webhook)"
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-							"data-uid": "src/components/settings/SharePointSettings.tsx:110:13",
+							"data-uid": "src/components/settings/SharePointSettings.tsx:144:13",
 							"data-prohibitions": "[editContent]",
 							value: formData.teamsWebhookUrl || "",
 							onChange: (e) => handleChange("teamsWebhookUrl", e.target.value),
@@ -66238,100 +66279,100 @@ function SharePointSettings() {
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
-				"data-uid": "src/components/settings/SharePointSettings.tsx:119:7",
+				"data-uid": "src/components/settings/SharePointSettings.tsx:153:7",
 				"data-prohibitions": "[]",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardHeader, {
-					"data-uid": "src/components/settings/SharePointSettings.tsx:120:9",
+					"data-uid": "src/components/settings/SharePointSettings.tsx:154:9",
 					"data-prohibitions": "[]",
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardTitle, {
-						"data-uid": "src/components/settings/SharePointSettings.tsx:121:11",
+						"data-uid": "src/components/settings/SharePointSettings.tsx:155:11",
 						"data-prohibitions": "[]",
 						className: "flex items-center gap-2",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Globe, {
-							"data-uid": "src/components/settings/SharePointSettings.tsx:122:13",
+							"data-uid": "src/components/settings/SharePointSettings.tsx:156:13",
 							"data-prohibitions": "[editContent]",
 							className: "w-5 h-5 text-primary"
 						}), " Mapeamento de Sites Departamentais"]
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardDescription, {
-						"data-uid": "src/components/settings/SharePointSettings.tsx:124:11",
+						"data-uid": "src/components/settings/SharePointSettings.tsx:158:11",
 						"data-prohibitions": "[]",
 						children: "Conecte os ambientes específicos para governança isolada por setor."
 					})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardContent, {
-					"data-uid": "src/components/settings/SharePointSettings.tsx:128:9",
+					"data-uid": "src/components/settings/SharePointSettings.tsx:162:9",
 					"data-prohibitions": "[]",
 					className: "grid md:grid-cols-2 gap-x-6 gap-y-4",
 					children: [
 						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							"data-uid": "src/components/settings/SharePointSettings.tsx:129:11",
+							"data-uid": "src/components/settings/SharePointSettings.tsx:163:11",
 							"data-prohibitions": "[]",
 							className: "space-y-2",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label, {
-								"data-uid": "src/components/settings/SharePointSettings.tsx:130:13",
+								"data-uid": "src/components/settings/SharePointSettings.tsx:164:13",
 								"data-prohibitions": "[]",
 								children: "Gestão de Locação (Site URL)"
 							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-								"data-uid": "src/components/settings/SharePointSettings.tsx:131:13",
+								"data-uid": "src/components/settings/SharePointSettings.tsx:165:13",
 								"data-prohibitions": "[editContent]",
 								value: formData.sites.locacao,
 								onChange: (e) => handleSiteChange("locacao", e.target.value)
 							})]
 						}),
 						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							"data-uid": "src/components/settings/SharePointSettings.tsx:136:11",
+							"data-uid": "src/components/settings/SharePointSettings.tsx:170:11",
 							"data-prohibitions": "[]",
 							className: "space-y-2",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label, {
-								"data-uid": "src/components/settings/SharePointSettings.tsx:137:13",
+								"data-uid": "src/components/settings/SharePointSettings.tsx:171:13",
 								"data-prohibitions": "[]",
 								children: "Vendas (Site URL)"
 							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-								"data-uid": "src/components/settings/SharePointSettings.tsx:138:13",
+								"data-uid": "src/components/settings/SharePointSettings.tsx:172:13",
 								"data-prohibitions": "[editContent]",
 								value: formData.sites.vendas,
 								onChange: (e) => handleSiteChange("vendas", e.target.value)
 							})]
 						}),
 						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							"data-uid": "src/components/settings/SharePointSettings.tsx:143:11",
+							"data-uid": "src/components/settings/SharePointSettings.tsx:177:11",
 							"data-prohibitions": "[]",
 							className: "space-y-2",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label, {
-								"data-uid": "src/components/settings/SharePointSettings.tsx:144:13",
+								"data-uid": "src/components/settings/SharePointSettings.tsx:178:13",
 								"data-prohibitions": "[]",
 								children: "Captação de Imóveis (Site URL)"
 							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-								"data-uid": "src/components/settings/SharePointSettings.tsx:145:13",
+								"data-uid": "src/components/settings/SharePointSettings.tsx:179:13",
 								"data-prohibitions": "[editContent]",
 								value: formData.sites.captacao,
 								onChange: (e) => handleSiteChange("captacao", e.target.value)
 							})]
 						}),
 						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							"data-uid": "src/components/settings/SharePointSettings.tsx:150:11",
+							"data-uid": "src/components/settings/SharePointSettings.tsx:184:11",
 							"data-prohibitions": "[]",
 							className: "space-y-2",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label, {
-								"data-uid": "src/components/settings/SharePointSettings.tsx:151:13",
+								"data-uid": "src/components/settings/SharePointSettings.tsx:185:13",
 								"data-prohibitions": "[]",
 								children: "Jurídico (Site URL)"
 							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-								"data-uid": "src/components/settings/SharePointSettings.tsx:152:13",
+								"data-uid": "src/components/settings/SharePointSettings.tsx:186:13",
 								"data-prohibitions": "[editContent]",
 								value: formData.sites.juridico,
 								onChange: (e) => handleSiteChange("juridico", e.target.value)
 							})]
 						}),
 						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							"data-uid": "src/components/settings/SharePointSettings.tsx:157:11",
+							"data-uid": "src/components/settings/SharePointSettings.tsx:191:11",
 							"data-prohibitions": "[]",
 							className: "space-y-2",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label, {
-								"data-uid": "src/components/settings/SharePointSettings.tsx:158:13",
+								"data-uid": "src/components/settings/SharePointSettings.tsx:192:13",
 								"data-prohibitions": "[]",
 								children: "Financeiro (Site URL)"
 							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-								"data-uid": "src/components/settings/SharePointSettings.tsx:159:13",
+								"data-uid": "src/components/settings/SharePointSettings.tsx:193:13",
 								"data-prohibitions": "[editContent]",
 								value: formData.sites.financeiro,
 								onChange: (e) => handleSiteChange("financeiro", e.target.value)
@@ -66341,70 +66382,70 @@ function SharePointSettings() {
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				"data-uid": "src/components/settings/SharePointSettings.tsx:167:7",
+				"data-uid": "src/components/settings/SharePointSettings.tsx:201:7",
 				"data-prohibitions": "[]",
 				className: "grid md:grid-cols-2 gap-6",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
-					"data-uid": "src/components/settings/SharePointSettings.tsx:168:9",
+					"data-uid": "src/components/settings/SharePointSettings.tsx:202:9",
 					"data-prohibitions": "[]",
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardHeader, {
-						"data-uid": "src/components/settings/SharePointSettings.tsx:169:11",
+						"data-uid": "src/components/settings/SharePointSettings.tsx:203:11",
 						"data-prohibitions": "[]",
 						children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardTitle, {
-							"data-uid": "src/components/settings/SharePointSettings.tsx:170:13",
+							"data-uid": "src/components/settings/SharePointSettings.tsx:204:13",
 							"data-prohibitions": "[]",
 							className: "flex items-center gap-2",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Database, {
-								"data-uid": "src/components/settings/SharePointSettings.tsx:171:15",
+								"data-uid": "src/components/settings/SharePointSettings.tsx:205:15",
 								"data-prohibitions": "[editContent]",
 								className: "w-5 h-5 text-primary"
 							}), " Bibliotecas Padrão"]
 						})
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardContent, {
-						"data-uid": "src/components/settings/SharePointSettings.tsx:174:11",
+						"data-uid": "src/components/settings/SharePointSettings.tsx:208:11",
 						"data-prohibitions": "[]",
 						className: "space-y-4",
 						children: [
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								"data-uid": "src/components/settings/SharePointSettings.tsx:175:13",
+								"data-uid": "src/components/settings/SharePointSettings.tsx:209:13",
 								"data-prohibitions": "[]",
 								className: "space-y-2",
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label, {
-									"data-uid": "src/components/settings/SharePointSettings.tsx:176:15",
+									"data-uid": "src/components/settings/SharePointSettings.tsx:210:15",
 									"data-prohibitions": "[]",
 									children: "Templates DOCX Base"
 								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-									"data-uid": "src/components/settings/SharePointSettings.tsx:177:15",
+									"data-uid": "src/components/settings/SharePointSettings.tsx:211:15",
 									"data-prohibitions": "[editContent]",
 									value: formData.libraries.templates,
 									onChange: (e) => handleLibraryChange("templates", e.target.value)
 								})]
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								"data-uid": "src/components/settings/SharePointSettings.tsx:182:13",
+								"data-uid": "src/components/settings/SharePointSettings.tsx:216:13",
 								"data-prohibitions": "[]",
 								className: "space-y-2",
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label, {
-									"data-uid": "src/components/settings/SharePointSettings.tsx:183:15",
+									"data-uid": "src/components/settings/SharePointSettings.tsx:217:15",
 									"data-prohibitions": "[]",
 									children: "Contratos em Elaboração"
 								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-									"data-uid": "src/components/settings/SharePointSettings.tsx:184:15",
+									"data-uid": "src/components/settings/SharePointSettings.tsx:218:15",
 									"data-prohibitions": "[editContent]",
 									value: formData.libraries.contracts,
 									onChange: (e) => handleLibraryChange("contracts", e.target.value)
 								})]
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								"data-uid": "src/components/settings/SharePointSettings.tsx:189:13",
+								"data-uid": "src/components/settings/SharePointSettings.tsx:223:13",
 								"data-prohibitions": "[]",
 								className: "space-y-2",
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label, {
-									"data-uid": "src/components/settings/SharePointSettings.tsx:190:15",
+									"data-uid": "src/components/settings/SharePointSettings.tsx:224:15",
 									"data-prohibitions": "[]",
 									children: "Arquivo Permanente (Ativos)"
 								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-									"data-uid": "src/components/settings/SharePointSettings.tsx:191:15",
+									"data-uid": "src/components/settings/SharePointSettings.tsx:225:15",
 									"data-prohibitions": "[editContent]",
 									value: formData.libraries.archive,
 									onChange: (e) => handleLibraryChange("archive", e.target.value)
@@ -66413,49 +66454,49 @@ function SharePointSettings() {
 						]
 					})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
-					"data-uid": "src/components/settings/SharePointSettings.tsx:199:9",
+					"data-uid": "src/components/settings/SharePointSettings.tsx:233:9",
 					"data-prohibitions": "[]",
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardHeader, {
-						"data-uid": "src/components/settings/SharePointSettings.tsx:200:11",
+						"data-uid": "src/components/settings/SharePointSettings.tsx:234:11",
 						"data-prohibitions": "[]",
 						children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardTitle, {
-							"data-uid": "src/components/settings/SharePointSettings.tsx:201:13",
+							"data-uid": "src/components/settings/SharePointSettings.tsx:235:13",
 							"data-prohibitions": "[]",
 							className: "flex items-center gap-2",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Database, {
-								"data-uid": "src/components/settings/SharePointSettings.tsx:202:15",
+								"data-uid": "src/components/settings/SharePointSettings.tsx:236:15",
 								"data-prohibitions": "[editContent]",
 								className: "w-5 h-5 text-primary"
 							}), " Listas SharePoint"]
 						})
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardContent, {
-						"data-uid": "src/components/settings/SharePointSettings.tsx:205:11",
+						"data-uid": "src/components/settings/SharePointSettings.tsx:239:11",
 						"data-prohibitions": "[]",
 						className: "space-y-4",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							"data-uid": "src/components/settings/SharePointSettings.tsx:206:13",
+							"data-uid": "src/components/settings/SharePointSettings.tsx:240:13",
 							"data-prohibitions": "[]",
 							className: "space-y-2",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label, {
-								"data-uid": "src/components/settings/SharePointSettings.tsx:207:15",
+								"data-uid": "src/components/settings/SharePointSettings.tsx:241:15",
 								"data-prohibitions": "[]",
 								children: "Controle de Processos"
 							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-								"data-uid": "src/components/settings/SharePointSettings.tsx:208:15",
+								"data-uid": "src/components/settings/SharePointSettings.tsx:242:15",
 								"data-prohibitions": "[editContent]",
 								value: formData.lists.processControl,
 								onChange: (e) => handleListChange("processControl", e.target.value)
 							})]
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							"data-uid": "src/components/settings/SharePointSettings.tsx:213:13",
+							"data-uid": "src/components/settings/SharePointSettings.tsx:247:13",
 							"data-prohibitions": "[]",
 							className: "space-y-2",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label, {
-								"data-uid": "src/components/settings/SharePointSettings.tsx:214:15",
+								"data-uid": "src/components/settings/SharePointSettings.tsx:248:15",
 								"data-prohibitions": "[]",
 								children: "Audit Log (Trilha)"
 							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-								"data-uid": "src/components/settings/SharePointSettings.tsx:215:15",
+								"data-uid": "src/components/settings/SharePointSettings.tsx:249:15",
 								"data-prohibitions": "[editContent]",
 								value: formData.lists.auditLog,
 								onChange: (e) => handleListChange("auditLog", e.target.value)
@@ -66465,27 +66506,27 @@ function SharePointSettings() {
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				"data-uid": "src/components/settings/SharePointSettings.tsx:224:7",
+				"data-uid": "src/components/settings/SharePointSettings.tsx:258:7",
 				"data-prohibitions": "[editContent]",
 				className: "flex flex-col sm:flex-row sm:items-center justify-between bg-muted/50 p-4 rounded-lg border gap-4",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					"data-uid": "src/components/settings/SharePointSettings.tsx:225:9",
+					"data-uid": "src/components/settings/SharePointSettings.tsx:259:9",
 					"data-prohibitions": "[editContent]",
 					className: "flex flex-col sm:flex-row sm:items-center gap-4",
 					children: [
 						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
-							"data-uid": "src/components/settings/SharePointSettings.tsx:226:11",
+							"data-uid": "src/components/settings/SharePointSettings.tsx:260:11",
 							"data-prohibitions": "[editContent]",
 							variant: "outline",
 							onClick: testConnection,
 							disabled: isTesting,
 							children: [
 								isTesting ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LoaderCircle, {
-									"data-uid": "src/components/settings/SharePointSettings.tsx:228:15",
+									"data-uid": "src/components/settings/SharePointSettings.tsx:262:15",
 									"data-prohibitions": "[editContent]",
 									className: "w-4 h-4 mr-2 animate-spin"
 								}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Link, {
-									"data-uid": "src/components/settings/SharePointSettings.tsx:230:15",
+									"data-uid": "src/components/settings/SharePointSettings.tsx:264:15",
 									"data-prohibitions": "[editContent]",
 									className: "w-4 h-4 mr-2"
 								}),
@@ -66494,33 +66535,33 @@ function SharePointSettings() {
 							]
 						}),
 						testResult === "success" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-							"data-uid": "src/components/settings/SharePointSettings.tsx:235:13",
+							"data-uid": "src/components/settings/SharePointSettings.tsx:269:13",
 							"data-prohibitions": "[]",
 							className: "flex items-center text-sm text-emerald-600 font-medium",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CircleCheck, {
-								"data-uid": "src/components/settings/SharePointSettings.tsx:236:15",
+								"data-uid": "src/components/settings/SharePointSettings.tsx:270:15",
 								"data-prohibitions": "[editContent]",
 								className: "w-4 h-4 mr-1"
-							}), " Conexão com Tenant OK"]
+							}), " Conexão com Sites e Tenant OK"]
 						}),
 						testResult === "error" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-							"data-uid": "src/components/settings/SharePointSettings.tsx:240:13",
+							"data-uid": "src/components/settings/SharePointSettings.tsx:274:13",
 							"data-prohibitions": "[]",
 							className: "flex items-center text-sm text-destructive font-medium",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CircleAlert, {
-								"data-uid": "src/components/settings/SharePointSettings.tsx:241:15",
+								"data-uid": "src/components/settings/SharePointSettings.tsx:275:15",
 								"data-prohibitions": "[editContent]",
 								className: "w-4 h-4 mr-1"
 							}), " Falha na conexão de sites ou Tenant ID"]
 						})
 					]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
-					"data-uid": "src/components/settings/SharePointSettings.tsx:245:9",
+					"data-uid": "src/components/settings/SharePointSettings.tsx:279:9",
 					"data-prohibitions": "[]",
 					onClick: handleSave,
 					className: "gap-2 w-full sm:w-auto",
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Save, {
-						"data-uid": "src/components/settings/SharePointSettings.tsx:246:11",
+						"data-uid": "src/components/settings/SharePointSettings.tsx:280:11",
 						"data-prohibitions": "[editContent]",
 						className: "w-4 h-4"
 					}), " Salvar Configurações"]
@@ -70032,4 +70073,4 @@ var App = () => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(BrowserRouter, {
 }));
 //#endregion
 
-//# sourceMappingURL=index-Dh-YzyV7.js.map
+//# sourceMappingURL=index-hmDRVv_k.js.map

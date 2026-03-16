@@ -3755,6 +3755,10 @@ section[aria-label='Notifications alt+T'] {
   box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
 }
 
+.focus-visible\:ring-destructive:focus-visible{
+  --tw-ring-color: hsl(var(--destructive));
+}
+
 .focus-visible\:ring-ring:focus-visible{
   --tw-ring-color: hsl(var(--ring));
 }

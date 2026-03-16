@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Save,
   Database,
@@ -22,9 +22,41 @@ export default function SharePointSettings() {
   const store = useMainStore()
   const [formData, setFormData] = useState(store.sharepoint)
   const [isTesting, setIsTesting] = useState(false)
-  const [testResult, setTestResult] = useState<'idle' | 'success' | 'error'>(
-    store.sharepoint.tenantId ? 'success' : 'idle',
+  const [testResult, setTestResult] = useState<'idle' | 'success' | 'error'>('idle')
+  const [tenantStatus, setTenantStatus] = useState<'idle' | 'validating' | 'active' | 'invalid'>(
+    'idle',
   )
+  const [tenantIdError, setTenantIdError] = useState<string | null>(null)
+
+  const isValidTenantId = (id: string) => {
+    return /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id)
+  }
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      if (!formData.tenantId || !formData.tenantId.trim()) {
+        setTenantStatus('idle')
+        setTenantIdError(null)
+        return
+      }
+
+      setTenantStatus('validating')
+      // Simulate validation request to check tenant ID
+      setTimeout(() => {
+        if (isValidTenantId(formData.tenantId.trim())) {
+          setTenantStatus('active')
+          setTenantIdError(null)
+        } else {
+          setTenantStatus('invalid')
+          setTenantIdError(
+            'Formato inválido. Insira um ID de locatário (Tenant ID) válido do Microsoft Entra ID.',
+          )
+        }
+      }, 600)
+    }, 500)
+
+    return () => clearTimeout(handler)
+  }, [formData.tenantId])
 
   const handleChange = (field: keyof typeof formData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
@@ -43,11 +75,11 @@ export default function SharePointSettings() {
   }
 
   const handleSave = () => {
-    if (!formData.tenantId?.trim()) {
+    if (tenantStatus === 'invalid' || !formData.tenantId?.trim()) {
       toast({
         variant: 'destructive',
         title: 'Erro de Validação',
-        description: 'O Tenant ID não pode ficar vazio. Ele é essencial para a integração M365.',
+        description: 'Forneça um Tenant ID válido do Microsoft Entra ID antes de salvar.',
       })
       return
     }
@@ -67,7 +99,7 @@ export default function SharePointSettings() {
       const allSitesValid = Object.values(formData.sites).every(
         (url) => url && url.startsWith('http'),
       )
-      setTestResult(allSitesValid && formData.tenantId ? 'success' : 'error')
+      setTestResult(allSitesValid && tenantStatus === 'active' ? 'success' : 'error')
     }, 2000)
   }
 
@@ -86,24 +118,26 @@ export default function SharePointSettings() {
           <div className="space-y-2">
             <Label className="flex items-center justify-between">
               <span>Tenant ID (Microsoft Entra ID)</span>
-              {testResult === 'success' && (
+              {tenantStatus === 'active' && (
                 <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white border-transparent">
-                  Conectado
+                  Tenant Ativo
                 </Badge>
               )}
-              {testResult === 'error' && <Badge variant="destructive">Erro</Badge>}
-              {testResult === 'idle' && !formData.tenantId && (
-                <Badge variant="secondary">Desconectado</Badge>
-              )}
-              {testResult === 'idle' && formData.tenantId && (
-                <Badge variant="outline">Não Testado</Badge>
-              )}
+              {tenantStatus === 'invalid' && <Badge variant="destructive">Tenant Inválido</Badge>}
+              {tenantStatus === 'validating' && <Badge variant="secondary">Verificando...</Badge>}
+              {tenantStatus === 'idle' && <Badge variant="secondary">Desconectado</Badge>}
             </Label>
             <Input
               value={formData.tenantId}
               onChange={(e) => handleChange('tenantId', e.target.value)}
-              placeholder="Ex: a1b2c3d4-e5f6-7890-..."
+              placeholder="Ex: a1b2c3d4-e5f6-4a1b-9c2d-3e4f5a6b7c8d"
+              className={
+                tenantStatus === 'invalid'
+                  ? 'border-destructive focus-visible:ring-destructive'
+                  : ''
+              }
             />
+            {tenantIdError && <p className="text-sm text-destructive mt-1">{tenantIdError}</p>}
           </div>
           <div className="space-y-2">
             <Label>Canal de Alertas Teams (Webhook)</Label>
@@ -233,7 +267,7 @@ export default function SharePointSettings() {
           </Button>
           {testResult === 'success' && (
             <span className="flex items-center text-sm text-emerald-600 font-medium">
-              <CheckCircle2 className="w-4 h-4 mr-1" /> Conexão com Tenant OK
+              <CheckCircle2 className="w-4 h-4 mr-1" /> Conexão com Sites e Tenant OK
             </span>
           )}
           {testResult === 'error' && (

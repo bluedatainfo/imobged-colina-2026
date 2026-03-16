@@ -27,6 +27,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return
         }
 
+        const isValidTenantId = (id: string) => {
+          return /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(
+            id,
+          )
+        }
+
+        if (!isValidTenantId(sharepoint.tenantId.trim())) {
+          reject(
+            new Error(
+              `Acesso negado. O Tenant configurado no sistema (${sharepoint.tenantId}) é inválido.`,
+            ),
+          )
+          return
+        }
+
         const { users } = usersStore.getState()
         const foundUser = users.find((u) => u.email.toLowerCase() === email.toLowerCase())
 

@@ -115,7 +115,7 @@ let state: State = {
     slaHours: 24,
   },
   sharepoint: {
-    tenantId: 'a1b2c3d4-e5f6',
+    tenantId: 'a1b2c3d4-e5f6-4a1b-9c2d-3e4f5a6b7c8d',
     teamsWebhookUrl: 'https://imobged.webhook.office.com/teams',
     sites: {
       locacao: 'https://imobged.sharepoint.com/sites/GestaoDeLocacao',
