@@ -1,0 +1,1 @@
+import{a as e,n as t}from"./jsx-runtime-Bg_NI1en.js";var n=e(t(),1);function r(e){let t=n.useRef(e);return n.useEffect(()=>{t.current=e}),n.useMemo(()=>(...e)=>t.current?.(...e),[])}export{r as t};

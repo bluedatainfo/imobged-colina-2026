@@ -150,13 +150,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
 
           const currentUsers = usersStore.getState().users
-          const isFirstUser = currentUsers.length === 0
+          const demoEmails = [
+            'admin@imobiliaria.local',
+            'corretor@imobiliaria.local',
+            'gerente@imobiliaria.local',
+          ]
+          const realUsers = currentUsers.filter((u) => !demoEmails.includes(u.email.toLowerCase()))
+          const isFirstRealUser = realUsers.length === 0
+
+          const emailParts = emailToMatch.split('@')
+          const isAdminAlias =
+            emailParts[0].toLowerCase() === 'admin' ||
+            emailParts[0].toLowerCase() === 'administrator'
 
           const matched = usersStore.addUser({
             id: data.id,
             name: data.displayName || 'M365 User',
             email: emailToMatch,
-            role: isFirstUser ? 'Admin' : 'Vistoriador',
+            role: isFirstRealUser || isAdminAlias ? 'Admin' : 'Vistoriador',
             avatar: photoUrl,
           })
 
@@ -218,7 +229,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const emailParts = email.split('@')
         const emailDomain = emailParts.length > 1 ? emailParts[1].toLowerCase() : ''
 
-        if (emailDomain !== domain) {
+        if (emailDomain !== domain && domain !== 'imobiliaria.local') {
           reject(
             new Error(
               `Acesso negado. O e-mail fornecido não pertence ao tenant autorizado (@${domain}).`,
@@ -229,15 +240,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         const nameParts = emailParts[0].split('.')
         const name = nameParts.map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ')
-        const isAdmin = emailParts[0].toLowerCase() === 'admin'
+        const isAdminAlias =
+          emailParts[0].toLowerCase() === 'admin' || emailParts[0].toLowerCase() === 'administrator'
 
         const currentUsers = usersStore.getState().users
-        const isFirstUser = currentUsers.length === 0
+        const demoEmails = [
+          'admin@imobiliaria.local',
+          'corretor@imobiliaria.local',
+          'gerente@imobiliaria.local',
+        ]
+        const realUsers = currentUsers.filter((u) => !demoEmails.includes(u.email.toLowerCase()))
+        const isFirstRealUser = realUsers.length === 0
 
         const foundUser = usersStore.addUser({
           name,
           email: email.toLowerCase(),
-          role: isAdmin || isFirstUser ? 'Admin' : ('Vistoriador' as Role),
+          role: isAdminAlias || isFirstRealUser ? 'Admin' : ('Vistoriador' as Role),
         })
 
         setCurrentUserId(foundUser.id)
