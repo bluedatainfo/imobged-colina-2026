@@ -18,21 +18,36 @@ const tenantMappings: Record<string, string> = {
 }
 
 const resolveDomainAsync = async (tenantId: string): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      const normalized = tenantId.toLowerCase().trim()
-      const domain = tenantMappings[normalized]
-      if (domain) {
-        resolve(domain)
-      } else {
-        reject(new Error('Domínio não encontrado para este Tenant ID.'))
-      }
-    }, 800)
-  })
+  const normalized = tenantId.toLowerCase().trim()
+
+  if (tenantMappings[normalized]) {
+    return new Promise((resolve) => setTimeout(() => resolve(tenantMappings[normalized]), 600))
+  }
+
+  try {
+    const response = await fetch(
+      `https://login.microsoftonline.com/${normalized}/v2.0/.well-known/openid-configuration`,
+      {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+      },
+    ).catch(() => null)
+
+    if (response && !response.ok) {
+      throw new Error('Tenant não encontrado na Microsoft.')
+    }
+
+    const prefix = normalized.split('-')[0]
+    return `empresa-${prefix}.com.br`
+  } catch (error) {
+    throw new Error('Tenant ID inválido ou não existe no Microsoft 365.')
+  }
 }
 
 const isValidTenantId = (id: string) => {
-  return /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id)
+  return /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(
+    id.trim(),
+  )
 }
 
 const SITES = [
@@ -65,38 +80,28 @@ export default function SharePointSettings() {
     if (!currentId) {
       setTenantStatus('idle')
       setTenantIdError(null)
-      if (store.sharepoint.tenantDomain) {
-        const emptySites = { locacao: '', captacao: '', vendas: '', juridico: '', financeiro: '' }
-        mainStore.updateSharePointSettings({
-          tenantId: '',
-          tenantDomain: '',
-          teamsWebhookUrl: '',
-          sites: emptySites,
-        })
-        mainStore.updateSettings({
-          managementEmails: '',
-          administrativeEmails: '',
-          operationalEmails: '',
-        })
-        usersStore.enforceDomain('')
-        setFormData((prev) => ({
-          ...prev,
-          tenantDomain: '',
-          teamsWebhookUrl: '',
-          sites: emptySites,
-        }))
-        toast({
-          title: 'Tenant Removido',
-          description: 'Configurações vinculadas ao domínio foram limpas.',
-        })
-      }
       return
     }
 
     if (!isValidTenantId(currentId)) {
       setTenantStatus('invalid')
-      setTenantIdError('Insira um ID de locatário (Tenant ID) válido.')
-      setFormData((prev) => ({ ...prev, tenantDomain: '' }))
+      setTenantIdError('O formato do Tenant ID deve ser um GUID válido (ex: a1b2...).')
+      return
+    }
+
+    if (
+      currentId === store.sharepoint.tenantId &&
+      formData.tenantDomain === store.sharepoint.tenantDomain
+    ) {
+      setTenantStatus('active')
+      setTenantIdError(null)
+      return
+    }
+
+    if (currentId === store.sharepoint.tenantId && !formData.tenantDomain) {
+      setFormData(store.sharepoint)
+      setTenantStatus('active')
+      setTenantIdError(null)
       return
     }
 
@@ -112,30 +117,26 @@ export default function SharePointSettings() {
         setTenantIdError(null)
 
         if (currentId !== store.sharepoint.tenantId) {
-          const emptySites = { locacao: '', captacao: '', vendas: '', juridico: '', financeiro: '' }
-
-          const newSettings = {
-            tenantId: currentId,
-            tenantDomain: resolvedDomain,
-            teamsWebhookUrl: '',
-            sites: emptySites,
+          const domainPrefix = resolvedDomain.split('.')[0]
+          const defaultSites = {
+            locacao: `https://${domainPrefix}.sharepoint.com/sites/Locacao`,
+            captacao: `https://${domainPrefix}.sharepoint.com/sites/Captacao`,
+            vendas: `https://${domainPrefix}.sharepoint.com/sites/Vendas`,
+            juridico: `https://${domainPrefix}.sharepoint.com/sites/Juridico`,
+            financeiro: `https://${domainPrefix}.sharepoint.com/sites/Financeiro`,
           }
 
-          setFormData((prev) => ({ ...prev, ...newSettings }))
-          mainStore.updateSharePointSettings(newSettings)
-          mainStore.updateSettings({
-            managementEmails: '',
-            administrativeEmails: '',
-            operationalEmails: '',
-          })
-          usersStore.enforceDomain(resolvedDomain)
+          setFormData((prev) => ({
+            ...prev,
+            tenantDomain: resolvedDomain,
+            teamsWebhookUrl: `https://${resolvedDomain}.webhook.office.com/teams/alertas`,
+            sites: defaultSites,
+          }))
 
           toast({
-            title: 'Novo Domínio Vinculado',
-            description: `Domínio ${resolvedDomain} detectado. Configurações redefinidas para o novo Tenant.`,
+            title: 'Tenant Validado',
+            description: `Domínio ${resolvedDomain} resolvido. Clique em Salvar para aplicar as alterações.`,
           })
-        } else if (resolvedDomain !== formData.tenantDomain) {
-          setFormData((prev) => ({ ...prev, tenantDomain: resolvedDomain }))
         }
       } catch (e) {
         if (isMounted) {
@@ -144,7 +145,7 @@ export default function SharePointSettings() {
           setFormData((prev) => ({ ...prev, tenantDomain: '' }))
         }
       }
-    }, 600)
+    }, 800)
 
     return () => {
       isMounted = false
@@ -152,8 +153,20 @@ export default function SharePointSettings() {
     }
   }, [formData.tenantId]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleChange = (field: keyof typeof formData, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
+  const handleTenantIdChange = (value: string) => {
+    const currentId = value.trim()
+    setFormData((prev) => {
+      if (currentId !== store.sharepoint.tenantId && prev.tenantDomain) {
+        return {
+          ...prev,
+          tenantId: value,
+          tenantDomain: '',
+          teamsWebhookUrl: '',
+          sites: { locacao: '', captacao: '', vendas: '', juridico: '', financeiro: '' },
+        }
+      }
+      return { ...prev, tenantId: value }
+    })
   }
 
   const handleSiteChange = (field: keyof typeof formData.sites, value: string) => {
@@ -169,6 +182,26 @@ export default function SharePointSettings() {
     : 'https://dominio.webhook.office.com/teams/'
 
   const handleSave = () => {
+    if (!formData.tenantId.trim()) {
+      mainStore.updateSharePointSettings({
+        tenantId: '',
+        tenantDomain: '',
+        teamsWebhookUrl: '',
+        sites: { locacao: '', captacao: '', vendas: '', juridico: '', financeiro: '' },
+      })
+      mainStore.updateSettings({
+        managementEmails: '',
+        administrativeEmails: '',
+        operationalEmails: '',
+      })
+      usersStore.enforceDomain('')
+      toast({
+        title: 'Integração Removida',
+        description: 'Todas as configurações do SharePoint foram limpas.',
+      })
+      return
+    }
+
     if (tenantStatus !== 'active' || !formData.tenantDomain) {
       toast({
         variant: 'destructive',
@@ -194,7 +227,26 @@ export default function SharePointSettings() {
       return
     }
 
+    const isNewDomain = formData.tenantDomain !== store.sharepoint.tenantDomain
+
     mainStore.updateSharePointSettings(formData)
+
+    if (isNewDomain) {
+      mainStore.updateSettings({
+        managementEmails: '',
+        administrativeEmails: '',
+        operationalEmails: '',
+      })
+      usersStore.enforceDomain(formData.tenantDomain)
+      if (formData.tenantDomain && usersStore.getState().users.length === 0) {
+        usersStore.addUser({
+          name: 'Admin Sistema',
+          email: `admin@${formData.tenantDomain}`,
+          role: 'Admin',
+        })
+      }
+    }
+
     toast({
       title: 'Integração SharePoint Salva',
       description: 'Mapeamento de sites e configurações atualizados.',
@@ -295,12 +347,12 @@ export default function SharePointSettings() {
                 </Badge>
               )}
               {tenantStatus === 'invalid' && <Badge variant="destructive">Tenant Inválido</Badge>}
-              {tenantStatus === 'validating' && <Badge variant="secondary">Resolvendo...</Badge>}
+              {tenantStatus === 'validating' && <Badge variant="secondary">Validando...</Badge>}
               {tenantStatus === 'idle' && <Badge variant="secondary">Desconectado</Badge>}
             </Label>
             <Input
               value={formData.tenantId}
-              onChange={(e) => handleChange('tenantId', e.target.value)}
+              onChange={(e) => handleTenantIdChange(e.target.value)}
               placeholder="Ex: a1b2c3d4-e5f6-4a1b-9c2d-3e4f5a6b7c8d"
               className={
                 tenantStatus === 'invalid'
@@ -335,10 +387,10 @@ export default function SharePointSettings() {
                 )}
                 value={webhookPath}
                 onChange={(e) =>
-                  handleChange(
-                    'teamsWebhookUrl',
-                    e.target.value ? `${domainPrefix}${e.target.value}` : '',
-                  )
+                  setFormData((prev) => ({
+                    ...prev,
+                    teamsWebhookUrl: e.target.value ? `${domainPrefix}${e.target.value}` : '',
+                  }))
                 }
                 placeholder="id-do-canal"
                 disabled={tenantStatus !== 'active' || !formData.tenantDomain}
