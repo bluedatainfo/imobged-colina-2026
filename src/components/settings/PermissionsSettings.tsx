@@ -1,5 +1,15 @@
 import { useState } from 'react'
-import { Shield, UserCog, Plus, Pencil, Trash2, CheckCircle2, AlertCircle } from 'lucide-react'
+import {
+  Shield,
+  UserCog,
+  Plus,
+  Pencil,
+  Trash2,
+  CheckCircle2,
+  AlertCircle,
+  RefreshCw,
+  Loader2,
+} from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Table,
@@ -45,11 +55,13 @@ const availableRoles: Role[] = [
 
 export default function PermissionsSettings() {
   const { users } = useUsersStore()
-  const primaryDomain = useMainStore().sharepoint.primaryDomain
+  const store = useMainStore()
+  const { primaryDomain, clientId, tenantId } = store.sharepoint
   const { toast } = useToast()
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
+  const [isSyncing, setIsSyncing] = useState(false)
 
   const [formData, setFormData] = useState({ name: '', role: 'Vistoriador' as Role })
   const [localEmailPart, setLocalEmailPart] = useState('')
@@ -100,6 +112,101 @@ export default function PermissionsSettings() {
     setDialogOpen(false)
   }
 
+  const handleSyncM365 = async () => {
+    if (!primaryDomain) return
+    setIsSyncing(true)
+
+    const token = sessionStorage.getItem('m365_token')
+
+    if (token && clientId && tenantId) {
+      try {
+        const response = await fetch(
+          'https://graph.microsoft.com/v1.0/users?$select=id,displayName,mail,userPrincipalName',
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        )
+
+        if (!response.ok) {
+          const err = await response.json().catch(() => null)
+          throw new Error(
+            err?.error?.message ||
+              'Falha ao buscar usuários da Graph API. Verifique as permissões de leitura (User.ReadBasic.All).',
+          )
+        }
+
+        const data = await response.json()
+        const graphUsers = data.value || []
+
+        const validUsers = graphUsers
+          .filter((u: any) => {
+            const email = (u.mail || u.userPrincipalName || '').toLowerCase()
+            return email.endsWith(`@${primaryDomain.toLowerCase()}`)
+          })
+          .map((u: any) => ({
+            id: u.id,
+            name: u.displayName || 'Usuário M365',
+            email: (u.mail || u.userPrincipalName).toLowerCase(),
+            role: 'Vistoriador' as Role,
+            avatar: `https://img.usecurling.com/ppl/thumbnail?seed=${u.id ? u.id.charCodeAt(0) : Math.floor(Math.random() * 100)}`,
+          }))
+
+        usersStore.syncUsers(validUsers)
+        toast({
+          title: 'Sincronização Entra ID Concluída',
+          description: `${validUsers.length} usuários importados e validados do M365.`,
+        })
+      } catch (e: any) {
+        toast({
+          variant: 'destructive',
+          title: 'Erro de Sincronização M365',
+          description: e.message,
+        })
+      } finally {
+        setIsSyncing(false)
+      }
+    } else {
+      setTimeout(() => {
+        const mockFetched = [
+          {
+            id: 'usr-1',
+            name: 'Admin Sistema',
+            email: `admin@${primaryDomain}`,
+            role: 'Admin' as Role,
+            avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=female&seed=2',
+          },
+          {
+            id: 'usr-2',
+            name: 'Ismail Abdo',
+            email: `ismail@${primaryDomain}`,
+            role: 'Diretor' as Role,
+            avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=male&seed=4',
+          },
+          {
+            id: 'usr-3',
+            name: 'Mariana Costa',
+            email: `mariana.costa@${primaryDomain}`,
+            role: 'Jurídico' as Role,
+            avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=female&seed=7',
+          },
+          {
+            id: 'usr-4',
+            name: 'Roberto Alves',
+            email: `roberto.alves@${primaryDomain}`,
+            role: 'Gerente' as Role,
+            avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=male&seed=9',
+          },
+        ]
+        usersStore.syncUsers(mockFetched)
+        setIsSyncing(false)
+        toast({
+          title: 'Sincronização Simulada Concluída',
+          description: `Usuários sincronizados para o domínio @${primaryDomain}. Cadastre credenciais reais na aba Integração para obter usuários online.`,
+        })
+      }, 1500)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <Card>
@@ -125,9 +232,28 @@ export default function PermissionsSettings() {
               )}
             </CardDescription>
           </div>
-          <Button onClick={handleOpenNew} className="gap-2" disabled={!primaryDomain}>
-            <Plus className="w-4 h-4" /> Novo Usuário
-          </Button>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Button
+              variant="outline"
+              onClick={handleSyncM365}
+              disabled={!primaryDomain || isSyncing}
+              className="gap-2 flex-1 sm:flex-none"
+            >
+              {isSyncing ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <RefreshCw className="w-4 h-4" />
+              )}
+              Sincronizar M365
+            </Button>
+            <Button
+              onClick={handleOpenNew}
+              className="gap-2 flex-1 sm:flex-none"
+              disabled={!primaryDomain}
+            >
+              <Plus className="w-4 h-4" /> Novo
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
@@ -189,8 +315,8 @@ export default function PermissionsSettings() {
                 <TableRow>
                   <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
                     {primaryDomain
-                      ? 'Nenhum usuário cadastrado para este domínio.'
-                      : 'Cadastre o Domínio Primário na Integração SharePoint para começar a adicionar usuários.'}
+                      ? 'Nenhum usuário encontrado. Sincronize com o M365 ou adicione manualmente.'
+                      : 'Cadastre o Domínio Primário na Integração SharePoint para gerenciar acessos.'}
                   </TableCell>
                 </TableRow>
               )}

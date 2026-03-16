@@ -39,7 +39,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [isExchanging, setIsExchanging] = useState(false)
 
-  // Derive current user dynamically so role changes reflect immediately
   const { users } = usersStore.getState()
   const user = currentUserId ? users.find((u) => u.id === currentUserId) || null : null
 
@@ -66,7 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.history.replaceState({}, document.title, window.location.pathname)
 
       const { sharepoint } = mainStore.getState()
-      const { clientId, tenantId } = sharepoint
+      const { clientId, tenantId, primaryDomain } = sharepoint
       const codeVerifier = sessionStorage.getItem('pkce_code_verifier')
 
       if (!clientId || !tenantId || !codeVerifier) {
@@ -85,7 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       tokenParams.append('client_id', clientId)
       tokenParams.append(
         'scope',
-        'openid profile email User.Read Files.ReadWrite.All Sites.Read.All offline_access',
+        'openid profile email User.Read User.ReadBasic.All Files.ReadWrite.All Sites.Read.All offline_access',
       )
       tokenParams.append('code', code)
       tokenParams.append('redirect_uri', redirectUri)
@@ -126,9 +125,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           })
         })
         .then(async ({ data, token }) => {
-          let photoUrl = `https://img.usecurling.com/ppl/thumbnail?seed=${Math.floor(
-            Math.random() * 100,
-          )}`
+          const emailToMatch = (data.mail || data.userPrincipalName || '').toLowerCase()
+
+          if (primaryDomain) {
+            const lowerDomain = primaryDomain.toLowerCase()
+            if (!emailToMatch.endsWith(`@${lowerDomain}`)) {
+              throw new Error(
+                `Acesso negado. Seu email não pertence ao domínio autorizado (@${primaryDomain}).`,
+              )
+            }
+          }
+
+          let photoUrl = `https://img.usecurling.com/ppl/thumbnail?seed=${Math.floor(Math.random() * 100)}`
           try {
             const pRes = await fetch('https://graph.microsoft.com/v1.0/me/photo/$value', {
               headers: { Authorization: `Bearer ${token}` },
@@ -142,21 +150,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
 
           const currentUsers = usersStore.getState().users
-          const emailToMatch = (data.mail || data.userPrincipalName || '').toLowerCase()
-          let matched = currentUsers.find((u) => u.email.toLowerCase() === emailToMatch)
+          const isFirstUser = currentUsers.length === 0
 
-          if (!matched) {
-            matched = usersStore.addUser({
-              name: data.displayName || 'M365 User',
-              email: emailToMatch || 'user@domain.com',
-              role: 'Admin',
-            })
-          }
-
-          usersStore.updateUser(matched.id, {
+          const matched = usersStore.addUser({
+            id: data.id,
+            name: data.displayName || 'M365 User',
+            email: emailToMatch,
+            role: isFirstUser ? 'Admin' : 'Vistoriador',
             avatar: photoUrl,
-            name: data.displayName || matched.name,
           })
+
           setCurrentUserId(matched.id)
 
           toast({
@@ -165,6 +168,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           })
         })
         .catch((e) => {
+          sessionStorage.removeItem('m365_token')
           toast({
             variant: 'destructive',
             title: 'Erro de Integração',
@@ -180,7 +184,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loginM365 = async (email: string, password?: string) => {
     const { sharepoint } = mainStore.getState()
-    const { clientId, tenantId } = sharepoint
+    const { clientId, tenantId, primaryDomain } = sharepoint
 
     if (clientId && tenantId) {
       const codeVerifier = generateRandomString(64)
@@ -189,7 +193,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const redirectUri = encodeURIComponent(window.location.origin + '/login')
       const scope = encodeURIComponent(
-        'openid profile email User.Read Files.ReadWrite.All Sites.Read.All offline_access',
+        'openid profile email User.Read User.ReadBasic.All Files.ReadWrite.All Sites.Read.All offline_access',
       )
 
       const authUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize?client_id=${clientId}&response_type=code&redirect_uri=${redirectUri}&scope=${scope}&code_challenge=${codeChallenge}&code_challenge_method=S256&login_hint=${encodeURIComponent(
@@ -197,12 +201,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       )}`
 
       window.location.href = authUrl
-      return new Promise<void>(() => {}) // Stalls until redirect
+      return new Promise<void>(() => {})
     }
 
     return new Promise<void>((resolve, reject) => {
       setTimeout(() => {
-        const domain = sharepoint.primaryDomain?.trim().toLowerCase()
+        const domain = primaryDomain?.trim().toLowerCase()
 
         if (!domain) {
           reject(
@@ -223,26 +227,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return
         }
 
-        const { users } = usersStore.getState()
-        let foundUser = users.find((u) => u.email.toLowerCase() === email.toLowerCase())
+        const nameParts = emailParts[0].split('.')
+        const name = nameParts.map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ')
+        const isAdmin = emailParts[0].toLowerCase() === 'admin'
 
-        if (!foundUser) {
-          const nameParts = emailParts[0].split('.')
-          const name = nameParts.map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ')
+        const currentUsers = usersStore.getState().users
+        const isFirstUser = currentUsers.length === 0
 
-          foundUser = usersStore.addUser({
-            name,
-            email: email.toLowerCase(),
-            role: 'Vistoriador' as Role,
-          })
-        }
+        const foundUser = usersStore.addUser({
+          name,
+          email: email.toLowerCase(),
+          role: isAdmin || isFirstUser ? 'Admin' : ('Vistoriador' as Role),
+        })
 
-        if (foundUser) {
-          setCurrentUserId(foundUser.id)
-          resolve()
-        } else {
-          reject(new Error('Erro ao sincronizar perfil do usuário com o Microsoft Entra ID.'))
-        }
+        setCurrentUserId(foundUser.id)
+        resolve()
       }, 1200)
     })
   }

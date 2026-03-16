@@ -13,48 +13,31 @@ type State = {
   users: SystemUser[]
 }
 
-let state: State = {
-  users: [
-    {
-      id: 'usr-1',
-      name: 'Admin Sistema',
-      email: 'admin@ismailabdo.onmicrosoft.com',
-      role: 'Admin',
-      avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=female&seed=2',
-    },
-    {
-      id: 'usr-2',
-      name: 'Ismail Abdo',
-      email: 'ismail@ismailabdo.onmicrosoft.com',
-      role: 'Diretor',
-      avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=male&seed=4',
-    },
-    {
-      id: 'usr-3',
-      name: 'Mariana Costa',
-      email: 'mariana.costa@ismailabdo.onmicrosoft.com',
-      role: 'Jurídico',
-      avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=female&seed=7',
-    },
-    {
-      id: 'usr-4',
-      name: 'Roberto Alves',
-      email: 'roberto.alves@ismailabdo.onmicrosoft.com',
-      role: 'Gerente',
-      avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=male&seed=9',
-    },
-    {
-      id: 'usr-5',
-      name: 'Carlos Santos',
-      email: 'carlos.santos@ismailabdo.onmicrosoft.com',
-      role: 'Vistoriador',
-      avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=male&seed=15',
-    },
-  ],
+const STORAGE_KEY = '@imobged/users_v1'
+
+const loadState = (): State => {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY)
+    if (stored) {
+      return JSON.parse(stored)
+    }
+  } catch (e) {
+    console.warn('Failed to load users from localStorage', e)
+  }
+  return { users: [] }
 }
 
+let state: State = loadState()
 let listeners: Array<() => void> = []
-const emit = () => listeners.forEach((l) => l())
+
+const emit = () => {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+  } catch (e) {
+    console.warn('Failed to persist users state', e)
+  }
+  listeners.forEach((l) => l())
+}
 
 export const usersStore = {
   getState: () => state,
@@ -71,12 +54,31 @@ export const usersStore = {
     }
     emit()
   },
-  addUser: (user: Omit<SystemUser, 'id' | 'avatar'>) => {
+  addUser: (user: Omit<SystemUser, 'id' | 'avatar'> & { id?: string; avatar?: string }) => {
     const newUser: SystemUser = {
       ...user,
-      id: `usr-${Math.random().toString(36).substring(2, 9)}`,
-      avatar: `https://img.usecurling.com/ppl/thumbnail?seed=${Math.floor(Math.random() * 100)}`,
+      id: user.id || `usr-${Math.random().toString(36).substring(2, 9)}`,
+      avatar:
+        user.avatar ||
+        `https://img.usecurling.com/ppl/thumbnail?seed=${Math.floor(Math.random() * 100)}`,
     }
+
+    const existingIndex = state.users.findIndex(
+      (u) => u.email.toLowerCase() === newUser.email.toLowerCase(),
+    )
+
+    if (existingIndex >= 0) {
+      const updatedUsers = [...state.users]
+      updatedUsers[existingIndex] = {
+        ...updatedUsers[existingIndex],
+        ...newUser,
+        role: updatedUsers[existingIndex].role,
+      }
+      state = { ...state, users: updatedUsers }
+      emit()
+      return updatedUsers[existingIndex]
+    }
+
     state = { ...state, users: [...state.users, newUser] }
     emit()
     return newUser
@@ -101,9 +103,24 @@ export const usersStore = {
     } else {
       state = {
         ...state,
-        users: state.users.filter((u) => u.email.endsWith(`@${domain}`)),
+        users: state.users.filter((u) =>
+          u.email.toLowerCase().endsWith(`@${domain.toLowerCase()}`),
+        ),
       }
     }
+    emit()
+  },
+  syncUsers: (fetchedUsers: SystemUser[]) => {
+    const currentUsersMap = new Map(state.users.map((u) => [u.email.toLowerCase(), u]))
+    const mergedUsers = fetchedUsers.map((fu) => {
+      const existing = currentUsersMap.get(fu.email.toLowerCase())
+      if (existing) {
+        return { ...fu, role: existing.role }
+      }
+      return fu
+    })
+
+    state = { ...state, users: mergedUsers }
     emit()
   },
 }
