@@ -29,11 +29,14 @@ import useMainStore, { mainStore } from '@/stores/main'
 import { useAuth } from '@/contexts/AuthContext'
 import { m365Service } from '@/lib/m365'
 import { InspectionOCRDialog } from '@/components/InspectionOCRDialog'
+import { useIsMobile } from '@/hooks/use-mobile'
+import { MobileInspectionView } from '@/components/MobileInspectionView'
 
 const Inspections = () => {
   const { toast } = useToast()
   const { user } = useAuth()
   const store = useMainStore()
+  const isMobile = useIsMobile()
   const [isOffline, setIsOffline] = useState(false)
   const [unsyncedCount, setUnsyncedCount] = useState(0)
 
@@ -46,12 +49,36 @@ const Inspections = () => {
   const [ocrLoading, setOcrLoading] = useState(false)
   const [ocrData, setOcrData] = useState<any>(null)
 
+  const processInspection = (propertyId: string, notes: string) => {
+    mainStore.saveInspection({
+      propertyId,
+      wallCondition: 'Extraído via Mobile',
+      furnitureNotes: notes,
+    })
+    mainStore.updatePropertyStatus(propertyId, 'Confecção de Contrato')
+    mainStore.addAuditLog({
+      propertyId,
+      action: 'Vistoria Mobile/OCR Concluída',
+      user: user?.name || 'Sistema',
+      details: 'Upload sincronizado com a biblioteca "Gestão de Locação".',
+    })
+    m365Service.saveToLibrary('Gestão de Locação', `Vistoria_${propertyId}_Mobile.pdf`)
+  }
+
+  const handleMobileComplete = (propertyId: string, notes: string) => {
+    processInspection(propertyId, notes)
+    toast({
+      title: 'Vistoria Sincronizada',
+      description: 'Documento salvo no SharePoint da Gestão de Locação.',
+    })
+  }
+
   const handleStartInspection = (id: string) => {
     if (isOffline) {
       setUnsyncedCount((prev) => prev + 1)
       toast({
         title: 'Modo Offline Ativo',
-        description: 'Vistoria iniciada. Os dados serão salvos localmente e sincronizados depois.',
+        description: 'Vistoria iniciada. Os dados serão salvos localmente.',
       })
     } else {
       setInspectingId(id)
@@ -77,7 +104,7 @@ const Inspections = () => {
     setInspectingId(null)
     toast({
       title: 'Vistoria Concluída',
-      description: 'Dados estruturados enviados para a etapa de Confecção de Contrato final.',
+      description: 'Dados estruturados enviados para a etapa de Confecção de Contrato.',
     })
   }
 
@@ -89,29 +116,27 @@ const Inspections = () => {
         address: 'Rua Flores, 123',
         date: new Date().toLocaleDateString('pt-BR'),
         wallCondition: 'Pintura nova',
-        generalNotes: 'Imóvel em perfeitas condições. Aprovado para locação.',
+        generalNotes: 'Aprovado.',
       })
     }, 2000)
   }
 
   const handleOcrConfirm = (data: any, propertyId: string) => {
     setOcrData(null)
-    mainStore.saveInspection({
-      propertyId,
-      wallCondition: data.wallCondition,
-      furnitureNotes: data.generalNotes,
-    })
-    mainStore.updatePropertyStatus(propertyId, 'Confecção de Contrato')
-    mainStore.addAuditLog({
-      propertyId,
-      action: 'Vistoria OCR Importada',
-      user: user?.name || 'Sistema',
-      details: 'IA extraiu os dados do PDF de vistoria.',
-    })
+    processInspection(propertyId, data.generalNotes)
     toast({
       title: 'OCR Processado com Sucesso',
-      description: 'Dados da vistoria salvos via Inteligência Artificial.',
+      description: 'Dados salvos via IA.',
     })
+  }
+
+  if (isMobile) {
+    return (
+      <MobileInspectionView
+        pendingInspections={pendingInspections}
+        onComplete={handleMobileComplete}
+      />
+    )
   }
 
   return (
@@ -144,9 +169,7 @@ const Inspections = () => {
             <div className="flex items-center gap-3 text-amber-800">
               <WifiOff className="h-5 w-5 shrink-0" />
               <div>
-                <p className="font-medium">
-                  Você está online e possui {unsyncedCount} vistoria(s) offline pendente(s).
-                </p>
+                <p className="font-medium">Você possui {unsyncedCount} vistoria(s) offline.</p>
               </div>
             </div>
             <Button
@@ -164,7 +187,7 @@ const Inspections = () => {
 
       <Tabs defaultValue="fila">
         <TabsList className="mb-4">
-          <TabsTrigger value="fila">Fila de Preenchimento Manual</TabsTrigger>
+          <TabsTrigger value="fila">Fila de Preenchimento</TabsTrigger>
           <TabsTrigger value="ocr">Upload & OCR (IA)</TabsTrigger>
         </TabsList>
 
@@ -172,7 +195,7 @@ const Inspections = () => {
           <Card>
             <CardHeader className="pb-3 border-b">
               <CardTitle className="flex items-center gap-2">
-                <ClipboardList className="w-5 h-5 text-primary" /> Fila de Imóveis (Entrada/Saída)
+                <ClipboardList className="w-5 h-5 text-primary" /> Fila de Imóveis
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
@@ -189,11 +212,6 @@ const Inspections = () => {
                       <div>
                         <h4 className="font-semibold text-base">{p.title}</h4>
                         <p className="text-sm text-muted-foreground">{p.address}</p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xs font-medium text-amber-600">
-                            Aguardando Inspeção
-                          </span>
-                        </div>
                       </div>
                     </div>
                     <Button onClick={() => handleStartInspection(p.id)}>Iniciar Vistoria</Button>
@@ -223,38 +241,26 @@ const Inspections = () => {
                   <UploadCloud className="h-8 w-8 text-primary" />
                 )}
               </div>
-              <CardTitle>
-                {ocrLoading ? 'Analisando via IA...' : 'Análise de Laudo (PDF/Imagem)'}
-              </CardTitle>
-              <CardDescription>
-                Arraste um laudo de terceiros para extrairmos os dados de vistoria automaticamente.
-              </CardDescription>
+              <CardTitle>Análise de Laudo (PDF/Imagem)</CardTitle>
+              <CardDescription>Arraste um laudo para extração automática via OCR.</CardDescription>
             </CardHeader>
           </Card>
         </TabsContent>
       </Tabs>
 
       <Dialog open={!!inspectingId} onOpenChange={(val) => !val && setInspectingId(null)}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Checklist Inteligente de Vistoria</DialogTitle>
-            <DialogDescription>
-              Os dados preenchidos aqui serão enviados automaticamente para a lista do SharePoint.
-            </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
               <Label>Condição das Paredes e Pintura</Label>
-              <Input
-                placeholder="Ex: Pintura nova na sala, riscos no corredor..."
-                value={wallCondition}
-                onChange={(e) => setWallCondition(e.target.value)}
-              />
+              <Input value={wallCondition} onChange={(e) => setWallCondition(e.target.value)} />
             </div>
             <div className="grid gap-2">
-              <Label>Móveis e Observações Gerais</Label>
+              <Label>Móveis e Observações</Label>
               <Textarea
-                placeholder="Ex: Armários embutidos na cozinha em bom estado..."
                 className="min-h-[100px]"
                 value={furnitureNotes}
                 onChange={(e) => setFurnitureNotes(e.target.value)}
@@ -265,7 +271,7 @@ const Inspections = () => {
             <Button variant="outline" onClick={() => setInspectingId(null)}>
               Cancelar
             </Button>
-            <Button onClick={handleCompleteInspection}>Sincronizar Vistoria</Button>
+            <Button onClick={handleCompleteInspection}>Sincronizar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

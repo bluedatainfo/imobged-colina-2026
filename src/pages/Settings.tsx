@@ -2,6 +2,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import GeneralSettings from '@/components/settings/GeneralSettings'
 import SharePointSettings from '@/components/settings/SharePointSettings'
 import AgencySettings from '@/components/settings/AgencySettings'
+import PermissionsSettings from '@/components/settings/PermissionsSettings'
 
 const Settings = () => {
   return (
@@ -9,16 +10,20 @@ const Settings = () => {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Configurações do Sistema</h1>
         <p className="text-muted-foreground">
-          Gerencie o perfil da imobiliária, integrações Microsoft 365 e regras de aprovação.
+          Gerencie o perfil da imobiliária, acessos, integrações Microsoft 365 e regras.
         </p>
       </div>
 
-      <Tabs defaultValue="agency">
+      <Tabs defaultValue="permissions">
         <TabsList className="mb-4 bg-muted/50 border flex flex-wrap h-auto">
+          <TabsTrigger value="permissions">Permissões de Acesso</TabsTrigger>
           <TabsTrigger value="agency">Dados da Imobiliária</TabsTrigger>
           <TabsTrigger value="sharepoint">Integração SharePoint</TabsTrigger>
           <TabsTrigger value="general">Geral & SLA</TabsTrigger>
         </TabsList>
+        <TabsContent value="permissions">
+          <PermissionsSettings />
+        </TabsContent>
         <TabsContent value="agency">
           <AgencySettings />
         </TabsContent>

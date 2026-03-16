@@ -1,13 +1,11 @@
 import {
   FileStack,
-  Clock,
-  CheckCircle,
-  Search,
-  FileSignature,
   ShieldAlert,
   List,
   FileText,
   RefreshCw,
+  FileSignature,
+  Search,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import {
@@ -19,28 +17,32 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { DashboardChart } from '@/components/DashboardChart'
+import { PerformanceDashboard } from '@/components/PerformanceDashboard'
 import { useNavigate } from 'react-router-dom'
 import useMainStore, { isSlaBreached } from '@/stores/main'
 import useContractsStore from '@/stores/contracts'
+import { useAuth } from '@/contexts/AuthContext'
+import { checkAccess } from '@/lib/permissions'
 
 const Index = () => {
   const navigate = useNavigate()
   const store = useMainStore()
   const { contracts } = useContractsStore()
+  const { user } = useAuth()
 
   const pendingApprovals = store.properties.filter((p) => p.status === 'Análise Gerencial')
   const slaBreachedCount = pendingApprovals.filter((p) =>
     isSlaBreached(p.slaStart, store.settings.slaHours),
   ).length
 
-  const pendingInspections = store.properties.filter((p) => p.status === 'Vistoria').length
-
-  // Contract Metrics
   const activeContracts = contracts.filter((c) => c.status === 'Ativo').length
   const awaitingSignature = contracts.filter((c) => c.status === 'Aguardando Assinatura').length
   const awaitingRenewal = contracts.filter((c) => c.status === 'Aguardando Renovação').length
 
   const recentLogs = store.auditLogs.slice(0, 5)
+
+  // Hide full dashboard if user is restricted
+  const canSeeDashboard = checkAccess('/settings', user?.role) || user?.role === 'Gerente'
 
   return (
     <div className="space-y-6">
@@ -59,7 +61,6 @@ const Index = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-emerald-600">{activeContracts}</div>
-            <p className="text-xs text-muted-foreground">Sincronizados no Arquivo Permanente</p>
           </CardContent>
         </Card>
 
@@ -78,7 +79,6 @@ const Index = () => {
             <div className={`text-2xl font-bold ${awaitingRenewal > 0 ? 'text-orange-700' : ''}`}>
               {awaitingRenewal}
             </div>
-            <p className="text-xs text-muted-foreground">Aproximação da data de vencimento</p>
           </CardContent>
         </Card>
 
@@ -89,7 +89,6 @@ const Index = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-purple-600">{awaitingSignature}</div>
-            <p className="text-xs text-muted-foreground">Aguardando partes envolvidas</p>
           </CardContent>
         </Card>
 
@@ -98,7 +97,7 @@ const Index = () => {
             <CardTitle
               className={`text-sm font-medium ${slaBreachedCount > 0 ? 'text-destructive' : ''}`}
             >
-              SLA Violado (Gestão)
+              SLA Violado
             </CardTitle>
             <ShieldAlert
               className={`h-4 w-4 ${slaBreachedCount > 0 ? 'text-destructive' : 'text-muted-foreground'}`}
@@ -108,46 +107,48 @@ const Index = () => {
             <div className={`text-2xl font-bold ${slaBreachedCount > 0 ? 'text-destructive' : ''}`}>
               {slaBreachedCount}
             </div>
-            <p className="text-xs text-muted-foreground">Aprovações gerenciais atrasadas</p>
           </CardContent>
         </Card>
       </div>
 
+      {canSeeDashboard && <PerformanceDashboard />}
+
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
         <div className="lg:col-span-4 space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
-            <Card
-              className="hover:border-primary/50 cursor-pointer transition-colors"
-              onClick={() => navigate('/contracts')}
-            >
-              <CardHeader className="pb-2">
-                <FileSignature className="h-8 w-8 text-primary mb-2" />
-                <CardTitle>Ciclo de Contratos</CardTitle>
-                <CardDescription>
-                  Gerar minutas via templates e acompanhar workflow.
-                </CardDescription>
-              </CardHeader>
-            </Card>
-            <Card
-              className="hover:border-primary/50 cursor-pointer transition-colors"
-              onClick={() => navigate('/inspections')}
-            >
-              <CardHeader className="pb-2">
-                <Search className="h-8 w-8 text-primary mb-2" />
-                <CardTitle>Iniciar Vistoria</CardTitle>
-                <CardDescription>Preencher checklist inteligente offline/online.</CardDescription>
-              </CardHeader>
-            </Card>
+            {checkAccess('/contracts', user?.role) && (
+              <Card
+                className="hover:border-primary/50 cursor-pointer transition-colors"
+                onClick={() => navigate('/contracts')}
+              >
+                <CardHeader className="pb-2">
+                  <FileSignature className="h-8 w-8 text-primary mb-2" />
+                  <CardTitle>Ciclo de Contratos</CardTitle>
+                  <CardDescription>
+                    Gerar minutas via templates e acompanhar workflow.
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+            )}
+            {checkAccess('/inspections', user?.role) && (
+              <Card
+                className="hover:border-primary/50 cursor-pointer transition-colors"
+                onClick={() => navigate('/inspections')}
+              >
+                <CardHeader className="pb-2">
+                  <Search className="h-8 w-8 text-primary mb-2" />
+                  <CardTitle>Iniciar Vistoria</CardTitle>
+                  <CardDescription>Preencher checklist inteligente offline/online.</CardDescription>
+                </CardHeader>
+              </Card>
+            )}
           </div>
 
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <List className="h-5 w-5 text-primary" /> Trilha de Auditoria (SharePoint List)
+                <List className="h-5 w-5 text-primary" /> Trilha de Auditoria
               </CardTitle>
-              <CardDescription>
-                Ações recentes registradas pelo M365 SSO na lista do site Gestão de Locação.
-              </CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
@@ -155,8 +156,8 @@ const Index = () => {
                   <TableRow>
                     <TableHead>Ref ID</TableHead>
                     <TableHead>Ação Realizada</TableHead>
-                    <TableHead>Usuário M365</TableHead>
-                    <TableHead className="text-right">Data/Hora</TableHead>
+                    <TableHead>Usuário</TableHead>
+                    <TableHead className="text-right">Hora</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -186,9 +187,11 @@ const Index = () => {
           </Card>
         </div>
 
-        <div className="lg:col-span-3">
-          <DashboardChart />
-        </div>
+        {canSeeDashboard && (
+          <div className="lg:col-span-3">
+            <DashboardChart />
+          </div>
+        )}
       </div>
     </div>
   )

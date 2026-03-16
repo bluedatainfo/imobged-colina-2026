@@ -1,40 +1,44 @@
 import { createContext, useContext, useState, ReactNode } from 'react'
-
-export type User = {
-  name: string
-  email: string
-  avatar: string
-}
+import { SystemUser, usersStore } from '@/stores/users'
 
 type AuthContextType = {
-  user: User | null
+  user: SystemUser | null
   loginM365: () => Promise<void>
   logout: () => void
+  switchUser: (id: string) => void
 }
 
 const AuthContext = createContext<AuthContextType | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+
+  // Derive current user dynamically so role changes reflect immediately
+  const { users } = usersStore.getState()
+  const user = currentUserId ? users.find((u) => u.id === currentUserId) || null : null
 
   const loginM365 = async () => {
     return new Promise<void>((resolve) => {
       setTimeout(() => {
-        setUser({
-          name: 'Ana Silva',
-          email: 'ana.silva@imobged.m365.com',
-          avatar: 'https://img.usecurling.com/ppl/thumbnail?gender=female&seed=2',
-        })
+        setCurrentUserId('usr-1') // Default to Admin for demo
         resolve()
       }, 800)
     })
   }
 
   const logout = () => {
-    setUser(null)
+    setCurrentUserId(null)
   }
 
-  return <AuthContext.Provider value={{ user, loginM365, logout }}>{children}</AuthContext.Provider>
+  const switchUser = (id: string) => {
+    setCurrentUserId(id)
+  }
+
+  return (
+    <AuthContext.Provider value={{ user, loginM365, logout, switchUser }}>
+      {children}
+    </AuthContext.Provider>
+  )
 }
 
 export const useAuth = () => {

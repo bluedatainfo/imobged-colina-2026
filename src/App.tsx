@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { Toaster } from '@/components/ui/toaster'
 import { Toaster as Sonner } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -15,11 +15,19 @@ import NotFound from './pages/NotFound'
 import Login from './pages/Login'
 import Renewals from './pages/Renewals'
 import KeysControl from './pages/KeysControl'
+import AccessDenied from './pages/AccessDenied'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { checkAccess } from './lib/permissions'
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAuth()
+  const location = useLocation()
+
   if (!user) return <Navigate to="/login" replace />
+
+  const hasAccess = checkAccess(location.pathname, user.role)
+  if (!hasAccess) return <Navigate to="/access-denied" replace />
+
   return <>{children}</>
 }
 
@@ -43,6 +51,7 @@ const AppRoutes = () => (
       <Route path="/renewals" element={<Renewals />} />
       <Route path="/keys" element={<KeysControl />} />
       <Route path="/settings" element={<Settings />} />
+      <Route path="/access-denied" element={<AccessDenied />} />
     </Route>
     <Route path="*" element={<NotFound />} />
   </Routes>

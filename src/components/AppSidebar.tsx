@@ -24,6 +24,8 @@ import {
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
 import useMainStore from '@/stores/main'
+import { useAuth } from '@/contexts/AuthContext'
+import { checkAccess } from '@/lib/permissions'
 
 const navigation = [
   { title: 'Painel', url: '/', icon: LayoutDashboard },
@@ -41,6 +43,9 @@ const navigation = [
 export function AppSidebar() {
   const location = useLocation()
   const { agencyProfile } = useMainStore()
+  const { user } = useAuth()
+
+  const visibleNavigation = navigation.filter((item) => checkAccess(item.url, user?.role))
 
   return (
     <Sidebar variant="inset">
@@ -65,7 +70,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>Menu Principal</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navigation.map((item) => (
+              {visibleNavigation.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={location.pathname === item.url}>
                     <Link to={item.url}>

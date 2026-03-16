@@ -23,6 +23,8 @@ export type LeaseContract = {
   updatedAt: string
   expirationDate?: string
   docusignStatus?: DocuSignStatus
+  isCritical?: boolean
+  managerApproval?: boolean
 }
 
 type State = {
@@ -46,12 +48,14 @@ let state: State = {
       id: 'CTR-002',
       propertyId: '103',
       tenantName: 'Maria Souza',
-      template: 'Residencial (Fiador)',
+      template: 'Residencial (Fiador - Alto Padrão)',
       status: 'Aguardando Assinatura',
       documentName: 'Minuta_Maria_Souza.docx',
       updatedAt: new Date().toISOString(),
       expirationDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
       docusignStatus: null,
+      isCritical: true, // Requires workflow approval
+      managerApproval: false,
     },
     {
       id: 'CTR-003',
@@ -104,6 +108,15 @@ export const contractsStore = {
       ...state,
       contracts: state.contracts.map((c) =>
         c.id === id ? { ...c, docusignStatus, updatedAt: new Date().toISOString() } : c,
+      ),
+    }
+    emit()
+  },
+  approveCriticalContract: (id: string) => {
+    state = {
+      ...state,
+      contracts: state.contracts.map((c) =>
+        c.id === id ? { ...c, managerApproval: true, updatedAt: new Date().toISOString() } : c,
       ),
     }
     emit()
