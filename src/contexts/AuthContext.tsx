@@ -22,9 +22,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return new Promise<void>((resolve, reject) => {
       setTimeout(() => {
         const { sharepoint } = mainStore.getState()
-        if (!sharepoint.primaryDomain || !sharepoint.primaryDomain.trim()) {
+        const domain = sharepoint.primaryDomain?.trim().toLowerCase()
+
+        if (!domain) {
           reject(
             new Error('Acesso negado. Domínio Primário não configurado nas definições do sistema.'),
+          )
+          return
+        }
+
+        const emailParts = email.split('@')
+        const emailDomain = emailParts.length > 1 ? emailParts[1].toLowerCase() : ''
+
+        if (emailDomain !== domain) {
+          reject(
+            new Error(
+              `Acesso negado. O e-mail fornecido não pertence ao domínio autorizado (${sharepoint.primaryDomain}).`,
+            ),
           )
           return
         }

@@ -27872,8 +27872,14 @@ function AuthProvider({ children }) {
 		return new Promise((resolve, reject) => {
 			setTimeout(() => {
 				const { sharepoint } = mainStore.getState();
-				if (!sharepoint.primaryDomain || !sharepoint.primaryDomain.trim()) {
+				const domain = sharepoint.primaryDomain?.trim().toLowerCase();
+				if (!domain) {
 					reject(/* @__PURE__ */ new Error("Acesso negado. Domínio Primário não configurado nas definições do sistema."));
+					return;
+				}
+				const emailParts = email.split("@");
+				if ((emailParts.length > 1 ? emailParts[1].toLowerCase() : "") !== domain) {
+					reject(/* @__PURE__ */ new Error(`Acesso negado. O e-mail fornecido não pertence ao domínio autorizado (${sharepoint.primaryDomain}).`));
 					return;
 				}
 				const { users } = usersStore.getState();
@@ -27892,7 +27898,7 @@ function AuthProvider({ children }) {
 		setCurrentUserId(id);
 	};
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AuthContext.Provider, {
-		"data-uid": "src/contexts/AuthContext.tsx:58:5",
+		"data-uid": "src/contexts/AuthContext.tsx:72:5",
 		"data-prohibitions": "[editContent]",
 		value: {
 			user,
@@ -67793,7 +67799,7 @@ function Login() {
 	const [showDialog, setShowDialog] = (0, import_react.useState)(false);
 	const [isLoading, setIsLoading] = (0, import_react.useState)(false);
 	const [step, setStep] = (0, import_react.useState)(1);
-	const [email, setEmail] = (0, import_react.useState)("ana.silva@imobged.com");
+	const [email, setEmail] = (0, import_react.useState)(sharepoint.primaryDomain ? `ana.silva@${sharepoint.primaryDomain}` : "");
 	const [password, setPassword] = (0, import_react.useState)("");
 	const handleNext = () => {
 		if (!email.trim()) return;
@@ -67829,80 +67835,80 @@ function Login() {
 		}
 	};
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-		"data-uid": "src/pages/Login.tsx:69:5",
+		"data-uid": "src/pages/Login.tsx:71:5",
 		"data-prohibitions": "[editContent]",
 		className: "min-h-screen flex items-center justify-center bg-muted/50 p-4",
 		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
-			"data-uid": "src/pages/Login.tsx:70:7",
+			"data-uid": "src/pages/Login.tsx:72:7",
 			"data-prohibitions": "[editContent]",
 			className: "w-full max-w-md shadow-lg border-primary/10",
 			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardHeader, {
-				"data-uid": "src/pages/Login.tsx:71:9",
+				"data-uid": "src/pages/Login.tsx:73:9",
 				"data-prohibitions": "[]",
 				className: "text-center space-y-2",
 				children: [
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-						"data-uid": "src/pages/Login.tsx:72:11",
+						"data-uid": "src/pages/Login.tsx:74:11",
 						"data-prohibitions": "[]",
 						className: "mx-auto bg-primary/10 w-16 h-16 rounded-full flex items-center justify-center mb-4",
 						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Building, {
-							"data-uid": "src/pages/Login.tsx:73:13",
+							"data-uid": "src/pages/Login.tsx:75:13",
 							"data-prohibitions": "[editContent]",
 							className: "h-8 w-8 text-primary"
 						})
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardTitle, {
-						"data-uid": "src/pages/Login.tsx:75:11",
+						"data-uid": "src/pages/Login.tsx:77:11",
 						"data-prohibitions": "[]",
 						className: "text-2xl",
 						children: "ImobGED"
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardDescription, {
-						"data-uid": "src/pages/Login.tsx:76:11",
+						"data-uid": "src/pages/Login.tsx:78:11",
 						"data-prohibitions": "[]",
 						children: "Gestão Documental e de Rotinas Imobiliárias"
 					})
 				]
 			}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardContent, {
-				"data-uid": "src/pages/Login.tsx:78:9",
+				"data-uid": "src/pages/Login.tsx:80:9",
 				"data-prohibitions": "[editContent]",
 				className: "space-y-4 pt-4",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-					"data-uid": "src/pages/Login.tsx:79:11",
+					"data-uid": "src/pages/Login.tsx:81:11",
 					"data-prohibitions": "[]",
 					className: "w-full h-12 text-base font-medium shadow-sm transition-all hover:scale-[1.02]",
 					onClick: () => setShowDialog(true),
 					children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-						"data-uid": "src/pages/Login.tsx:83:13",
+						"data-uid": "src/pages/Login.tsx:85:13",
 						"data-prohibitions": "[]",
 						className: "flex items-center",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("svg", {
-							"data-uid": "src/pages/Login.tsx:84:15",
+							"data-uid": "src/pages/Login.tsx:86:15",
 							"data-prohibitions": "[]",
 							className: "w-5 h-5 mr-3 shrink-0",
 							viewBox: "0 0 21 21",
 							xmlns: "http://www.w3.org/2000/svg",
 							children: [
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", {
-									"data-uid": "src/pages/Login.tsx:89:17",
+									"data-uid": "src/pages/Login.tsx:91:17",
 									"data-prohibitions": "[editContent]",
 									fill: "#f25022",
 									d: "M1 1h9v9H1z"
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", {
-									"data-uid": "src/pages/Login.tsx:90:17",
+									"data-uid": "src/pages/Login.tsx:92:17",
 									"data-prohibitions": "[editContent]",
 									fill: "#00a4ef",
 									d: "M1 11h9v9H1z"
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", {
-									"data-uid": "src/pages/Login.tsx:91:17",
+									"data-uid": "src/pages/Login.tsx:93:17",
 									"data-prohibitions": "[editContent]",
 									fill: "#7fba00",
 									d: "M11 1h9v9h-9z"
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", {
-									"data-uid": "src/pages/Login.tsx:92:17",
+									"data-uid": "src/pages/Login.tsx:94:17",
 									"data-prohibitions": "[editContent]",
 									fill: "#ffb900",
 									d: "M11 11h9v9h-9z"
@@ -67911,24 +67917,24 @@ function Login() {
 						}), "Entrar com Microsoft 365"]
 					})
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					"data-uid": "src/pages/Login.tsx:97:11",
+					"data-uid": "src/pages/Login.tsx:99:11",
 					"data-prohibitions": "[editContent]",
 					className: "flex flex-col items-center justify-center gap-1 text-xs text-muted-foreground mt-4",
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						"data-uid": "src/pages/Login.tsx:98:13",
+						"data-uid": "src/pages/Login.tsx:100:13",
 						"data-prohibitions": "[]",
 						className: "flex items-center gap-2",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ShieldCheck, {
-							"data-uid": "src/pages/Login.tsx:99:15",
+							"data-uid": "src/pages/Login.tsx:101:15",
 							"data-prohibitions": "[editContent]",
 							className: "h-4 w-4 text-emerald-500"
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-							"data-uid": "src/pages/Login.tsx:100:15",
+							"data-uid": "src/pages/Login.tsx:102:15",
 							"data-prohibitions": "[]",
 							children: "Autenticação Segura SSO Corporativo"
 						})]
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-						"data-uid": "src/pages/Login.tsx:102:13",
+						"data-uid": "src/pages/Login.tsx:104:13",
 						"data-prohibitions": "[editContent]",
 						className: "opacity-70 mt-1",
 						children: ["Domínio Autorizado: ", sharepoint.primaryDomain || "Não configurado"]
@@ -67936,49 +67942,49 @@ function Login() {
 				})]
 			})]
 		}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Dialog, {
-			"data-uid": "src/pages/Login.tsx:109:7",
+			"data-uid": "src/pages/Login.tsx:111:7",
 			"data-prohibitions": "[editContent]",
 			open: showDialog,
 			onOpenChange: handleOpenChange,
 			children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DialogContent, {
-				"data-uid": "src/pages/Login.tsx:110:9",
+				"data-uid": "src/pages/Login.tsx:112:9",
 				"data-prohibitions": "[editContent]",
 				className: "sm:max-w-md",
 				children: [
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DialogHeader, {
-						"data-uid": "src/pages/Login.tsx:111:11",
+						"data-uid": "src/pages/Login.tsx:113:11",
 						"data-prohibitions": "[editContent]",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DialogTitle, {
-							"data-uid": "src/pages/Login.tsx:112:13",
+							"data-uid": "src/pages/Login.tsx:114:13",
 							"data-prohibitions": "[]",
 							className: "flex items-center gap-2",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("svg", {
-								"data-uid": "src/pages/Login.tsx:113:15",
+								"data-uid": "src/pages/Login.tsx:115:15",
 								"data-prohibitions": "[]",
 								className: "w-5 h-5",
 								viewBox: "0 0 21 21",
 								xmlns: "http://www.w3.org/2000/svg",
 								children: [
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", {
-										"data-uid": "src/pages/Login.tsx:114:17",
+										"data-uid": "src/pages/Login.tsx:116:17",
 										"data-prohibitions": "[editContent]",
 										fill: "#f25022",
 										d: "M1 1h9v9H1z"
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", {
-										"data-uid": "src/pages/Login.tsx:115:17",
+										"data-uid": "src/pages/Login.tsx:117:17",
 										"data-prohibitions": "[editContent]",
 										fill: "#00a4ef",
 										d: "M1 11h9v9H1z"
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", {
-										"data-uid": "src/pages/Login.tsx:116:17",
+										"data-uid": "src/pages/Login.tsx:118:17",
 										"data-prohibitions": "[editContent]",
 										fill: "#7fba00",
 										d: "M11 1h9v9h-9z"
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", {
-										"data-uid": "src/pages/Login.tsx:117:17",
+										"data-uid": "src/pages/Login.tsx:119:17",
 										"data-prohibitions": "[editContent]",
 										fill: "#ffb900",
 										d: "M11 11h9v9h-9z"
@@ -67986,26 +67992,26 @@ function Login() {
 								]
 							}), "Sign in to your account"]
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(DialogDescription, {
-							"data-uid": "src/pages/Login.tsx:121:13",
+							"data-uid": "src/pages/Login.tsx:123:13",
 							"data-prohibitions": "[editContent]",
 							children: step === 1 ? `Validando acesso para o domínio corporativo vinculado.` : `Insira a senha de acesso para ${email}`
 						})]
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-						"data-uid": "src/pages/Login.tsx:127:11",
+						"data-uid": "src/pages/Login.tsx:129:11",
 						"data-prohibitions": "[editContent]",
 						className: "py-4",
 						children: step === 1 ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							"data-uid": "src/pages/Login.tsx:129:15",
+							"data-uid": "src/pages/Login.tsx:131:15",
 							"data-prohibitions": "[]",
 							className: "grid gap-3",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label, {
-								"data-uid": "src/pages/Login.tsx:130:17",
+								"data-uid": "src/pages/Login.tsx:132:17",
 								"data-prohibitions": "[]",
 								htmlFor: "email",
 								children: "E-mail corporativo M365"
 							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-								"data-uid": "src/pages/Login.tsx:131:17",
+								"data-uid": "src/pages/Login.tsx:133:17",
 								"data-prohibitions": "[editContent]",
 								id: "email",
 								type: "email",
@@ -68016,16 +68022,16 @@ function Login() {
 								autoFocus: true
 							})]
 						}) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							"data-uid": "src/pages/Login.tsx:142:15",
+							"data-uid": "src/pages/Login.tsx:144:15",
 							"data-prohibitions": "[]",
 							className: "grid gap-3 animate-fade-in",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label, {
-								"data-uid": "src/pages/Login.tsx:143:17",
+								"data-uid": "src/pages/Login.tsx:145:17",
 								"data-prohibitions": "[]",
 								htmlFor: "password",
 								children: "Senha"
 							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-								"data-uid": "src/pages/Login.tsx:144:17",
+								"data-uid": "src/pages/Login.tsx:146:17",
 								"data-prohibitions": "[editContent]",
 								id: "password",
 								type: "password",
@@ -68038,11 +68044,11 @@ function Login() {
 						})
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DialogFooter, {
-						"data-uid": "src/pages/Login.tsx:156:11",
+						"data-uid": "src/pages/Login.tsx:158:11",
 						"data-prohibitions": "[editContent]",
 						className: "sm:justify-between flex-row",
 						children: [step === 2 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-							"data-uid": "src/pages/Login.tsx:158:15",
+							"data-uid": "src/pages/Login.tsx:160:15",
 							"data-prohibitions": "[]",
 							variant: "ghost",
 							size: "sm",
@@ -68050,21 +68056,21 @@ function Login() {
 							disabled: isLoading,
 							children: "Voltar"
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							"data-uid": "src/pages/Login.tsx:162:13",
+							"data-uid": "src/pages/Login.tsx:164:13",
 							"data-prohibitions": "[editContent]",
 							className: step === 1 ? "w-full flex justify-end" : "",
 							children: step === 1 ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
-								"data-uid": "src/pages/Login.tsx:164:17",
+								"data-uid": "src/pages/Login.tsx:166:17",
 								"data-prohibitions": "[]",
 								onClick: handleNext,
 								disabled: !email.trim(),
 								children: ["Avançar ", /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ArrowRight, {
-									"data-uid": "src/pages/Login.tsx:165:27",
+									"data-uid": "src/pages/Login.tsx:167:27",
 									"data-prohibitions": "[editContent]",
 									className: "w-4 h-4 ml-2"
 								})]
 							}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-								"data-uid": "src/pages/Login.tsx:168:17",
+								"data-uid": "src/pages/Login.tsx:170:17",
 								"data-prohibitions": "[editContent]",
 								onClick: handleLoginSubmit,
 								disabled: !password || isLoading,
@@ -70215,4 +70221,4 @@ var App = () => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(BrowserRouter, {
 }));
 //#endregion
 
-//# sourceMappingURL=index-BPxVdw46.js.map
+//# sourceMappingURL=index-BjwqKQ51.js.map

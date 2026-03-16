@@ -26,7 +26,9 @@ export default function Login() {
   const [showDialog, setShowDialog] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [step, setStep] = useState<1 | 2>(1)
-  const [email, setEmail] = useState('ana.silva@imobged.com') // Default mock for easy testing
+  const [email, setEmail] = useState(
+    sharepoint.primaryDomain ? `ana.silva@${sharepoint.primaryDomain}` : '',
+  )
   const [password, setPassword] = useState('')
 
   const handleNext = () => {
