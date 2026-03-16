@@ -27903,71 +27903,119 @@ function useUsersStore() {
 //#endregion
 //#region src/contexts/AuthContext.tsx
 var AuthContext = (0, import_react.createContext)(null);
+function generateRandomString(length) {
+	const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
+	let result = "";
+	const values = new Uint32Array(length);
+	crypto.getRandomValues(values);
+	for (let i = 0; i < length; i++) result += charset[values[i] % 66];
+	return result;
+}
+async function generateCodeChallenge(codeVerifier) {
+	const data = new TextEncoder().encode(codeVerifier);
+	const digest = await crypto.subtle.digest("SHA-256", data);
+	return btoa(String.fromCharCode(...new Uint8Array(digest))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
 function AuthProvider({ children }) {
 	const [currentUserId, setCurrentUserId] = (0, import_react.useState)(null);
 	const { users } = usersStore.getState();
 	const user = currentUserId ? users.find((u) => u.id === currentUserId) || null : null;
 	(0, import_react.useEffect)(() => {
-		const hash = window.location.hash;
-		if (hash.includes("access_token=")) {
-			const params = new URLSearchParams(hash.substring(1));
-			const token = params.get("access_token");
-			const error = params.get("error");
-			window.location.hash = "";
-			if (error) {
+		const searchParams = new URLSearchParams(window.location.search);
+		const code = searchParams.get("code");
+		const error = searchParams.get("error");
+		const errorDescription = searchParams.get("error_description");
+		if (error) {
+			toast$1({
+				variant: "destructive",
+				title: "Erro de Autenticação",
+				description: errorDescription || "Não foi possível conectar ao Microsoft 365. Verifique as permissões do Azure App."
+			});
+			window.history.replaceState({}, document.title, window.location.pathname);
+			return;
+		}
+		if (code) {
+			window.history.replaceState({}, document.title, window.location.pathname);
+			const { sharepoint } = mainStore.getState();
+			const { clientId, tenantId } = sharepoint;
+			const codeVerifier = sessionStorage.getItem("pkce_code_verifier");
+			if (!clientId || !tenantId || !codeVerifier) {
 				toast$1({
 					variant: "destructive",
-					title: "Erro de Autenticação",
-					description: "Unable to connect to Microsoft 365. Please verify your Client/Tenant ID and Azure App permissions."
+					title: "Sessão Inválida",
+					description: "A sessão de login expirou ou está incompleta. Tente novamente."
 				});
 				return;
 			}
-			if (token) {
+			const redirectUri = window.location.origin + "/login";
+			const tokenParams = new URLSearchParams();
+			tokenParams.append("client_id", clientId);
+			tokenParams.append("scope", "openid profile email User.Read Files.ReadWrite.All Sites.Read.All");
+			tokenParams.append("code", code);
+			tokenParams.append("redirect_uri", redirectUri);
+			tokenParams.append("grant_type", "authorization_code");
+			tokenParams.append("code_verifier", codeVerifier);
+			fetch(`https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`, {
+				method: "POST",
+				headers: { "Content-Type": "application/x-www-form-urlencoded" },
+				body: tokenParams.toString()
+			}).then((res) => {
+				if (!res.ok) throw new Error("Falha ao obter token de acesso");
+				return res.json();
+			}).then((tokenData) => {
+				const token = tokenData.access_token;
 				sessionStorage.setItem("m365_token", token);
-				fetch("https://graph.microsoft.com/v1.0/me", { headers: { Authorization: `Bearer ${token}` } }).then((res) => {
-					if (!res.ok) throw new Error("API Error");
-					return res.json();
-				}).then(async (data) => {
-					let photoUrl = `https://img.usecurling.com/ppl/thumbnail?seed=${Math.floor(Math.random() * 100)}`;
-					try {
-						const pRes = await fetch("https://graph.microsoft.com/v1.0/me/photo/$value", { headers: { Authorization: `Bearer ${token}` } });
-						if (pRes.ok) {
-							const blob = await pRes.blob();
-							photoUrl = URL.createObjectURL(blob);
-						}
-					} catch (e) {}
-					const currentUsers = usersStore.getState().users;
-					const emailToMatch = (data.mail || data.userPrincipalName || "").toLowerCase();
-					let matched = currentUsers.find((u) => u.email.toLowerCase() === emailToMatch);
-					if (!matched) matched = usersStore.addUser({
-						name: data.displayName || "M365 User",
-						email: emailToMatch || "user@domain.com",
-						role: "Admin"
-					});
-					usersStore.updateUser(matched.id, {
-						avatar: photoUrl,
-						name: data.displayName || matched.name
-					});
-					setCurrentUserId(matched.id);
-					toast$1({
-						title: "Autenticado com sucesso",
-						description: `Bem-vindo(a), ${data.displayName || matched.name}`
-					});
-				}).catch(() => {
-					toast$1({
-						variant: "destructive",
-						title: "Erro no Microsoft 365",
-						description: "Unable to connect to Microsoft 365. Please verify your Client/Tenant ID and Azure App permissions."
-					});
+				sessionStorage.removeItem("pkce_code_verifier");
+				return fetch("https://graph.microsoft.com/v1.0/me", { headers: { Authorization: `Bearer ${token}` } }).then((res) => {
+					if (!res.ok) throw new Error("Graph API Error");
+					return res.json().then((data) => ({
+						data,
+						token
+					}));
 				});
-			}
+			}).then(async ({ data, token }) => {
+				let photoUrl = `https://img.usecurling.com/ppl/thumbnail?seed=${Math.floor(Math.random() * 100)}`;
+				try {
+					const pRes = await fetch("https://graph.microsoft.com/v1.0/me/photo/$value", { headers: { Authorization: `Bearer ${token}` } });
+					if (pRes.ok) {
+						const blob = await pRes.blob();
+						photoUrl = URL.createObjectURL(blob);
+					}
+				} catch (e) {}
+				const currentUsers = usersStore.getState().users;
+				const emailToMatch = (data.mail || data.userPrincipalName || "").toLowerCase();
+				let matched = currentUsers.find((u) => u.email.toLowerCase() === emailToMatch);
+				if (!matched) matched = usersStore.addUser({
+					name: data.displayName || "M365 User",
+					email: emailToMatch || "user@domain.com",
+					role: "Admin"
+				});
+				usersStore.updateUser(matched.id, {
+					avatar: photoUrl,
+					name: data.displayName || matched.name
+				});
+				setCurrentUserId(matched.id);
+				toast$1({
+					title: "Autenticado com sucesso",
+					description: `Bem-vindo(a), ${data.displayName || matched.name}`
+				});
+			}).catch((e) => {
+				toast$1({
+					variant: "destructive",
+					title: "Erro de Integração",
+					description: e.message || "Não foi possível completar a autenticação com o Microsoft 365."
+				});
+			});
 		}
 	}, []);
 	const loginM365 = async (email, password) => {
 		const { sharepoint } = mainStore.getState();
 		const { clientId, tenantId } = sharepoint;
 		if (clientId && tenantId) {
-			const authUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize?client_id=${clientId}&response_type=token&redirect_uri=${encodeURIComponent(window.location.origin + "/login")}&scope=${encodeURIComponent("openid profile email User.Read Files.ReadWrite.All Sites.Read.All")}&nonce=12345&login_hint=${encodeURIComponent(email)}`;
+			const codeVerifier = generateRandomString(64);
+			sessionStorage.setItem("pkce_code_verifier", codeVerifier);
+			const codeChallenge = await generateCodeChallenge(codeVerifier);
+			const authUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(window.location.origin + "/login")}&scope=${encodeURIComponent("openid profile email User.Read Files.ReadWrite.All Sites.Read.All")}&code_challenge=${codeChallenge}&code_challenge_method=S256&login_hint=${encodeURIComponent(email)}`;
 			window.location.href = authUrl;
 			return new Promise(() => {});
 		}
@@ -28002,13 +28050,14 @@ function AuthProvider({ children }) {
 	};
 	const logout = () => {
 		sessionStorage.removeItem("m365_token");
+		sessionStorage.removeItem("pkce_code_verifier");
 		setCurrentUserId(null);
 	};
 	const switchUser = (id) => {
 		setCurrentUserId(id);
 	};
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AuthContext.Provider, {
-		"data-uid": "src/contexts/AuthContext.tsx:171:5",
+		"data-uid": "src/contexts/AuthContext.tsx:241:5",
 		"data-prohibitions": "[editContent]",
 		value: {
 			user,
@@ -70418,4 +70467,4 @@ var App = () => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(BrowserRouter, {
 }));
 //#endregion
 
-//# sourceMappingURL=index-7ASLdfGz.js.map
+//# sourceMappingURL=index-BJ_u9FTz.js.map
