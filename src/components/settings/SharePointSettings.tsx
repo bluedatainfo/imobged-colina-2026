@@ -10,18 +10,47 @@ import useMainStore, { mainStore } from '@/stores/main'
 import { usersStore } from '@/stores/users'
 import { cn } from '@/lib/utils'
 
-const getDomainFromTenant = (tenantId: string) => {
-  if (!tenantId) return ''
-  const normalizedId = tenantId.toLowerCase().trim()
-  if (normalizedId === 'a1b2c3d4-e5f6-4a1b-9c2d-3e4f5a6b7c8d') return 'imobged.com'
-  if (normalizedId === 'bf7f8315-5eb1-44a0-bb92-c6640af6a671') return 'imobiliariacolina.com.br'
-  const cleanId = tenantId.replace(/[^a-f0-9]/gi, '')
-  return `tenant-${cleanId.substring(0, 6)}.com`
+const mockDomains = [
+  'imobged.com',
+  'imobiliariacolina.com.br',
+  'primeimoveis.com.br',
+  'litoralbeta.com.br',
+  'sullocacoes.com',
+  'imoveisgold.com.br',
+  'alugacerto.com',
+  'hausimoveis.com.br',
+  'nacionalimobiliaria.com',
+  'urbanalocacoes.com.br',
+]
+
+const resolveDomainAsync = async (tenantId: string): Promise<string> => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const normalized = tenantId.toLowerCase().trim()
+      if (normalized === 'a1b2c3d4-e5f6-4a1b-9c2d-3e4f5a6b7c8d') return resolve('imobged.com')
+      if (normalized === 'bf7f8315-5eb1-44a0-bb92-c6640af6a671')
+        return resolve('imobiliariacolina.com.br')
+
+      let hash = 0
+      for (let i = 0; i < normalized.length; i++) {
+        hash = normalized.charCodeAt(i) + ((hash << 5) - hash)
+      }
+      resolve(mockDomains[Math.abs(hash) % mockDomains.length])
+    }, 800)
+  })
 }
 
 const isValidTenantId = (id: string) => {
   return /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id)
 }
+
+const SITES = [
+  { key: 'locacao', label: 'Gestão de Locação (Site URL)' },
+  { key: 'vendas', label: 'Vendas (Site URL)' },
+  { key: 'captacao', label: 'Captação de Imóveis (Site URL)' },
+  { key: 'juridico', label: 'Jurídico (Site URL)' },
+  { key: 'financeiro', label: 'Financeiro (Site URL)' },
+] as const
 
 export default function SharePointSettings() {
   const { toast } = useToast()
@@ -35,94 +64,99 @@ export default function SharePointSettings() {
   const [tenantIdError, setTenantIdError] = useState<string | null>(null)
 
   useEffect(() => {
-    const handler = setTimeout(() => {
-      const currentId = formData.tenantId?.trim() || ''
+    let isMounted = true
+    const currentId = formData.tenantId?.trim() || ''
 
-      if (!currentId) {
-        setTenantStatus('idle')
-        setTenantIdError(null)
-        if (store.sharepoint.tenantDomain) {
-          const emptySites = { locacao: '', captacao: '', vendas: '', juridico: '', financeiro: '' }
-          mainStore.updateSharePointSettings({
-            tenantDomain: '',
-            teamsWebhookUrl: '',
-            sites: emptySites,
+    if (!currentId) {
+      setTenantStatus('idle')
+      setTenantIdError(null)
+      if (store.sharepoint.tenantDomain) {
+        const emptySites = { locacao: '', captacao: '', vendas: '', juridico: '', financeiro: '' }
+        mainStore.updateSharePointSettings({
+          tenantId: '',
+          tenantDomain: '',
+          teamsWebhookUrl: '',
+          sites: emptySites,
+        })
+        mainStore.updateSettings({
+          managementEmails: '',
+          administrativeEmails: '',
+          operationalEmails: '',
+        })
+        usersStore.enforceDomain('')
+        setFormData((prev) => ({
+          ...prev,
+          tenantDomain: '',
+          teamsWebhookUrl: '',
+          sites: emptySites,
+        }))
+        toast({
+          title: 'Tenant Removido',
+          description: 'Configurações vinculadas ao domínio foram limpas.',
+        })
+      }
+      return
+    }
+
+    if (!isValidTenantId(currentId)) {
+      setTenantStatus('invalid')
+      setTenantIdError('Insira um ID de locatário (Tenant ID) válido.')
+      return
+    }
+
+    setTenantStatus('validating')
+    setTenantIdError(null)
+
+    const timer = setTimeout(async () => {
+      try {
+        const resolvedDomain = await resolveDomainAsync(currentId)
+        if (!isMounted) return
+
+        setTenantStatus('active')
+
+        if (currentId !== store.sharepoint.tenantId) {
+          const newPrefix = `https://${resolvedDomain.split('.')[0]}.sharepoint.com/sites/`
+          const updatedSites = { ...formData.sites }
+
+          Object.keys(updatedSites).forEach((k) => {
+            const key = k as keyof typeof updatedSites
+            const path = (updatedSites[key] || '').split('/').pop() || ''
+            updatedSites[key] = path ? `${newPrefix}${path}` : ''
           })
+
+          const newSettings = {
+            tenantId: currentId,
+            tenantDomain: resolvedDomain,
+            teamsWebhookUrl: '',
+            sites: updatedSites,
+          }
+
+          setFormData((prev) => ({ ...prev, ...newSettings }))
+          mainStore.updateSharePointSettings(newSettings)
           mainStore.updateSettings({
             managementEmails: '',
             administrativeEmails: '',
             operationalEmails: '',
           })
-          usersStore.enforceDomain('')
-          setFormData((prev) => ({
-            ...prev,
-            tenantDomain: '',
-            teamsWebhookUrl: '',
-            sites: emptySites,
-          }))
+          usersStore.enforceDomain(resolvedDomain)
+
           toast({
-            title: 'Tenant Removido',
-            description: 'Configurações vinculadas ao domínio foram limpas.',
+            title: 'Novo Domínio Vinculado',
+            description: `Domínio ${resolvedDomain} detectado. Configurações sincronizadas.`,
           })
         }
-        return
-      }
-
-      setTenantStatus('validating')
-      setTimeout(() => {
-        if (isValidTenantId(currentId)) {
-          setTenantStatus('active')
-          setTenantIdError(null)
-
-          const resolvedDomain = getDomainFromTenant(currentId)
-
-          if (resolvedDomain !== store.sharepoint.tenantDomain) {
-            const newPrefix = `https://${resolvedDomain.split('.')[0]}.sharepoint.com/sites/`
-            const updatedSites = { ...formData.sites }
-
-            Object.keys(updatedSites).forEach((k) => {
-              const key = k as keyof typeof updatedSites
-              const path = (updatedSites[key] || '').split('/').pop() || ''
-              updatedSites[key] = path ? `${newPrefix}${path}` : ''
-            })
-
-            setFormData((prev) => ({
-              ...prev,
-              tenantDomain: resolvedDomain,
-              teamsWebhookUrl: '',
-              sites: updatedSites,
-            }))
-
-            mainStore.updateSharePointSettings({
-              tenantId: currentId,
-              tenantDomain: resolvedDomain,
-              teamsWebhookUrl: '',
-              sites: updatedSites,
-            })
-
-            mainStore.updateSettings({
-              managementEmails: '',
-              administrativeEmails: '',
-              operationalEmails: '',
-            })
-
-            usersStore.enforceDomain(resolvedDomain)
-
-            toast({
-              title: 'Novo Domínio Vinculado',
-              description: `Domínio ${resolvedDomain} detectado. Configurações sincronizadas.`,
-            })
-          } else if (currentId !== store.sharepoint.tenantId) {
-            mainStore.updateSharePointSettings({ tenantId: currentId })
-          }
-        } else {
+      } catch (e) {
+        if (isMounted) {
           setTenantStatus('invalid')
-          setTenantIdError('Insira um ID de locatário (Tenant ID) válido.')
+          setTenantIdError('Erro ao resolver domínio do Tenant.')
         }
-      }, 600)
-    }, 500)
+      }
+    }, 600)
 
-    return () => clearTimeout(handler)
+    return () => {
+      isMounted = false
+      clearTimeout(timer)
+    }
   }, [formData.tenantId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleChange = (field: keyof typeof formData, value: string) => {
@@ -132,6 +166,14 @@ export default function SharePointSettings() {
   const handleSiteChange = (field: keyof typeof formData.sites, value: string) => {
     setFormData((prev) => ({ ...prev, sites: { ...prev.sites, [field]: value } }))
   }
+
+  const sitePrefix = formData.tenantDomain
+    ? `https://${formData.tenantDomain.split('.')[0]}.sharepoint.com/sites/`
+    : 'https://dominio.sharepoint.com/sites/'
+
+  const domainPrefix = formData.tenantDomain
+    ? `https://${formData.tenantDomain}.webhook.office.com/teams/`
+    : 'https://dominio.webhook.office.com/teams/'
 
   const handleSave = () => {
     if (tenantStatus !== 'active' || !formData.tenantDomain) {
@@ -143,17 +185,18 @@ export default function SharePointSettings() {
       return
     }
 
-    const sitePrefix = `https://${formData.tenantDomain.split('.')[0]}.sharepoint.com/sites/`
     const allSitesValid = Object.values(formData.sites).every(
       (url) => url && url.startsWith(sitePrefix),
     )
+    const isWebhookValid =
+      !formData.teamsWebhookUrl || formData.teamsWebhookUrl.startsWith(domainPrefix)
 
-    if (!allSitesValid) {
+    if (!allSitesValid || !isWebhookValid) {
       toast({
         variant: 'destructive',
         title: 'Mapeamento Inválido',
         description:
-          'Verifique se todos os sites departamentais estão preenchidos corretamente para o domínio atual.',
+          'Verifique se os sites departamentais e o Webhook estão preenchidos corretamente para o domínio atual.',
       })
       return
     }
@@ -174,25 +217,24 @@ export default function SharePointSettings() {
         setTestResult('error')
         return
       }
-      const sitePrefix = `https://${formData.tenantDomain.split('.')[0]}.sharepoint.com/sites/`
       const allSitesValid = Object.values(formData.sites).every(
         (url) => url && url.startsWith(sitePrefix),
       )
-      setTestResult(allSitesValid ? 'success' : 'error')
-    }, 2000)
-  }
+      const isWebhookValid =
+        !formData.teamsWebhookUrl || formData.teamsWebhookUrl.startsWith(domainPrefix)
 
-  const domainPrefix = formData.tenantDomain
-    ? `https://${formData.tenantDomain}.webhook.office.com/teams/`
-    : 'https://dominio.webhook.office.com/teams/'
+      setTestResult(allSitesValid && isWebhookValid ? 'success' : 'error')
+    }, 1500)
+  }
 
   const webhookPath = formData.teamsWebhookUrl?.startsWith(domainPrefix)
     ? formData.teamsWebhookUrl.substring(domainPrefix.length)
     : formData.teamsWebhookUrl || ''
 
-  const sitePrefix = formData.tenantDomain
-    ? `https://${formData.tenantDomain.split('.')[0]}.sharepoint.com/sites/`
-    : 'https://dominio.sharepoint.com/sites/'
+  const isWebhookPathValid =
+    formData.teamsWebhookUrl?.startsWith(domainPrefix) &&
+    webhookPath.length > 0 &&
+    tenantStatus === 'active'
 
   const renderSiteInput = (label: string, siteKey: keyof typeof formData.sites) => {
     const value = formData.sites[siteKey] || ''
@@ -202,7 +244,7 @@ export default function SharePointSettings() {
     const isValid = value.startsWith(sitePrefix) && path.length > 0 && tenantStatus === 'active'
 
     return (
-      <div className="space-y-2">
+      <div key={siteKey} className="space-y-2">
         <Label className="flex items-center justify-between text-sm">
           <span>{label}</span>
           {isValid && <CheckCircle2 className="w-4 h-4 text-emerald-600" />}
@@ -232,15 +274,6 @@ export default function SharePointSettings() {
             placeholder="nome-do-setor"
           />
         </div>
-        {!isValid && tenantStatus === 'active' && path.length === 0 && (
-          <p className="text-xs text-destructive mt-1">O nome do site é obrigatório.</p>
-        )}
-        {!isValid &&
-          tenantStatus === 'active' &&
-          path.length > 0 &&
-          !value.startsWith(sitePrefix) && (
-            <p className="text-xs text-destructive mt-1">Domínio incompatível. Atualize o campo.</p>
-          )}
       </div>
     )
   }
@@ -256,7 +289,7 @@ export default function SharePointSettings() {
             Parâmetros principais do Tenant e credenciais via Microsoft Graph API.
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid md:grid-cols-2 gap-4">
+        <CardContent className="grid md:grid-cols-2 gap-6">
           <div className="space-y-2">
             <Label className="flex items-center justify-between">
               <span>Tenant ID (Microsoft Entra ID)</span>
@@ -269,7 +302,7 @@ export default function SharePointSettings() {
                 </Badge>
               )}
               {tenantStatus === 'invalid' && <Badge variant="destructive">Tenant Inválido</Badge>}
-              {tenantStatus === 'validating' && <Badge variant="secondary">Verificando...</Badge>}
+              {tenantStatus === 'validating' && <Badge variant="secondary">Resolvendo...</Badge>}
               {tenantStatus === 'idle' && <Badge variant="secondary">Desconectado</Badge>}
             </Label>
             <Input
@@ -286,16 +319,27 @@ export default function SharePointSettings() {
           </div>
 
           <div className="space-y-2">
-            <Label>Canal de Alertas Teams (Webhook)</Label>
+            <Label className="flex items-center justify-between text-sm">
+              <span>Canal de Alertas Teams (Webhook)</span>
+              {isWebhookPathValid && <CheckCircle2 className="w-4 h-4 text-emerald-600" />}
+              {!isWebhookPathValid && tenantStatus === 'active' && formData.teamsWebhookUrl && (
+                <AlertCircle className="w-4 h-4 text-destructive" />
+              )}
+            </Label>
             <div className="flex w-full">
               <span
-                className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-input bg-muted text-muted-foreground text-xs whitespace-nowrap overflow-hidden text-ellipsis max-w-[180px] sm:max-w-[220px]"
+                className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-input bg-muted text-muted-foreground text-xs whitespace-nowrap overflow-hidden text-ellipsis max-w-[150px] sm:max-w-[200px]"
                 title={domainPrefix}
               >
                 {domainPrefix}
               </span>
               <Input
-                className="rounded-l-none font-mono text-sm"
+                className={cn(
+                  'rounded-l-none font-mono text-sm',
+                  !isWebhookPathValid && tenantStatus === 'active' && formData.teamsWebhookUrl
+                    ? 'border-destructive focus-visible:ring-destructive'
+                    : '',
+                )}
                 value={webhookPath}
                 onChange={(e) =>
                   handleChange(
@@ -303,7 +347,7 @@ export default function SharePointSettings() {
                     e.target.value ? `${domainPrefix}${e.target.value}` : '',
                   )
                 }
-                placeholder="id-do-canal-xyz"
+                placeholder="id-do-canal"
                 disabled={tenantStatus !== 'active' || !formData.tenantDomain}
               />
             </div>
@@ -328,11 +372,7 @@ export default function SharePointSettings() {
             </div>
           )}
           <div className="grid md:grid-cols-2 gap-x-6 gap-y-6">
-            {renderSiteInput('Gestão de Locação (Site URL)', 'locacao')}
-            {renderSiteInput('Vendas (Site URL)', 'vendas')}
-            {renderSiteInput('Captação de Imóveis (Site URL)', 'captacao')}
-            {renderSiteInput('Jurídico (Site URL)', 'juridico')}
-            {renderSiteInput('Financeiro (Site URL)', 'financeiro')}
+            {SITES.map((site) => renderSiteInput(site.label, site.key))}
           </div>
         </CardContent>
       </Card>
@@ -349,16 +389,16 @@ export default function SharePointSettings() {
             ) : (
               <RefreshCw className="w-4 h-4 mr-2" />
             )}{' '}
-            Testar Conexão Multi-Site
+            Testar Conexões
           </Button>
           {testResult === 'success' && (
             <span className="flex items-center text-sm text-emerald-600 font-medium">
-              <CheckCircle2 className="w-4 h-4 mr-1" /> Conexão com Sites e Tenant OK
+              <CheckCircle2 className="w-4 h-4 mr-1" /> Endpoints validados com sucesso
             </span>
           )}
           {testResult === 'error' && (
             <span className="flex items-center text-sm text-destructive font-medium">
-              <AlertCircle className="w-4 h-4 mr-1" /> Falha na conexão de sites ou Tenant ID
+              <AlertCircle className="w-4 h-4 mr-1" /> Falha na validação dos endpoints
             </span>
           )}
         </div>

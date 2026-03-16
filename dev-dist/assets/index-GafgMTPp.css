@@ -1448,8 +1448,8 @@ section[aria-label='Notifications alt+T'] {
   max-width: 140px;
 }
 
-.max-w-\[180px\]{
-  max-width: 180px;
+.max-w-\[150px\]{
+  max-width: 150px;
 }
 
 .max-w-\[250px\]{
@@ -4665,10 +4665,6 @@ section[aria-label='Notifications alt+T'] {
 
   .sm\:max-w-\[200px\]{
     max-width: 200px;
-  }
-
-  .sm\:max-w-\[220px\]{
-    max-width: 220px;
   }
 
   .sm\:max-w-\[425px\]{
