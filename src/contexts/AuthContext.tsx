@@ -69,8 +69,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!clientId || !tenantId || !codeVerifier) {
         toast({
           variant: 'destructive',
-          title: 'Sessão Inválida',
-          description: 'A sessão de login expirou ou está incompleta. Tente novamente.',
+          title: 'Sessão Incompleta ou Expirada',
+          description:
+            'A sessão de login expirou ou as configurações de Client/Tenant ID estão ausentes. Por favor, inicie o login novamente.',
         })
         return
       }
@@ -228,6 +229,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const logout = () => {
+    // Clear all auth-related caches and sessions safely
     sessionStorage.removeItem('m365_token')
     sessionStorage.removeItem('pkce_code_verifier')
     setCurrentUserId(null)

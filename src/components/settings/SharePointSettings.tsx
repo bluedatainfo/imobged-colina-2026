@@ -262,7 +262,11 @@ export default function SharePointSettings() {
       return
     }
 
-    const isNewDomain = formData.primaryDomain !== store.sharepoint.primaryDomain
+    // Detect if essential authentication connection parameters have changed
+    const isAuthChanged =
+      formData.primaryDomain !== store.sharepoint.primaryDomain ||
+      clientId.trim() !== store.sharepoint.clientId ||
+      tenantId.trim() !== store.sharepoint.tenantId
 
     mainStore.updateSharePointSettings({
       ...formData,
@@ -270,12 +274,16 @@ export default function SharePointSettings() {
       tenantId: tenantId.trim(),
     })
 
-    if (isNewDomain) {
+    if (isAuthChanged) {
+      // Programmatically invalidate session caches to prevent old OAuth loops or invalid session errors
+      sessionStorage.clear()
+
       mainStore.updateSettings({
         managementEmails: '',
         administrativeEmails: '',
         operationalEmails: '',
       })
+
       usersStore.enforceDomain(formData.primaryDomain)
       if (formData.primaryDomain) {
         usersStore.addUser({
@@ -285,17 +293,17 @@ export default function SharePointSettings() {
         })
       }
       toast({
-        title: 'Tenant Alterado',
+        title: 'Credenciais M365 Atualizadas',
         description:
-          'Sua sessão foi encerrada para aplicar o novo contexto de domínio. Por favor, faça login novamente.',
+          'Os parâmetros de autenticação foram alterados. Sua sessão foi encerrada e os caches foram limpos de forma segura para aplicar as novas configurações de Client ID/Tenant ID. Por favor, inicie o login novamente.',
       })
-      logout() // Force re-auth due to domain change state consistency
+      logout() // Force re-auth to cleanly re-init the Context and PKCE flows
       return
     }
 
     toast({
       title: 'Integração M365 Salva',
-      description: 'Configurações de domínio, credenciais e sites atualizados com sucesso.',
+      description: 'Configurações de integração atualizadas e persistidas com sucesso.',
     })
   }
 
@@ -397,7 +405,8 @@ export default function SharePointSettings() {
           <div>
             <p className="font-semibold text-sm">Integração Ativa com Microsoft 365</p>
             <p className="text-xs">
-              As operações estão conectadas via Graph API e autenticação nativa Entra ID.
+              As operações estão conectadas via Graph API e autenticação nativa Entra ID. As
+              configurações estão salvas.
             </p>
           </div>
         </div>
@@ -559,7 +568,7 @@ export default function SharePointSettings() {
           </CardTitle>
           <CardDescription>
             Configure application credentials for Azure AD (Entra ID) integration to enable real
-            Graph API calls.
+            Graph API calls. Alterar estes valores forçará um novo login e limpeza de cache.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid md:grid-cols-2 gap-6">

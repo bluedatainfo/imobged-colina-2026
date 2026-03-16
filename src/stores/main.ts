@@ -104,7 +104,7 @@ type State = {
   maintenanceTickets: MaintenanceTicket[]
 }
 
-let state: State = {
+const defaultState: State = {
   agencyProfile: {
     name: 'Imobiliária Prime',
     address: 'Av. Paulista, 1000 - São Paulo, SP',
@@ -196,8 +196,41 @@ let state: State = {
   maintenanceTickets: [],
 }
 
+const STORAGE_KEY = '@imobged/config_v1'
+
+const loadState = (): State => {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY)
+    if (stored) {
+      const parsed = JSON.parse(stored)
+      return { ...defaultState, ...parsed }
+    }
+  } catch (e) {
+    console.warn('Failed to load state from localStorage', e)
+  }
+  return defaultState
+}
+
+let state: State = loadState()
 let listeners: Array<() => void> = []
-const emit = () => listeners.forEach((l) => l())
+
+const emit = () => {
+  try {
+    // Persist configuration settings dynamically
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        agencyProfile: state.agencyProfile,
+        settings: state.settings,
+        sharepoint: state.sharepoint,
+        security: state.security,
+      }),
+    )
+  } catch (e) {
+    console.warn('Failed to persist state', e)
+  }
+  listeners.forEach((l) => l())
+}
 
 export const mainStore = {
   getState: () => state,
