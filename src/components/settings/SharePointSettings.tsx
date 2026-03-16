@@ -11,10 +11,10 @@ import { usersStore } from '@/stores/users'
 import { cn } from '@/lib/utils'
 
 const tenantMappings: Record<string, string> = {
-  'a1b2c3d4-e5f6-4a1b-9c2d-3e4f5a6b7c8d': 'imobged.com',
-  'bf7f8315-5eb1-44a0-bb92-c6640af6a671': 'imobiliariacolina.com.br',
-  '12345678-1234-1234-1234-1234567890ab': 'primeimoveis.com.br',
-  '87654321-4321-4321-4321-ba0987654321': 'litoralbeta.com.br',
+  'a1b2c3d4-e5f6-4a1b-9c2d-3e4f5a6b7c8d': 'imobged.onmicrosoft.com',
+  'bf7f8315-5eb1-44a0-bb92-c6640af6a671': 'imobiliariacolina.onmicrosoft.com',
+  '12345678-1234-1234-1234-1234567890ab': 'primeimoveis.onmicrosoft.com',
+  '87654321-4321-4321-4321-ba0987654321': 'litoralbeta.onmicrosoft.com',
 }
 
 const resolveDomainAsync = async (tenantId: string): Promise<string> => {
@@ -33,14 +33,14 @@ const resolveDomainAsync = async (tenantId: string): Promise<string> => {
       },
     ).catch(() => null)
 
-    if (response && !response.ok) {
-      throw new Error('Tenant não encontrado na Microsoft.')
+    if (!response || !response.ok) {
+      throw new Error('Tenant Not Found in M365')
     }
 
     const prefix = normalized.split('-')[0]
-    return `empresa-${prefix}.com.br`
+    return `empresa-${prefix}.onmicrosoft.com`
   } catch (error) {
-    throw new Error('Tenant ID inválido ou não existe no Microsoft 365.')
+    throw new Error('Tenant Not Found in M365')
   }
 }
 
@@ -91,15 +91,9 @@ export default function SharePointSettings() {
 
     if (
       currentId === store.sharepoint.tenantId &&
-      formData.tenantDomain === store.sharepoint.tenantDomain
+      formData.tenantDomain === store.sharepoint.tenantDomain &&
+      formData.tenantDomain !== ''
     ) {
-      setTenantStatus('active')
-      setTenantIdError(null)
-      return
-    }
-
-    if (currentId === store.sharepoint.tenantId && !formData.tenantDomain) {
-      setFormData(store.sharepoint)
       setTenantStatus('active')
       setTenantIdError(null)
       return
@@ -116,32 +110,30 @@ export default function SharePointSettings() {
         setTenantStatus('active')
         setTenantIdError(null)
 
-        if (currentId !== store.sharepoint.tenantId) {
-          const domainPrefix = resolvedDomain.split('.')[0]
-          const defaultSites = {
-            locacao: `https://${domainPrefix}.sharepoint.com/sites/Locacao`,
-            captacao: `https://${domainPrefix}.sharepoint.com/sites/Captacao`,
-            vendas: `https://${domainPrefix}.sharepoint.com/sites/Vendas`,
-            juridico: `https://${domainPrefix}.sharepoint.com/sites/Juridico`,
-            financeiro: `https://${domainPrefix}.sharepoint.com/sites/Financeiro`,
-          }
-
-          setFormData((prev) => ({
-            ...prev,
-            tenantDomain: resolvedDomain,
-            teamsWebhookUrl: `https://${resolvedDomain}.webhook.office.com/teams/alertas`,
-            sites: defaultSites,
-          }))
-
-          toast({
-            title: 'Tenant Validado',
-            description: `Domínio ${resolvedDomain} resolvido. Clique em Salvar para aplicar as alterações.`,
-          })
+        const domainPrefix = resolvedDomain.split('.')[0]
+        const defaultSites = {
+          locacao: `https://${domainPrefix}.sharepoint.com/sites/Locacao`,
+          captacao: `https://${domainPrefix}.sharepoint.com/sites/Captacao`,
+          vendas: `https://${domainPrefix}.sharepoint.com/sites/Vendas`,
+          juridico: `https://${domainPrefix}.sharepoint.com/sites/Juridico`,
+          financeiro: `https://${domainPrefix}.sharepoint.com/sites/Financeiro`,
         }
+
+        setFormData((prev) => ({
+          ...prev,
+          tenantDomain: resolvedDomain,
+          teamsWebhookUrl: `https://${resolvedDomain}.webhook.office.com/teams/alertas`,
+          sites: defaultSites,
+        }))
+
+        toast({
+          title: 'Tenant Validado',
+          description: `Domínio ${resolvedDomain} resolvido. Clique em Salvar para aplicar as alterações.`,
+        })
       } catch (e) {
         if (isMounted) {
           setTenantStatus('invalid')
-          setTenantIdError((e as Error).message || 'Erro ao resolver domínio do Tenant.')
+          setTenantIdError((e as Error).message || 'Tenant Not Found in M365')
           setFormData((prev) => ({ ...prev, tenantDomain: '' }))
         }
       }
@@ -154,18 +146,15 @@ export default function SharePointSettings() {
   }, [formData.tenantId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleTenantIdChange = (value: string) => {
-    const currentId = value.trim()
     setFormData((prev) => {
-      if (currentId !== store.sharepoint.tenantId && prev.tenantDomain) {
-        return {
-          ...prev,
-          tenantId: value,
-          tenantDomain: '',
-          teamsWebhookUrl: '',
-          sites: { locacao: '', captacao: '', vendas: '', juridico: '', financeiro: '' },
-        }
+      if (prev.tenantId === value) return prev
+      return {
+        ...prev,
+        tenantId: value,
+        tenantDomain: '',
+        teamsWebhookUrl: '',
+        sites: { locacao: '', captacao: '', vendas: '', juridico: '', financeiro: '' },
       }
-      return { ...prev, tenantId: value }
     })
   }
 
@@ -293,7 +282,7 @@ export default function SharePointSettings() {
         <Label className="flex items-center justify-between text-sm">
           <span>{label}</span>
           {isValid && <CheckCircle2 className="w-4 h-4 text-emerald-600" />}
-          {!isValid && tenantStatus === 'active' && (
+          {!isValid && tenantStatus === 'active' && formData.tenantDomain && (
             <AlertCircle className="w-4 h-4 text-destructive" />
           )}
         </Label>
@@ -307,7 +296,7 @@ export default function SharePointSettings() {
           <Input
             className={cn(
               'rounded-l-none font-mono text-sm',
-              !isValid && tenantStatus === 'active'
+              !isValid && tenantStatus === 'active' && formData.tenantDomain
                 ? 'border-destructive focus-visible:ring-destructive'
                 : '',
             )}
@@ -343,11 +332,15 @@ export default function SharePointSettings() {
                   variant="outline"
                   className="text-emerald-600 border-emerald-200 bg-emerald-50"
                 >
-                  <Globe className="w-3 h-3 mr-1" /> Vinculado: {formData.tenantDomain}
+                  <Globe className="w-3 h-3 mr-1" /> Verified Domain: {formData.tenantDomain}
                 </Badge>
               )}
               {tenantStatus === 'invalid' && <Badge variant="destructive">Tenant Inválido</Badge>}
-              {tenantStatus === 'validating' && <Badge variant="secondary">Validando...</Badge>}
+              {tenantStatus === 'validating' && (
+                <Badge variant="secondary" className="gap-1">
+                  <Loader2 className="w-3 h-3 animate-spin" /> Validando...
+                </Badge>
+              )}
               {tenantStatus === 'idle' && <Badge variant="secondary">Desconectado</Badge>}
             </Label>
             <Input
@@ -367,9 +360,10 @@ export default function SharePointSettings() {
             <Label className="flex items-center justify-between text-sm">
               <span>Canal de Alertas Teams (Webhook)</span>
               {isWebhookPathValid && <CheckCircle2 className="w-4 h-4 text-emerald-600" />}
-              {!isWebhookPathValid && tenantStatus === 'active' && formData.teamsWebhookUrl && (
-                <AlertCircle className="w-4 h-4 text-destructive" />
-              )}
+              {!isWebhookPathValid &&
+                tenantStatus === 'active' &&
+                formData.tenantDomain &&
+                formData.teamsWebhookUrl && <AlertCircle className="w-4 h-4 text-destructive" />}
             </Label>
             <div className="flex w-full">
               <span
@@ -381,7 +375,10 @@ export default function SharePointSettings() {
               <Input
                 className={cn(
                   'rounded-l-none font-mono text-sm',
-                  !isWebhookPathValid && tenantStatus === 'active' && formData.teamsWebhookUrl
+                  !isWebhookPathValid &&
+                    tenantStatus === 'active' &&
+                    formData.tenantDomain &&
+                    formData.teamsWebhookUrl
                     ? 'border-destructive focus-visible:ring-destructive'
                     : '',
                 )}
@@ -410,7 +407,7 @@ export default function SharePointSettings() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {tenantStatus !== 'active' && (
+          {(tenantStatus !== 'active' || !formData.tenantDomain) && (
             <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md flex items-center gap-2 border border-destructive/20">
               <AlertCircle className="w-4 h-4 shrink-0" />
               Forneça um Tenant ID válido para configurar os sites departamentais.
