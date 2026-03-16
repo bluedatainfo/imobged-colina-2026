@@ -40,10 +40,19 @@ export default function SharePointSettings() {
   }
 
   const handleSave = () => {
+    if (!formData.tenantId?.trim()) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro de Validação',
+        description: 'O Tenant ID não pode ficar vazio. Ele é essencial para a integração M365.',
+      })
+      return
+    }
+
     mainStore.updateSharePointSettings(formData)
     toast({
       title: 'Integração SharePoint Salva',
-      description: 'Mapeamento de sites departamentais, bibliotecas e Webhooks atualizados.',
+      description: 'Mapeamento de sites departamentais, bibliotecas e Tenant ID atualizados.',
     })
   }
 
@@ -72,8 +81,12 @@ export default function SharePointSettings() {
         </CardHeader>
         <CardContent className="grid md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label>Tenant ID</Label>
-            <Input value={formData.tenantId} readOnly className="bg-muted text-muted-foreground" />
+            <Label>Tenant ID (Microsoft Entra ID)</Label>
+            <Input
+              value={formData.tenantId}
+              onChange={(e) => handleChange('tenantId', e.target.value)}
+              placeholder="Ex: a1b2c3d4-e5f6-7890-..."
+            />
           </div>
           <div className="space-y-2">
             <Label>Canal de Alertas Teams (Webhook)</Label>
@@ -203,7 +216,7 @@ export default function SharePointSettings() {
           </Button>
           {testResult === 'success' && (
             <span className="flex items-center text-sm text-emerald-600 font-medium">
-              <CheckCircle2 className="w-4 h-4 mr-1" /> Todos os 5 sites OK
+              <CheckCircle2 className="w-4 h-4 mr-1" /> Conexão com Tenant OK
             </span>
           )}
           {testResult === 'error' && (

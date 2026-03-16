@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, ReactNode } from 'react'
 import { SystemUser, usersStore } from '@/stores/users'
+import { mainStore } from '@/stores/main'
 
 type AuthContextType = {
   user: SystemUser | null
@@ -20,6 +21,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loginM365 = async (email: string, password?: string) => {
     return new Promise<void>((resolve, reject) => {
       setTimeout(() => {
+        const { sharepoint } = mainStore.getState()
+        if (!sharepoint.tenantId || !sharepoint.tenantId.trim()) {
+          reject(new Error('Acesso negado. Tenant ID não configurado nas definições do sistema.'))
+          return
+        }
+
         const { users } = usersStore.getState()
         const foundUser = users.find((u) => u.email.toLowerCase() === email.toLowerCase())
 
@@ -27,7 +34,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setCurrentUserId(foundUser.id)
           resolve()
         } else {
-          reject(new Error('Acesso negado. Usuário não encontrado no Tenant autorizado.'))
+          reject(
+            new Error(
+              `Acesso negado. Usuário não encontrado no Tenant (${sharepoint.tenantId}) autorizado.`,
+            ),
+          )
         }
       }, 1200)
     })
