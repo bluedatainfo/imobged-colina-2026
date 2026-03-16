@@ -22,6 +22,8 @@ export type SharePointSettings = {
   sharepointDomain: string
   tenantName: string
   teamsWebhookUrl?: string
+  clientId?: string
+  tenantId?: string
   sites: Record<SiteKey, string>
   libraries: {
     contracts: string
@@ -121,6 +123,8 @@ let state: State = {
     sharepointDomain: 'ismailabdo.sharepoint.com',
     tenantName: 'Ismail Abdo Corp',
     teamsWebhookUrl: 'https://ismailabdo.onmicrosoft.com.webhook.office.com/teams/alertas-gerais',
+    clientId: '',
+    tenantId: '',
     sites: {
       locacao: 'https://ismailabdo.sharepoint.com/sites/locacao',
       captacao: 'https://ismailabdo.sharepoint.com/sites/captacao',
@@ -232,6 +236,20 @@ export const mainStore = {
     state = {
       ...state,
       properties: state.properties.map((p) => (p.id === id ? { ...p, status } : p)),
+    }
+    emit()
+  },
+  saveInspection: (data: InspectionData) => {
+    state = {
+      ...state,
+      inspectionsData: { ...state.inspectionsData, [data.propertyId]: data },
+    }
+    emit()
+  },
+  updateMaintenanceStatus: (id: string, status: MaintenanceStatus) => {
+    state = {
+      ...state,
+      maintenanceTickets: state.maintenanceTickets.map((t) => (t.id === id ? { ...t, status } : t)),
     }
     emit()
   },

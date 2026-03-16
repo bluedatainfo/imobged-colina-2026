@@ -1,7 +1,8 @@
-import { createContext, useContext, useState, ReactNode } from 'react'
+import { createContext, useContext, useState, ReactNode, useEffect } from 'react'
 import { SystemUser, usersStore } from '@/stores/users'
 import { mainStore } from '@/stores/main'
 import { Role } from '@/lib/permissions'
+import { toast } from '@/hooks/use-toast'
 
 type AuthContextType = {
   user: SystemUser | null
@@ -19,10 +20,97 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { users } = usersStore.getState()
   const user = currentUserId ? users.find((u) => u.id === currentUserId) || null : null
 
+  useEffect(() => {
+    const hash = window.location.hash
+    if (hash.includes('access_token=')) {
+      const params = new URLSearchParams(hash.substring(1))
+      const token = params.get('access_token')
+      const error = params.get('error')
+
+      window.location.hash = ''
+
+      if (error) {
+        toast({
+          variant: 'destructive',
+          title: 'Erro de Autenticação',
+          description:
+            'Unable to connect to Microsoft 365. Please verify your Client/Tenant ID and Azure App permissions.',
+        })
+        return
+      }
+
+      if (token) {
+        sessionStorage.setItem('m365_token', token)
+        fetch('https://graph.microsoft.com/v1.0/me', {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+          .then((res) => {
+            if (!res.ok) throw new Error('API Error')
+            return res.json()
+          })
+          .then(async (data) => {
+            let photoUrl = `https://img.usecurling.com/ppl/thumbnail?seed=${Math.floor(Math.random() * 100)}`
+            try {
+              const pRes = await fetch('https://graph.microsoft.com/v1.0/me/photo/$value', {
+                headers: { Authorization: `Bearer ${token}` },
+              })
+              if (pRes.ok) {
+                const blob = await pRes.blob()
+                photoUrl = URL.createObjectURL(blob)
+              }
+            } catch (e) {}
+
+            const currentUsers = usersStore.getState().users
+            const emailToMatch = (data.mail || data.userPrincipalName || '').toLowerCase()
+            let matched = currentUsers.find((u) => u.email.toLowerCase() === emailToMatch)
+
+            if (!matched) {
+              matched = usersStore.addUser({
+                name: data.displayName || 'M365 User',
+                email: emailToMatch || 'user@domain.com',
+                role: 'Admin',
+              })
+            }
+
+            usersStore.updateUser(matched.id, {
+              avatar: photoUrl,
+              name: data.displayName || matched.name,
+            })
+            setCurrentUserId(matched.id)
+
+            toast({
+              title: 'Autenticado com sucesso',
+              description: `Bem-vindo(a), ${data.displayName || matched.name}`,
+            })
+          })
+          .catch(() => {
+            toast({
+              variant: 'destructive',
+              title: 'Erro no Microsoft 365',
+              description:
+                'Unable to connect to Microsoft 365. Please verify your Client/Tenant ID and Azure App permissions.',
+            })
+          })
+      }
+    }
+  }, [])
+
   const loginM365 = async (email: string, password?: string) => {
+    const { sharepoint } = mainStore.getState()
+    const { clientId, tenantId } = sharepoint
+
+    if (clientId && tenantId) {
+      const redirectUri = encodeURIComponent(window.location.origin + '/login')
+      const scope = encodeURIComponent(
+        'openid profile email User.Read Files.ReadWrite.All Sites.Read.All',
+      )
+      const authUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize?client_id=${clientId}&response_type=token&redirect_uri=${redirectUri}&scope=${scope}&nonce=12345&login_hint=${encodeURIComponent(email)}`
+      window.location.href = authUrl
+      return new Promise<void>(() => {}) // Stalls until redirect
+    }
+
     return new Promise<void>((resolve, reject) => {
       setTimeout(() => {
-        const { sharepoint } = mainStore.getState()
         const domain = sharepoint.primaryDomain?.trim().toLowerCase()
 
         if (!domain) {
@@ -35,7 +123,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const emailParts = email.split('@')
         const emailDomain = emailParts.length > 1 ? emailParts[1].toLowerCase() : ''
 
-        // Domain-Specific Auth Routing Validation
         if (emailDomain !== domain) {
           reject(
             new Error(
@@ -49,15 +136,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         let foundUser = users.find((u) => u.email.toLowerCase() === email.toLowerCase())
 
         if (!foundUser) {
-          // Simulate Microsoft 365 Entra ID JIT (Just-In-Time) Provisioning
-          // Retrieve the user's real profile information (mocked) and create them
           const nameParts = emailParts[0].split('.')
           const name = nameParts.map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ')
 
           foundUser = usersStore.addUser({
             name,
             email: email.toLowerCase(),
-            role: 'Vistoriador' as Role, // Default role for newly synced users
+            role: 'Vistoriador' as Role,
           })
         }
 
@@ -72,6 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const logout = () => {
+    sessionStorage.removeItem('m365_token')
     setCurrentUserId(null)
   }
 

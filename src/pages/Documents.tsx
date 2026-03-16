@@ -67,12 +67,17 @@ const Documents = () => {
       action: `Upload via OCR para SharePoint [${siteNames[selectedSite]}]: ${library}`,
       user: user?.name || 'Sistema',
     })
-    m365Service.saveToLibrary(library, `${data.name || 'Doc'}_Digitalizado.pdf`)
+    m365Service.saveToLibrary(
+      library,
+      `${data.name || 'Doc'}_Digitalizado.pdf`,
+      'File Data Mock',
+      selectedSite,
+    )
     m365Service.syncToList(store.sharepoint.lists.processControl, JSON.stringify(data))
 
     toast({
-      title: 'Documento Salvo',
-      description: `Sincronizado no site ${siteNames[selectedSite]} com sucesso.`,
+      title: 'Ação Processada',
+      description: `Requisição encaminhada para o site ${siteNames[selectedSite]}.`,
     })
   }
 

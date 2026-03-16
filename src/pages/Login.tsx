@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { useToast } from '@/hooks/use-toast'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Loader2 } from 'lucide-react'
 
 export default function Login() {
   const { loginM365 } = useAuth()
@@ -21,9 +21,18 @@ export default function Login() {
   )
   const [password, setPassword] = useState('')
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (!email.trim()) return
-    setStep(2)
+    if (sharepoint.clientId && sharepoint.tenantId) {
+      setIsLoading(true)
+      try {
+        await loginM365(email)
+      } catch (err: any) {
+        setIsLoading(false)
+      }
+    } else {
+      setStep(2)
+    }
   }
 
   const handleLoginSubmit = async () => {
@@ -107,10 +116,10 @@ export default function Login() {
               </span>
               <Button
                 onClick={handleNext}
-                disabled={!email.trim()}
+                disabled={!email.trim() || isLoading}
                 className="bg-[#0067b8] hover:bg-[#005da6] text-white rounded-none px-8 h-[34px] font-medium transition-colors"
               >
-                Next
+                {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Next'}
               </Button>
             </div>
           </div>
