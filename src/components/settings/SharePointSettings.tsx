@@ -138,7 +138,7 @@ export default function SharePointSettings() {
       isMounted = false
       clearTimeout(timer)
     }
-  }, [primaryInput]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [primaryInput])
 
   useEffect(() => {
     let isMounted = true
@@ -190,7 +190,7 @@ export default function SharePointSettings() {
       isMounted = false
       clearTimeout(timer)
     }
-  }, [spInput]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [spInput])
 
   const handleSiteChange = (field: keyof typeof formData.sites, value: string) => {
     setFormData((prev) => ({ ...prev, sites: { ...prev.sites, [field]: value } }))
@@ -262,7 +262,6 @@ export default function SharePointSettings() {
       return
     }
 
-    // Detect if essential authentication connection parameters have changed
     const isAuthChanged =
       formData.primaryDomain !== store.sharepoint.primaryDomain ||
       clientId.trim() !== store.sharepoint.clientId ||
@@ -275,15 +274,12 @@ export default function SharePointSettings() {
     })
 
     if (isAuthChanged) {
-      // Programmatically invalidate session caches to prevent old OAuth loops or invalid session errors
       sessionStorage.clear()
-
       mainStore.updateSettings({
         managementEmails: '',
         administrativeEmails: '',
         operationalEmails: '',
       })
-
       usersStore.enforceDomain(formData.primaryDomain)
       if (formData.primaryDomain) {
         usersStore.addUser({
@@ -297,7 +293,7 @@ export default function SharePointSettings() {
         description:
           'Os parâmetros de autenticação foram alterados. Sua sessão foi encerrada e os caches foram limpos de forma segura para aplicar as novas configurações de Client ID/Tenant ID. Por favor, inicie o login novamente.',
       })
-      logout() // Force re-auth to cleanly re-init the Context and PKCE flows
+      logout()
       return
     }
 
@@ -323,7 +319,6 @@ export default function SharePointSettings() {
       }
 
       if (clientId && tenantId) {
-        // Mocking a successful Graph API connection check based on credentials existing
         toast({
           title: 'Graph API Test',
           description: 'Client ID and Tenant ID validated structure successfully.',
@@ -415,16 +410,17 @@ export default function SharePointSettings() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Server className="w-5 h-5 text-primary" /> Conexão M365 & Domínios
+            <Key className="w-5 h-5 text-primary" /> Autenticação M365 (Entra ID)
           </CardTitle>
           <CardDescription>
-            Configure seu ambiente Microsoft 365 informando os domínios corporativos da organização.
+            Configure o domínio corporativo e as credenciais da aplicação. Informe o Domínio
+            Primário antes do Client ID e Tenant ID para liberar as conexões M365.
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid md:grid-cols-2 gap-6">
+        <CardContent className="space-y-6 max-w-2xl">
           <div className="space-y-2">
             <Label className="flex items-center justify-between">
-              <span>Domínio Primário (M365 & Identidade)</span>
+              <span>Domínio Primário</span>
               {primaryStatus === 'active' && formData.primaryDomain && (
                 <Badge
                   variant="outline"
@@ -465,8 +461,48 @@ export default function SharePointSettings() {
           </div>
 
           <div className="space-y-2">
+            <Label className="flex items-center justify-between">
+              <span>Client ID</span>
+              {clientId && <CheckCircle2 className="w-4 h-4 text-emerald-600" />}
+            </Label>
+            <Input
+              value={clientId}
+              onChange={(e) => setClientId(e.target.value)}
+              placeholder="Ex: 12345678-abcd-1234-abcd-1234567890ab"
+              className="font-mono text-sm"
+              disabled={primaryStatus !== 'active'}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label className="flex items-center justify-between">
+              <span>Tenant ID</span>
+              {tenantId && <CheckCircle2 className="w-4 h-4 text-emerald-600" />}
+            </Label>
+            <Input
+              value={tenantId}
+              onChange={(e) => setTenantId(e.target.value)}
+              placeholder="Ex: 87654321-dcba-4321-dcba-ba0987654321"
+              className="font-mono text-sm"
+              disabled={primaryStatus !== 'active'}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Server className="w-5 h-5 text-primary" /> Ambientes SharePoint e Comunicação
+          </CardTitle>
+          <CardDescription>
+            Configure seu ambiente Microsoft 365 de documentos e canais de alertas (Teams).
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid md:grid-cols-2 gap-6">
+          <div className="space-y-2">
             <Label className="flex items-center justify-between text-sm">
-              <span>Domínio SharePoint (Documentos)</span>
+              <span>Domínio SharePoint</span>
               {spStatus === 'active' && formData.sharepointDomain && (
                 <Badge
                   variant="outline"
@@ -520,7 +556,7 @@ export default function SharePointSettings() {
             </div>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2 md:col-span-2 max-w-2xl">
             <Label className="flex items-center justify-between text-sm">
               <span>Canal de Alertas Teams (Webhook)</span>
               {isWebhookPathValid && <CheckCircle2 className="w-4 h-4 text-emerald-600" />}
@@ -557,46 +593,6 @@ export default function SharePointSettings() {
                 disabled={primaryStatus !== 'active' || !formData.primaryDomain}
               />
             </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Key className="w-5 h-5 text-primary" /> Microsoft 365 Integration Credentials
-          </CardTitle>
-          <CardDescription>
-            Configure application credentials for Azure AD (Entra ID) integration to enable real
-            Graph API calls. Alterar estes valores forçará um novo login e limpeza de cache.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid md:grid-cols-2 gap-6">
-          <div className="space-y-2">
-            <Label className="flex items-center justify-between">
-              <span>Client ID (Application ID)</span>
-              {clientId && <CheckCircle2 className="w-4 h-4 text-emerald-600" />}
-            </Label>
-            <Input
-              value={clientId}
-              onChange={(e) => setClientId(e.target.value)}
-              placeholder="Ex: 12345678-abcd-1234-abcd-1234567890ab"
-              className="font-mono text-sm"
-              disabled={primaryStatus !== 'active'}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label className="flex items-center justify-between">
-              <span>Tenant ID (Directory ID)</span>
-              {tenantId && <CheckCircle2 className="w-4 h-4 text-emerald-600" />}
-            </Label>
-            <Input
-              value={tenantId}
-              onChange={(e) => setTenantId(e.target.value)}
-              placeholder="Ex: 87654321-dcba-4321-dcba-ba0987654321"
-              className="font-mono text-sm"
-              disabled={primaryStatus !== 'active'}
-            />
           </div>
         </CardContent>
       </Card>
