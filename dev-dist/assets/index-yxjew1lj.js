@@ -19054,6 +19054,10 @@ var createLucideIcon = (iconName, iconNode) => {
 	Component.displayName = toPascalCase(iconName);
 	return Component;
 };
+var Activity = createLucideIcon("activity", [["path", {
+	d: "M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2",
+	key: "169zse"
+}]]);
 var Archive = createLucideIcon("archive", [
 	["rect", {
 		width: "20",
@@ -27471,16 +27475,68 @@ var state$3 = {
 		timestamp: (/* @__PURE__ */ new Date()).toISOString()
 	}],
 	inspectionsData: {},
-	maintenanceTickets: [{
-		id: "MT-8821",
-		propertyId: "104",
-		address: "Av. Paulista, 1000",
-		item: "Elétrica",
-		notes: "Quadro de força com disjuntores desarmando sozinhos.",
-		photo: "https://img.usecurling.com/p/200/200?q=electrical",
-		status: "Pendente",
-		createdAt: (/* @__PURE__ */ new Date(Date.now() - 864e5)).toISOString()
-	}]
+	maintenanceTickets: [
+		{
+			id: "MT-8821",
+			propertyId: "104",
+			address: "Av. Paulista, 1000",
+			item: "Elétrica",
+			notes: "Quadro de força com disjuntores desarmando sozinhos.",
+			photo: "https://img.usecurling.com/p/200/200?q=electrical",
+			status: "Pendente",
+			createdAt: (/* @__PURE__ */ new Date(Date.now() - 864e5)).toISOString()
+		},
+		{
+			id: "MT-8822",
+			propertyId: "101",
+			address: "Rua Flores, 123",
+			item: "Hidráulica",
+			notes: "Vazamento no banheiro social.",
+			photo: null,
+			status: "Em Andamento",
+			createdAt: (/* @__PURE__ */ new Date(Date.now() - 1728e5)).toISOString()
+		},
+		{
+			id: "MT-8823",
+			propertyId: "102",
+			address: "Rua das Margaridas, 88",
+			item: "Pintura",
+			notes: "Pintura descascando na sala de estar.",
+			photo: "https://img.usecurling.com/p/200/200?q=wall",
+			status: "Concluído",
+			createdAt: (/* @__PURE__ */ new Date(Date.now() - 432e6)).toISOString()
+		},
+		{
+			id: "MT-8824",
+			propertyId: "103",
+			address: "Rua dos Ipês, 45",
+			item: "Estrutural",
+			notes: "Rachadura na varanda externa.",
+			photo: null,
+			status: "Pendente",
+			createdAt: (/* @__PURE__ */ new Date(Date.now() - 5e7)).toISOString()
+		},
+		{
+			id: "MT-8825",
+			propertyId: "101",
+			address: "Rua Flores, 123",
+			item: "Elétrica",
+			notes: "Tomada em curto na cozinha.",
+			photo: null,
+			status: "Concluído",
+			createdAt: (/* @__PURE__ */ new Date(Date.now() - 25e7)).toISOString()
+		},
+		{
+			id: "MT-8826",
+			propertyId: "105",
+			address: "Rodovia BR-116, Km 42",
+			item: "Estrutural",
+			notes: "Goteira identificada no galpão principal.",
+			photo: "https://img.usecurling.com/p/200/200?q=roof",
+			status: "Em Andamento",
+			createdAt: (/* @__PURE__ */ new Date(Date.now() - 9e7)).toISOString()
+		}
+	]
 };
 var listeners$3 = [];
 var emit$3 = () => listeners$3.forEach((l) => l());
@@ -65906,10 +65962,402 @@ function KeysControl() {
 	});
 }
 //#endregion
+//#region src/components/MaintenanceAnalytics.tsx
+function MaintenanceAnalytics() {
+	const { maintenanceTickets, properties } = useMainStore();
+	const { kpis, damagesByItem, damagesByType, damagesByRegion } = (0, import_react.useMemo)(() => {
+		const activeCalls = maintenanceTickets.filter((t) => t.status !== "Concluído").length;
+		const completedCalls = maintenanceTickets.filter((t) => t.status === "Concluído").length;
+		const itemCounts = maintenanceTickets.reduce((acc, t) => {
+			acc[t.item] = (acc[t.item] || 0) + 1;
+			return acc;
+		}, {});
+		const mostCommonDamage = Object.keys(itemCounts).length > 0 ? Object.entries(itemCounts).sort((a, b) => b[1] - a[1])[0][0] : "N/A";
+		const byItem = Object.entries(itemCounts).map(([name, value], i) => ({
+			name,
+			value,
+			fill: `hsl(var(--chart-${i % 5 + 1}))`
+		}));
+		const typeCounts = {};
+		const regionCounts = {};
+		maintenanceTickets.forEach((t) => {
+			const prop = properties.find((p) => p.id === t.propertyId);
+			if (prop) {
+				typeCounts[prop.type] = (typeCounts[prop.type] || 0) + 1;
+				const regionMatch = prop.address.match(/(?:Rua|Av\.|Rodovia)\s+([^,]+)/);
+				const region = regionMatch ? regionMatch[1].split(" ")[0] : "Outros";
+				regionCounts[region] = (regionCounts[region] || 0) + 1;
+			}
+		});
+		const byType = Object.entries(typeCounts).map(([name, value], i) => ({
+			name,
+			value,
+			fill: `hsl(var(--chart-${i === 0 ? 2 : 4}))`
+		}));
+		const byRegion = Object.entries(regionCounts).map(([name, value], i) => ({
+			name,
+			value,
+			fill: `hsl(var(--chart-${i % 3 + 1}))`
+		}));
+		return {
+			kpis: {
+				activeCalls,
+				mostCommonDamage,
+				avgRepairs: Math.max(1, Math.round(completedCalls / 3))
+			},
+			damagesByItem: byItem,
+			damagesByType: byType,
+			damagesByRegion: byRegion
+		};
+	}, [maintenanceTickets, properties]);
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		"data-uid": "src/components/MaintenanceAnalytics.tsx:72:5",
+		"data-prohibitions": "[editContent]",
+		className: "space-y-6 animate-fade-in-up",
+		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+			"data-uid": "src/components/MaintenanceAnalytics.tsx:73:7",
+			"data-prohibitions": "[editContent]",
+			className: "grid gap-4 md:grid-cols-3",
+			children: [
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Card, {
+					"data-uid": "src/components/MaintenanceAnalytics.tsx:74:9",
+					"data-prohibitions": "[editContent]",
+					children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardContent, {
+						"data-uid": "src/components/MaintenanceAnalytics.tsx:75:11",
+						"data-prohibitions": "[editContent]",
+						className: "p-6 flex items-center gap-4",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							"data-uid": "src/components/MaintenanceAnalytics.tsx:76:13",
+							"data-prohibitions": "[]",
+							className: "bg-amber-100 p-3 rounded-full",
+							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TriangleAlert, {
+								"data-uid": "src/components/MaintenanceAnalytics.tsx:77:15",
+								"data-prohibitions": "[editContent]",
+								className: "h-6 w-6 text-amber-600"
+							})
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							"data-uid": "src/components/MaintenanceAnalytics.tsx:79:13",
+							"data-prohibitions": "[editContent]",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								"data-uid": "src/components/MaintenanceAnalytics.tsx:80:15",
+								"data-prohibitions": "[]",
+								className: "text-sm font-medium text-muted-foreground",
+								children: "Total de Chamados Ativos"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								"data-uid": "src/components/MaintenanceAnalytics.tsx:81:15",
+								"data-prohibitions": "[editContent]",
+								className: "text-3xl font-bold",
+								children: kpis.activeCalls
+							})]
+						})]
+					})
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Card, {
+					"data-uid": "src/components/MaintenanceAnalytics.tsx:85:9",
+					"data-prohibitions": "[editContent]",
+					children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardContent, {
+						"data-uid": "src/components/MaintenanceAnalytics.tsx:86:11",
+						"data-prohibitions": "[editContent]",
+						className: "p-6 flex items-center gap-4",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							"data-uid": "src/components/MaintenanceAnalytics.tsx:87:13",
+							"data-prohibitions": "[]",
+							className: "bg-destructive/10 p-3 rounded-full",
+							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Activity, {
+								"data-uid": "src/components/MaintenanceAnalytics.tsx:88:15",
+								"data-prohibitions": "[editContent]",
+								className: "h-6 w-6 text-destructive"
+							})
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							"data-uid": "src/components/MaintenanceAnalytics.tsx:90:13",
+							"data-prohibitions": "[editContent]",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								"data-uid": "src/components/MaintenanceAnalytics.tsx:91:15",
+								"data-prohibitions": "[]",
+								className: "text-sm font-medium text-muted-foreground",
+								children: "Danos mais Comuns"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								"data-uid": "src/components/MaintenanceAnalytics.tsx:92:15",
+								"data-prohibitions": "[editContent]",
+								className: "text-2xl font-bold",
+								children: kpis.mostCommonDamage
+							})]
+						})]
+					})
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Card, {
+					"data-uid": "src/components/MaintenanceAnalytics.tsx:96:9",
+					"data-prohibitions": "[editContent]",
+					children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardContent, {
+						"data-uid": "src/components/MaintenanceAnalytics.tsx:97:11",
+						"data-prohibitions": "[editContent]",
+						className: "p-6 flex items-center gap-4",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							"data-uid": "src/components/MaintenanceAnalytics.tsx:98:13",
+							"data-prohibitions": "[]",
+							className: "bg-primary/10 p-3 rounded-full",
+							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Wrench, {
+								"data-uid": "src/components/MaintenanceAnalytics.tsx:99:15",
+								"data-prohibitions": "[editContent]",
+								className: "h-6 w-6 text-primary"
+							})
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							"data-uid": "src/components/MaintenanceAnalytics.tsx:101:13",
+							"data-prohibitions": "[editContent]",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								"data-uid": "src/components/MaintenanceAnalytics.tsx:102:15",
+								"data-prohibitions": "[]",
+								className: "text-sm font-medium text-muted-foreground",
+								children: "Média de Reparos por Mês"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								"data-uid": "src/components/MaintenanceAnalytics.tsx:103:15",
+								"data-prohibitions": "[editContent]",
+								className: "text-3xl font-bold",
+								children: kpis.avgRepairs
+							})]
+						})]
+					})
+				})
+			]
+		}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+			"data-uid": "src/components/MaintenanceAnalytics.tsx:109:7",
+			"data-prohibitions": "[editContent]",
+			className: "grid gap-6 md:grid-cols-2 lg:grid-cols-3",
+			children: [
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
+					"data-uid": "src/components/MaintenanceAnalytics.tsx:110:9",
+					"data-prohibitions": "[]",
+					className: "lg:col-span-2",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardHeader, {
+						"data-uid": "src/components/MaintenanceAnalytics.tsx:111:11",
+						"data-prohibitions": "[]",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardTitle, {
+							"data-uid": "src/components/MaintenanceAnalytics.tsx:112:13",
+							"data-prohibitions": "[]",
+							children: "Danos Mais Frequentes"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardDescription, {
+							"data-uid": "src/components/MaintenanceAnalytics.tsx:113:13",
+							"data-prohibitions": "[]",
+							children: "Distribuição de chamados abertos por categoria de dano"
+						})]
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardContent, {
+						"data-uid": "src/components/MaintenanceAnalytics.tsx:117:11",
+						"data-prohibitions": "[]",
+						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChartContainer, {
+							"data-uid": "src/components/MaintenanceAnalytics.tsx:118:13",
+							"data-prohibitions": "[]",
+							config: {},
+							className: "h-[300px] w-full",
+							children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(BarChart, {
+								"data-uid": "src/components/MaintenanceAnalytics.tsx:119:15",
+								"data-prohibitions": "[]",
+								data: damagesByItem,
+								margin: {
+									top: 20,
+									right: 0,
+									left: -20,
+									bottom: 0
+								},
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CartesianGrid, {
+										"data-uid": "src/components/MaintenanceAnalytics.tsx:120:17",
+										"data-prohibitions": "[editContent]",
+										vertical: false,
+										strokeDasharray: "3 3"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(XAxis, {
+										"data-uid": "src/components/MaintenanceAnalytics.tsx:121:17",
+										"data-prohibitions": "[editContent]",
+										dataKey: "name",
+										tickLine: false,
+										axisLine: false,
+										tickMargin: 10
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(YAxis, {
+										"data-uid": "src/components/MaintenanceAnalytics.tsx:122:17",
+										"data-prohibitions": "[editContent]",
+										tickLine: false,
+										axisLine: false,
+										tickMargin: 10
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChartTooltip, {
+										"data-uid": "src/components/MaintenanceAnalytics.tsx:123:17",
+										"data-prohibitions": "[editContent]",
+										cursor: false,
+										content: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChartTooltipContent, {
+											"data-uid": "src/components/MaintenanceAnalytics.tsx:123:55",
+											"data-prohibitions": "[editContent]",
+											hideLabel: true
+										})
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Bar, {
+										"data-uid": "src/components/MaintenanceAnalytics.tsx:124:17",
+										"data-prohibitions": "[editContent]",
+										dataKey: "value",
+										radius: [
+											4,
+											4,
+											0,
+											0
+										]
+									})
+								]
+							})
+						})
+					})]
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
+					"data-uid": "src/components/MaintenanceAnalytics.tsx:130:9",
+					"data-prohibitions": "[editContent]",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardHeader, {
+						"data-uid": "src/components/MaintenanceAnalytics.tsx:131:11",
+						"data-prohibitions": "[]",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardTitle, {
+							"data-uid": "src/components/MaintenanceAnalytics.tsx:132:13",
+							"data-prohibitions": "[]",
+							children: "Por Tipo de Imóvel"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardDescription, {
+							"data-uid": "src/components/MaintenanceAnalytics.tsx:133:13",
+							"data-prohibitions": "[]",
+							children: "Comercial vs Residencial"
+						})]
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardContent, {
+						"data-uid": "src/components/MaintenanceAnalytics.tsx:135:11",
+						"data-prohibitions": "[editContent]",
+						className: "flex justify-center",
+						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChartContainer, {
+							"data-uid": "src/components/MaintenanceAnalytics.tsx:136:13",
+							"data-prohibitions": "[editContent]",
+							config: {},
+							className: "aspect-square h-[260px]",
+							children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(PieChart, {
+								"data-uid": "src/components/MaintenanceAnalytics.tsx:137:15",
+								"data-prohibitions": "[editContent]",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChartTooltip, {
+									"data-uid": "src/components/MaintenanceAnalytics.tsx:138:17",
+									"data-prohibitions": "[editContent]",
+									cursor: false,
+									content: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChartTooltipContent, {
+										"data-uid": "src/components/MaintenanceAnalytics.tsx:138:55",
+										"data-prohibitions": "[editContent]",
+										hideLabel: true
+									})
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Pie, {
+									"data-uid": "src/components/MaintenanceAnalytics.tsx:139:17",
+									"data-prohibitions": "[editContent]",
+									data: damagesByType,
+									dataKey: "value",
+									nameKey: "name",
+									innerRadius: 60,
+									outerRadius: 80,
+									strokeWidth: 2,
+									stroke: "hsl(var(--background))",
+									children: damagesByType.map((entry, index) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Cell, {
+										"data-uid": "src/components/MaintenanceAnalytics.tsx:149:21",
+										"data-prohibitions": "[editContent]",
+										fill: entry.fill
+									}, `cell-${index}`))
+								})]
+							})
+						})
+					})]
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
+					"data-uid": "src/components/MaintenanceAnalytics.tsx:157:9",
+					"data-prohibitions": "[]",
+					className: "lg:col-span-3",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardHeader, {
+						"data-uid": "src/components/MaintenanceAnalytics.tsx:158:11",
+						"data-prohibitions": "[]",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardTitle, {
+							"data-uid": "src/components/MaintenanceAnalytics.tsx:159:13",
+							"data-prohibitions": "[]",
+							children: "Ocorrências por Região"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardDescription, {
+							"data-uid": "src/components/MaintenanceAnalytics.tsx:160:13",
+							"data-prohibitions": "[]",
+							children: "Acompanhamento de chamados extraídos dos endereços dos imóveis"
+						})]
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardContent, {
+						"data-uid": "src/components/MaintenanceAnalytics.tsx:164:11",
+						"data-prohibitions": "[]",
+						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChartContainer, {
+							"data-uid": "src/components/MaintenanceAnalytics.tsx:165:13",
+							"data-prohibitions": "[]",
+							config: {},
+							className: "h-[250px] w-full",
+							children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(BarChart, {
+								"data-uid": "src/components/MaintenanceAnalytics.tsx:166:15",
+								"data-prohibitions": "[]",
+								data: damagesByRegion,
+								layout: "vertical",
+								margin: {
+									top: 0,
+									right: 0,
+									left: 20,
+									bottom: 0
+								},
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CartesianGrid, {
+										"data-uid": "src/components/MaintenanceAnalytics.tsx:171:17",
+										"data-prohibitions": "[editContent]",
+										horizontal: false,
+										strokeDasharray: "3 3"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(XAxis, {
+										"data-uid": "src/components/MaintenanceAnalytics.tsx:172:17",
+										"data-prohibitions": "[editContent]",
+										type: "number",
+										tickLine: false,
+										axisLine: false
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(YAxis, {
+										"data-uid": "src/components/MaintenanceAnalytics.tsx:173:17",
+										"data-prohibitions": "[editContent]",
+										type: "category",
+										dataKey: "name",
+										tickLine: false,
+										axisLine: false,
+										tickMargin: 10
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChartTooltip, {
+										"data-uid": "src/components/MaintenanceAnalytics.tsx:180:17",
+										"data-prohibitions": "[editContent]",
+										cursor: false,
+										content: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChartTooltipContent, {
+											"data-uid": "src/components/MaintenanceAnalytics.tsx:180:55",
+											"data-prohibitions": "[editContent]",
+											hideLabel: true
+										})
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Bar, {
+										"data-uid": "src/components/MaintenanceAnalytics.tsx:181:17",
+										"data-prohibitions": "[editContent]",
+										dataKey: "value",
+										radius: [
+											0,
+											4,
+											4,
+											0
+										],
+										barSize: 32
+									})
+								]
+							})
+						})
+					})]
+				})
+			]
+		})]
+	});
+}
+//#endregion
 //#region src/pages/Maintenance.tsx
 function Maintenance() {
 	const { maintenanceTickets } = useMainStore();
+	const { user } = useAuth();
 	const { toast } = useToast();
+	const canViewAnalytics = user?.role === "Admin" || user?.role === "Gerente";
 	const handleStatusChange = (id, newStatus) => {
 		mainStore.updateMaintenanceStatus(id, newStatus);
 		toast({
@@ -65918,191 +66366,237 @@ function Maintenance() {
 		});
 		m365Service.syncToList("Tickets de Manutenção", `Ticket ${id} atualizado para ${newStatus}`);
 	};
+	const TicketView = () => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+		"data-uid": "src/pages/Maintenance.tsx:29:5",
+		"data-prohibitions": "[editContent]",
+		className: "grid gap-4 md:grid-cols-3",
+		children: [
+			"Pendente",
+			"Em Andamento",
+			"Concluído"
+		].map((status) => {
+			const tickets = maintenanceTickets.filter((t) => t.status === status);
+			return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				"data-uid": "src/pages/Maintenance.tsx:33:11",
+				"data-prohibitions": "[editContent]",
+				className: "space-y-4",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h3", {
+					"data-uid": "src/pages/Maintenance.tsx:34:13",
+					"data-prohibitions": "[editContent]",
+					className: "font-semibold flex items-center gap-2",
+					children: [
+						status === "Pendente" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TriangleAlert, {
+							"data-uid": "src/pages/Maintenance.tsx:35:41",
+							"data-prohibitions": "[editContent]",
+							className: "w-5 h-5 text-red-500"
+						}),
+						status === "Em Andamento" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Clock, {
+							"data-uid": "src/pages/Maintenance.tsx:36:45",
+							"data-prohibitions": "[editContent]",
+							className: "w-5 h-5 text-amber-500"
+						}),
+						status === "Concluído" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CircleCheckBig, {
+							"data-uid": "src/pages/Maintenance.tsx:37:42",
+							"data-prohibitions": "[editContent]",
+							className: "w-5 h-5 text-emerald-500"
+						}),
+						status,
+						" ",
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badge, {
+							"data-uid": "src/pages/Maintenance.tsx:38:24",
+							"data-prohibitions": "[editContent]",
+							variant: "secondary",
+							children: tickets.length
+						})
+					]
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					"data-uid": "src/pages/Maintenance.tsx:41:13",
+					"data-prohibitions": "[editContent]",
+					className: "space-y-3",
+					children: [tickets.map((t) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
+						"data-uid": "src/pages/Maintenance.tsx:43:17",
+						"data-prohibitions": "[editContent]",
+						className: "shadow-sm",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardHeader, {
+							"data-uid": "src/pages/Maintenance.tsx:44:19",
+							"data-prohibitions": "[editContent]",
+							className: "p-4 pb-2",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									"data-uid": "src/pages/Maintenance.tsx:45:21",
+									"data-prohibitions": "[editContent]",
+									className: "flex justify-between items-start",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badge, {
+										"data-uid": "src/pages/Maintenance.tsx:46:23",
+										"data-prohibitions": "[editContent]",
+										variant: "outline",
+										className: "text-xs font-mono",
+										children: t.id
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+										"data-uid": "src/pages/Maintenance.tsx:49:23",
+										"data-prohibitions": "[editContent]",
+										className: "text-xs text-muted-foreground",
+										children: new Date(t.createdAt).toLocaleDateString("pt-BR")
+									})]
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardTitle, {
+									"data-uid": "src/pages/Maintenance.tsx:53:21",
+									"data-prohibitions": "[editContent]",
+									className: "text-base mt-2",
+									children: t.item
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardDescription, {
+									"data-uid": "src/pages/Maintenance.tsx:54:21",
+									"data-prohibitions": "[editContent]",
+									className: "line-clamp-1",
+									children: t.address
+								})
+							]
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardContent, {
+							"data-uid": "src/pages/Maintenance.tsx:56:19",
+							"data-prohibitions": "[editContent]",
+							className: "p-4 pt-0 space-y-4",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									"data-uid": "src/pages/Maintenance.tsx:57:21",
+									"data-prohibitions": "[editContent]",
+									className: "text-sm bg-muted/50 p-3 rounded border",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										"data-uid": "src/pages/Maintenance.tsx:58:23",
+										"data-prohibitions": "[]",
+										className: "font-medium text-xs text-muted-foreground mb-1",
+										children: "Observações do Vistoriador:"
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										"data-uid": "src/pages/Maintenance.tsx:61:23",
+										"data-prohibitions": "[editContent]",
+										children: t.notes
+									})]
+								}),
+								t.photo && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									"data-uid": "src/pages/Maintenance.tsx:65:23",
+									"data-prohibitions": "[]",
+									className: "w-full h-32 rounded-md overflow-hidden bg-muted relative",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+										"data-uid": "src/pages/Maintenance.tsx:66:25",
+										"data-prohibitions": "[editContent]",
+										src: t.photo,
+										alt: "Evidência",
+										className: "w-full h-full object-cover"
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+										"data-uid": "src/pages/Maintenance.tsx:67:25",
+										"data-prohibitions": "[]",
+										className: "absolute bottom-2 right-2 bg-black/60 text-white text-[10px] px-2 py-1 rounded",
+										children: "Foto da Vistoria"
+									})]
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									"data-uid": "src/pages/Maintenance.tsx:73:21",
+									"data-prohibitions": "[editContent]",
+									className: "flex gap-2 pt-2",
+									children: [status === "Pendente" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+										"data-uid": "src/pages/Maintenance.tsx:75:25",
+										"data-prohibitions": "[]",
+										size: "sm",
+										className: "w-full",
+										onClick: () => handleStatusChange(t.id, "Em Andamento"),
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Wrench, {
+											"data-uid": "src/pages/Maintenance.tsx:80:27",
+											"data-prohibitions": "[editContent]",
+											className: "w-4 h-4 mr-2"
+										}), " Iniciar Reparo"]
+									}), status === "Em Andamento" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+										"data-uid": "src/pages/Maintenance.tsx:84:25",
+										"data-prohibitions": "[]",
+										size: "sm",
+										variant: "default",
+										className: "w-full bg-emerald-600 hover:bg-emerald-700",
+										onClick: () => handleStatusChange(t.id, "Concluído"),
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CircleCheckBig, {
+											"data-uid": "src/pages/Maintenance.tsx:90:27",
+											"data-prohibitions": "[editContent]",
+											className: "w-4 h-4 mr-2"
+										}), " Concluir Reparo"]
+									})]
+								})
+							]
+						})]
+					}, t.id)), tickets.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						"data-uid": "src/pages/Maintenance.tsx:98:17",
+						"data-prohibitions": "[editContent]",
+						className: "p-6 border-2 border-dashed rounded-lg text-center text-muted-foreground text-sm",
+						children: [
+							"Nenhum ticket ",
+							status.toLowerCase(),
+							"."
+						]
+					})]
+				})]
+			}, status);
+		})
+	});
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-		"data-uid": "src/pages/Maintenance.tsx:23:5",
+		"data-uid": "src/pages/Maintenance.tsx:110:5",
 		"data-prohibitions": "[editContent]",
 		className: "space-y-6",
 		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-			"data-uid": "src/pages/Maintenance.tsx:24:7",
+			"data-uid": "src/pages/Maintenance.tsx:111:7",
 			"data-prohibitions": "[]",
 			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", {
-				"data-uid": "src/pages/Maintenance.tsx:25:9",
+				"data-uid": "src/pages/Maintenance.tsx:112:9",
 				"data-prohibitions": "[]",
 				className: "text-3xl font-bold tracking-tight",
 				children: "Dashboard de Manutenção"
 			}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-				"data-uid": "src/pages/Maintenance.tsx:26:9",
+				"data-uid": "src/pages/Maintenance.tsx:113:9",
 				"data-prohibitions": "[]",
 				className: "text-muted-foreground",
-				children: "Gerencie alertas de reparos gerados automaticamente pelas vistorias de campo."
+				children: "Gerencie alertas de reparos gerados automaticamente pelas vistorias de campo e analise os indicadores."
 			})]
-		}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-			"data-uid": "src/pages/Maintenance.tsx:31:7",
-			"data-prohibitions": "[editContent]",
-			className: "grid gap-4 md:grid-cols-3",
+		}), canViewAnalytics ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Tabs, {
+			"data-uid": "src/pages/Maintenance.tsx:120:9",
+			"data-prohibitions": "[]",
+			defaultValue: "tickets",
+			className: "space-y-6",
 			children: [
-				"Pendente",
-				"Em Andamento",
-				"Concluído"
-			].map((status) => {
-				const tickets = maintenanceTickets.filter((t) => t.status === status);
-				return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					"data-uid": "src/pages/Maintenance.tsx:35:13",
-					"data-prohibitions": "[editContent]",
-					className: "space-y-4",
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h3", {
-						"data-uid": "src/pages/Maintenance.tsx:36:15",
-						"data-prohibitions": "[editContent]",
-						className: "font-semibold flex items-center gap-2",
-						children: [
-							status === "Pendente" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TriangleAlert, {
-								"data-uid": "src/pages/Maintenance.tsx:37:43",
-								"data-prohibitions": "[editContent]",
-								className: "w-5 h-5 text-red-500"
-							}),
-							status === "Em Andamento" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Clock, {
-								"data-uid": "src/pages/Maintenance.tsx:38:47",
-								"data-prohibitions": "[editContent]",
-								className: "w-5 h-5 text-amber-500"
-							}),
-							status === "Concluído" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CircleCheckBig, {
-								"data-uid": "src/pages/Maintenance.tsx:39:44",
-								"data-prohibitions": "[editContent]",
-								className: "w-5 h-5 text-emerald-500"
-							}),
-							status,
-							" ",
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badge, {
-								"data-uid": "src/pages/Maintenance.tsx:40:26",
-								"data-prohibitions": "[editContent]",
-								variant: "secondary",
-								children: tickets.length
-							})
-						]
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						"data-uid": "src/pages/Maintenance.tsx:43:15",
-						"data-prohibitions": "[editContent]",
-						className: "space-y-3",
-						children: [tickets.map((t) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
-							"data-uid": "src/pages/Maintenance.tsx:45:19",
-							"data-prohibitions": "[editContent]",
-							className: "shadow-sm",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardHeader, {
-								"data-uid": "src/pages/Maintenance.tsx:46:21",
-								"data-prohibitions": "[editContent]",
-								className: "p-4 pb-2",
-								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-										"data-uid": "src/pages/Maintenance.tsx:47:23",
-										"data-prohibitions": "[editContent]",
-										className: "flex justify-between items-start",
-										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badge, {
-											"data-uid": "src/pages/Maintenance.tsx:48:25",
-											"data-prohibitions": "[editContent]",
-											variant: "outline",
-											className: "text-xs font-mono",
-											children: t.id
-										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-											"data-uid": "src/pages/Maintenance.tsx:51:25",
-											"data-prohibitions": "[editContent]",
-											className: "text-xs text-muted-foreground",
-											children: new Date(t.createdAt).toLocaleDateString("pt-BR")
-										})]
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardTitle, {
-										"data-uid": "src/pages/Maintenance.tsx:55:23",
-										"data-prohibitions": "[editContent]",
-										className: "text-base mt-2",
-										children: t.item
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardDescription, {
-										"data-uid": "src/pages/Maintenance.tsx:56:23",
-										"data-prohibitions": "[editContent]",
-										className: "line-clamp-1",
-										children: t.address
-									})
-								]
-							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardContent, {
-								"data-uid": "src/pages/Maintenance.tsx:58:21",
-								"data-prohibitions": "[editContent]",
-								className: "p-4 pt-0 space-y-4",
-								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-										"data-uid": "src/pages/Maintenance.tsx:59:23",
-										"data-prohibitions": "[editContent]",
-										className: "text-sm bg-muted/50 p-3 rounded border",
-										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-											"data-uid": "src/pages/Maintenance.tsx:60:25",
-											"data-prohibitions": "[]",
-											className: "font-medium text-xs text-muted-foreground mb-1",
-											children: "Observações do Vistoriador:"
-										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-											"data-uid": "src/pages/Maintenance.tsx:63:25",
-											"data-prohibitions": "[editContent]",
-											children: t.notes
-										})]
-									}),
-									t.photo && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-										"data-uid": "src/pages/Maintenance.tsx:67:25",
-										"data-prohibitions": "[]",
-										className: "w-full h-32 rounded-md overflow-hidden bg-muted relative",
-										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
-											"data-uid": "src/pages/Maintenance.tsx:68:27",
-											"data-prohibitions": "[editContent]",
-											src: t.photo,
-											alt: "Evidência",
-											className: "w-full h-full object-cover"
-										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-											"data-uid": "src/pages/Maintenance.tsx:73:27",
-											"data-prohibitions": "[]",
-											className: "absolute bottom-2 right-2 bg-black/60 text-white text-[10px] px-2 py-1 rounded",
-											children: "Foto da Vistoria"
-										})]
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-										"data-uid": "src/pages/Maintenance.tsx:79:23",
-										"data-prohibitions": "[editContent]",
-										className: "flex gap-2 pt-2",
-										children: [status === "Pendente" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
-											"data-uid": "src/pages/Maintenance.tsx:81:27",
-											"data-prohibitions": "[]",
-											size: "sm",
-											className: "w-full",
-											onClick: () => handleStatusChange(t.id, "Em Andamento"),
-											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Wrench, {
-												"data-uid": "src/pages/Maintenance.tsx:86:29",
-												"data-prohibitions": "[editContent]",
-												className: "w-4 h-4 mr-2"
-											}), " Iniciar Reparo"]
-										}), status === "Em Andamento" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
-											"data-uid": "src/pages/Maintenance.tsx:90:27",
-											"data-prohibitions": "[]",
-											size: "sm",
-											variant: "default",
-											className: "w-full bg-emerald-600 hover:bg-emerald-700",
-											onClick: () => handleStatusChange(t.id, "Concluído"),
-											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CircleCheckBig, {
-												"data-uid": "src/pages/Maintenance.tsx:96:29",
-												"data-prohibitions": "[editContent]",
-												className: "w-4 h-4 mr-2"
-											}), " Concluir Reparo"]
-										})]
-									})
-								]
-							})]
-						}, t.id)), tickets.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							"data-uid": "src/pages/Maintenance.tsx:104:19",
-							"data-prohibitions": "[editContent]",
-							className: "p-6 border-2 border-dashed rounded-lg text-center text-muted-foreground text-sm",
-							children: [
-								"Nenhum ticket ",
-								status.toLowerCase(),
-								"."
-							]
-						})]
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(TabsList, {
+					"data-uid": "src/pages/Maintenance.tsx:121:11",
+					"data-prohibitions": "[]",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TabsTrigger, {
+						"data-uid": "src/pages/Maintenance.tsx:122:13",
+						"data-prohibitions": "[]",
+						value: "tickets",
+						children: "Gestão de Chamados"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TabsTrigger, {
+						"data-uid": "src/pages/Maintenance.tsx:123:13",
+						"data-prohibitions": "[]",
+						value: "analytics",
+						children: "BI & Analytics"
 					})]
-				}, status);
-			})
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TabsContent, {
+					"data-uid": "src/pages/Maintenance.tsx:125:11",
+					"data-prohibitions": "[]",
+					value: "tickets",
+					className: "mt-0",
+					children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TicketView, {
+						"data-uid": "src/pages/Maintenance.tsx:126:13",
+						"data-prohibitions": "[editContent]"
+					})
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TabsContent, {
+					"data-uid": "src/pages/Maintenance.tsx:128:11",
+					"data-prohibitions": "[]",
+					value: "analytics",
+					className: "mt-0",
+					children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(MaintenanceAnalytics, {
+						"data-uid": "src/pages/Maintenance.tsx:129:13",
+						"data-prohibitions": "[editContent]"
+					})
+				})
+			]
+		}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TicketView, {
+			"data-uid": "src/pages/Maintenance.tsx:133:9",
+			"data-prohibitions": "[editContent]"
 		})]
 	});
 }
@@ -66798,4 +67292,4 @@ var App = () => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(BrowserRouter, {
 }));
 //#endregion
 
-//# sourceMappingURL=index-DIuizfPX.js.map
+//# sourceMappingURL=index-yxjew1lj.js.map

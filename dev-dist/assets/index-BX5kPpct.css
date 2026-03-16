@@ -945,6 +945,10 @@ section[aria-label='Notifications alt+T'] {
   margin-right: 1.5rem;
 }
 
+.mt-0{
+  margin-top: 0px;
+}
+
 .mt-0\.5{
   margin-top: 0.125rem;
 }
@@ -1123,6 +1127,18 @@ section[aria-label='Notifications alt+T'] {
 
 .h-\[1px\]{
   height: 1px;
+}
+
+.h-\[250px\]{
+  height: 250px;
+}
+
+.h-\[260px\]{
+  height: 260px;
+}
+
+.h-\[300px\]{
+  height: 300px;
 }
 
 .h-\[400px\]{
@@ -4763,6 +4779,10 @@ section[aria-label='Notifications alt+T'] {
 }
 
 @media (min-width: 1024px){
+
+  .lg\:col-span-2{
+    grid-column: span 2 / span 2;
+  }
 
   .lg\:col-span-3{
     grid-column: span 3 / span 3;
