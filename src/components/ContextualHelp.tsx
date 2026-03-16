@@ -58,6 +58,34 @@ export function ContextualHelp() {
       }
     }
 
+    if (path === '/documents') {
+      return {
+        title: 'Central de Documentos e Alertas',
+        description:
+          'Guia para gerenciar o acervo digital, monitorar vencimentos e entender a integração com o SharePoint.',
+        sections: [
+          {
+            icon: BellRing,
+            title: 'Monitoramento de Vencimentos',
+            content:
+              'Acompanhe e filtre os alertas de documentos com base na sua criticidade: Verde (Status Regular), Amarelo (Atenção/Vencendo em breve) e Vermelho (Documento Expirado ou Inválido).',
+          },
+          {
+            icon: FolderSync,
+            title: 'Integração SharePoint',
+            content:
+              'A integração com o SharePoint sincroniza automaticamente os metadados extraídos dos documentos enviados (via upload manual ou OCR) para as bibliotecas correspondentes no Microsoft 365.',
+          },
+          {
+            icon: FileText,
+            title: 'Gestão de Status',
+            content:
+              'Utilize os filtros e visualizadores nativos para verificar a situação de aprovação e coleta de assinaturas dos seus arquivos, mantendo a conformidade da documentação.',
+          },
+        ],
+      }
+    }
+
     if (path.match(/^\/properties\/[^/]+\/dossier$/)) {
       return {
         title: 'Dossiê Digital do Imóvel',

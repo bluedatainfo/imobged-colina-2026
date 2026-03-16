@@ -30166,6 +30166,27 @@ function ContextualHelp() {
 				}
 			]
 		};
+		if (path === "/documents") return {
+			title: "Central de Documentos e Alertas",
+			description: "Guia para gerenciar o acervo digital, monitorar vencimentos e entender a integração com o SharePoint.",
+			sections: [
+				{
+					icon: BellRing,
+					title: "Monitoramento de Vencimentos",
+					content: "Acompanhe e filtre os alertas de documentos com base na sua criticidade: Verde (Status Regular), Amarelo (Atenção/Vencendo em breve) e Vermelho (Documento Expirado ou Inválido)."
+				},
+				{
+					icon: FolderSync,
+					title: "Integração SharePoint",
+					content: "A integração com o SharePoint sincroniza automaticamente os metadados extraídos dos documentos enviados (via upload manual ou OCR) para as bibliotecas correspondentes no Microsoft 365."
+				},
+				{
+					icon: FileText,
+					title: "Gestão de Status",
+					content: "Utilize os filtros e visualizadores nativos para verificar a situação de aprovação e coleta de assinaturas dos seus arquivos, mantendo a conformidade da documentação."
+				}
+			]
+		};
 		if (path.match(/^\/properties\/[^/]+\/dossier$/)) return {
 			title: "Dossiê Digital do Imóvel",
 			description: "Central consolidada de todas as informações e documentos do imóvel.",
@@ -30198,67 +30219,67 @@ function ContextualHelp() {
 		};
 	}, [location.pathname]);
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Sheet, {
-		"data-uid": "src/components/ContextualHelp.tsx:103:5",
+		"data-uid": "src/components/ContextualHelp.tsx:131:5",
 		"data-prohibitions": "[editContent]",
 		open: isOpen,
 		onOpenChange: helpStore.setOpen,
 		children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(SheetContent, {
-			"data-uid": "src/components/ContextualHelp.tsx:104:7",
+			"data-uid": "src/components/ContextualHelp.tsx:132:7",
 			"data-prohibitions": "[editContent]",
 			className: "w-[400px] sm:w-[540px] flex flex-col gap-6",
 			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(SheetHeader, {
-				"data-uid": "src/components/ContextualHelp.tsx:105:9",
+				"data-uid": "src/components/ContextualHelp.tsx:133:9",
 				"data-prohibitions": "[editContent]",
 				className: "text-left",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					"data-uid": "src/components/ContextualHelp.tsx:106:11",
+					"data-uid": "src/components/ContextualHelp.tsx:134:11",
 					"data-prohibitions": "[editContent]",
 					className: "flex items-center gap-2 mb-1",
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CircleQuestionMark, {
-						"data-uid": "src/components/ContextualHelp.tsx:107:13",
+						"data-uid": "src/components/ContextualHelp.tsx:135:13",
 						"data-prohibitions": "[editContent]",
 						className: "h-5 w-5 text-primary"
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SheetTitle, {
-						"data-uid": "src/components/ContextualHelp.tsx:108:13",
+						"data-uid": "src/components/ContextualHelp.tsx:136:13",
 						"data-prohibitions": "[editContent]",
 						children: helpContent.title
 					})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SheetDescription, {
-					"data-uid": "src/components/ContextualHelp.tsx:110:11",
+					"data-uid": "src/components/ContextualHelp.tsx:138:11",
 					"data-prohibitions": "[editContent]",
 					children: helpContent.description
 				})]
 			}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-				"data-uid": "src/components/ContextualHelp.tsx:113:9",
+				"data-uid": "src/components/ContextualHelp.tsx:141:9",
 				"data-prohibitions": "[editContent]",
 				className: "flex-1 overflow-y-auto pr-2 -mr-2",
 				children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-					"data-uid": "src/components/ContextualHelp.tsx:114:11",
+					"data-uid": "src/components/ContextualHelp.tsx:142:11",
 					"data-prohibitions": "[editContent]",
 					className: "space-y-6",
 					children: helpContent.sections.map((section, idx) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						"data-uid": "src/components/ContextualHelp.tsx:116:15",
+						"data-uid": "src/components/ContextualHelp.tsx:144:15",
 						"data-prohibitions": "[editContent]",
 						className: "flex gap-4",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							"data-uid": "src/components/ContextualHelp.tsx:117:17",
+							"data-uid": "src/components/ContextualHelp.tsx:145:17",
 							"data-prohibitions": "[]",
 							className: "bg-primary/10 p-3 rounded-lg shrink-0 h-fit",
 							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(section.icon, {
-								"data-uid": "src/components/ContextualHelp.tsx:118:19",
+								"data-uid": "src/components/ContextualHelp.tsx:146:19",
 								"data-prohibitions": "[editContent]",
 								className: "h-5 w-5 text-primary"
 							})
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							"data-uid": "src/components/ContextualHelp.tsx:120:17",
+							"data-uid": "src/components/ContextualHelp.tsx:148:17",
 							"data-prohibitions": "[editContent]",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h4", {
-								"data-uid": "src/components/ContextualHelp.tsx:121:19",
+								"data-uid": "src/components/ContextualHelp.tsx:149:19",
 								"data-prohibitions": "[editContent]",
 								className: "font-semibold text-foreground mb-1",
 								children: section.title
 							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-								"data-uid": "src/components/ContextualHelp.tsx:122:19",
+								"data-uid": "src/components/ContextualHelp.tsx:150:19",
 								"data-prohibitions": "[editContent]",
 								className: "text-sm text-muted-foreground leading-relaxed",
 								children: section.content
@@ -69082,4 +69103,4 @@ var App = () => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(BrowserRouter, {
 }));
 //#endregion
 
-//# sourceMappingURL=index-goa04K5X.js.map
+//# sourceMappingURL=index-CFd-AlsU.js.map
