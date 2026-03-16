@@ -1,15 +1,5 @@
 import { useState, useEffect } from 'react'
-import {
-  Save,
-  Database,
-  Server,
-  Link,
-  Loader2,
-  CheckCircle2,
-  AlertCircle,
-  Globe,
-  RefreshCw,
-} from 'lucide-react'
+import { Save, Server, Loader2, CheckCircle2, AlertCircle, Globe, RefreshCw } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -18,12 +8,17 @@ import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/hooks/use-toast'
 import useMainStore, { mainStore } from '@/stores/main'
 import { usersStore } from '@/stores/users'
+import { cn } from '@/lib/utils'
 
 const getDomainFromTenant = (tenantId: string) => {
   if (!tenantId) return ''
   if (tenantId === 'a1b2c3d4-e5f6-4a1b-9c2d-3e4f5a6b7c8d') return 'imobged.com'
   const cleanId = tenantId.replace(/[^a-f0-9]/gi, '')
   return `tenant-${cleanId.substring(0, 6)}.com`
+}
+
+const isValidTenantId = (id: string) => {
+  return /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id)
 }
 
 export default function SharePointSettings() {
@@ -33,13 +28,9 @@ export default function SharePointSettings() {
   const [isTesting, setIsTesting] = useState(false)
   const [testResult, setTestResult] = useState<'idle' | 'success' | 'error'>('idle')
   const [tenantStatus, setTenantStatus] = useState<'idle' | 'validating' | 'active' | 'invalid'>(
-    'idle',
+    () => (isValidTenantId(store.sharepoint.tenantId) ? 'active' : 'idle'),
   )
   const [tenantIdError, setTenantIdError] = useState<string | null>(null)
-
-  const isValidTenantId = (id: string) => {
-    return /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id)
-  }
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -56,17 +47,34 @@ export default function SharePointSettings() {
           setTenantIdError(null)
 
           const resolvedDomain = getDomainFromTenant(formData.tenantId.trim())
-          if (resolvedDomain !== formData.tenantDomain) {
-            setFormData((prev) => ({
-              ...prev,
-              tenantDomain: resolvedDomain,
-              teamsWebhookUrl: '', // Clear path on domain change to prevent leaks
-            }))
-            toast({
-              title: 'Novo Domínio Identificado',
-              description: `O domínio ${resolvedDomain} foi vinculado ao Tenant.`,
-            })
-          }
+
+          setFormData((prev) => {
+            if (resolvedDomain !== prev.tenantDomain) {
+              const newPrefix = `https://${resolvedDomain.split('.')[0]}.sharepoint.com/sites/`
+              const updatedSites = { ...prev.sites }
+
+              Object.keys(updatedSites).forEach((k) => {
+                const key = k as keyof typeof updatedSites
+                const path = updatedSites[key].split('/').pop() || ''
+                updatedSites[key] = path ? `${newPrefix}${path}` : ''
+              })
+
+              setTimeout(() => {
+                toast({
+                  title: 'Novo Domínio Identificado',
+                  description: `O domínio ${resolvedDomain} foi vinculado ao Tenant e os sites foram atualizados.`,
+                })
+              }, 0)
+
+              return {
+                ...prev,
+                tenantDomain: resolvedDomain,
+                teamsWebhookUrl: '', // Clear path on domain change to prevent leaks
+                sites: updatedSites,
+              }
+            }
+            return prev
+          })
         } else {
           setTenantStatus('invalid')
           setTenantIdError(
@@ -87,10 +95,6 @@ export default function SharePointSettings() {
     setFormData((prev) => ({ ...prev, sites: { ...prev.sites, [field]: value } }))
   }
 
-  const handleLibraryChange = (field: keyof typeof formData.libraries, value: string) => {
-    setFormData((prev) => ({ ...prev, libraries: { ...prev.libraries, [field]: value } }))
-  }
-
   const handleSave = () => {
     if (tenantStatus === 'invalid' || !formData.tenantId?.trim()) {
       toast({
@@ -101,12 +105,26 @@ export default function SharePointSettings() {
       return
     }
 
+    const sitePrefix = `https://${formData.tenantDomain.split('.')[0]}.sharepoint.com/sites/`
+    const allSitesValid = Object.values(formData.sites).every(
+      (url) => url && url.startsWith(sitePrefix),
+    )
+
+    if (!allSitesValid) {
+      toast({
+        variant: 'destructive',
+        title: 'Mapeamento Inválido',
+        description:
+          'Verifique se todos os sites departamentais estão preenchidos corretamente para o domínio atual.',
+      })
+      return
+    }
+
     const domainChanged = formData.tenantDomain !== store.sharepoint.tenantDomain
 
     mainStore.updateSharePointSettings(formData)
 
     if (domainChanged && formData.tenantDomain) {
-      // Clear dependent fields globally
       mainStore.updateSettings({
         managementEmails: '',
         administrativeEmails: '',
@@ -130,8 +148,9 @@ export default function SharePointSettings() {
     setTestResult('idle')
     setTimeout(() => {
       setIsTesting(false)
+      const sitePrefix = `https://${formData.tenantDomain.split('.')[0]}.sharepoint.com/sites/`
       const allSitesValid = Object.values(formData.sites).every(
-        (url) => url && url.startsWith('http'),
+        (url) => url && url.startsWith(sitePrefix),
       )
       setTestResult(allSitesValid && tenantStatus === 'active' ? 'success' : 'error')
     }, 2000)
@@ -141,6 +160,61 @@ export default function SharePointSettings() {
   const webhookPath = formData.teamsWebhookUrl?.startsWith(domainPrefix)
     ? formData.teamsWebhookUrl.replace(domainPrefix, '')
     : formData.teamsWebhookUrl || ''
+
+  const sitePrefix = `https://${(formData.tenantDomain || 'dominio').split('.')[0]}.sharepoint.com/sites/`
+
+  const renderSiteInput = (label: string, siteKey: keyof typeof formData.sites) => {
+    const value = formData.sites[siteKey]
+    const path = value?.startsWith(sitePrefix)
+      ? value.substring(sitePrefix.length)
+      : value
+        ? value.split('/').pop() || ''
+        : ''
+    const isValid = value?.startsWith(sitePrefix) && path.length > 0 && tenantStatus === 'active'
+
+    return (
+      <div className="space-y-2">
+        <Label className="flex items-center justify-between text-sm">
+          <span>{label}</span>
+          {isValid && <CheckCircle2 className="w-4 h-4 text-emerald-600" />}
+          {!isValid && tenantStatus === 'active' && (
+            <AlertCircle className="w-4 h-4 text-destructive" />
+          )}
+        </Label>
+        <div className="flex w-full">
+          <span
+            className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-input bg-muted text-muted-foreground text-xs whitespace-nowrap overflow-hidden text-ellipsis max-w-[140px] sm:max-w-[200px]"
+            title={sitePrefix}
+          >
+            {sitePrefix}
+          </span>
+          <Input
+            className={cn(
+              'rounded-l-none font-mono text-sm',
+              !isValid && tenantStatus === 'active'
+                ? 'border-destructive focus-visible:ring-destructive'
+                : '',
+            )}
+            value={path}
+            onChange={(e) =>
+              handleSiteChange(siteKey, e.target.value ? `${sitePrefix}${e.target.value}` : '')
+            }
+            disabled={tenantStatus !== 'active'}
+            placeholder="nome-do-setor"
+          />
+        </div>
+        {!isValid && tenantStatus === 'active' && path.length === 0 && (
+          <p className="text-xs text-destructive mt-1">O nome do site é obrigatório.</p>
+        )}
+        {!isValid &&
+          tenantStatus === 'active' &&
+          path.length > 0 &&
+          !value.startsWith(sitePrefix) && (
+            <p className="text-xs text-destructive mt-1">Domínio incompatível. Atualize o campo.</p>
+          )}
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -195,7 +269,10 @@ export default function SharePointSettings() {
                 className="rounded-l-none font-mono text-sm"
                 value={webhookPath}
                 onChange={(e) =>
-                  handleChange('teamsWebhookUrl', `${domainPrefix}${e.target.value}`)
+                  handleChange(
+                    'teamsWebhookUrl',
+                    e.target.value ? `${domainPrefix}${e.target.value}` : '',
+                  )
                 }
                 placeholder="id-do-canal-xyz"
                 disabled={tenantStatus !== 'active'}
@@ -214,41 +291,29 @@ export default function SharePointSettings() {
             Conecte os ambientes específicos para governança isolada por setor.
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid md:grid-cols-2 gap-x-6 gap-y-4">
-          <div className="space-y-2">
-            <Label>Gestão de Locação (Site URL)</Label>
-            <Input
-              value={formData.sites.locacao}
-              onChange={(e) => handleSiteChange('locacao', e.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Vendas (Site URL)</Label>
-            <Input
-              value={formData.sites.vendas}
-              onChange={(e) => handleSiteChange('vendas', e.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Captação de Imóveis (Site URL)</Label>
-            <Input
-              value={formData.sites.captacao}
-              onChange={(e) => handleSiteChange('captacao', e.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Jurídico (Site URL)</Label>
-            <Input
-              value={formData.sites.juridico}
-              onChange={(e) => handleSiteChange('juridico', e.target.value)}
-            />
+        <CardContent className="space-y-4">
+          {tenantStatus !== 'active' && (
+            <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md flex items-center gap-2 border border-destructive/20">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              Forneça um Tenant ID válido para configurar os sites departamentais.
+            </div>
+          )}
+          <div className="grid md:grid-cols-2 gap-x-6 gap-y-6">
+            {renderSiteInput('Gestão de Locação (Site URL)', 'locacao')}
+            {renderSiteInput('Vendas (Site URL)', 'vendas')}
+            {renderSiteInput('Captação de Imóveis (Site URL)', 'captacao')}
+            {renderSiteInput('Jurídico (Site URL)', 'juridico')}
           </div>
         </CardContent>
       </Card>
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-muted/50 p-4 rounded-lg border gap-4">
         <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-          <Button variant="outline" onClick={testConnection} disabled={isTesting}>
+          <Button
+            variant="outline"
+            onClick={testConnection}
+            disabled={isTesting || tenantStatus !== 'active'}
+          >
             {isTesting ? (
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
             ) : (

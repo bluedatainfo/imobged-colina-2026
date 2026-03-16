@@ -1444,6 +1444,10 @@ section[aria-label='Notifications alt+T'] {
   max-width: var(--skeleton-width);
 }
 
+.max-w-\[140px\]{
+  max-width: 140px;
+}
+
 .max-w-\[180px\]{
   max-width: 180px;
 }
@@ -1739,8 +1743,8 @@ section[aria-label='Notifications alt+T'] {
        column-gap: 1.5rem;
 }
 
-.gap-y-4{
-  row-gap: 1rem;
+.gap-y-6{
+  row-gap: 1.5rem;
 }
 
 .space-x-1 > :not([hidden]) ~ :not([hidden]){
@@ -4657,6 +4661,10 @@ section[aria-label='Notifications alt+T'] {
 
   .sm\:w-auto{
     width: auto;
+  }
+
+  .sm\:max-w-\[200px\]{
+    max-width: 200px;
   }
 
   .sm\:max-w-\[220px\]{
