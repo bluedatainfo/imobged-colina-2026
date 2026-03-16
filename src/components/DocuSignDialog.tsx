@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { FileSignature, CheckCircle, Loader2 } from 'lucide-react'
+import { FileSignature, CheckCircle, Loader2, MessageCircle } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -13,6 +13,7 @@ import { LeaseContract, contractsStore } from '@/stores/contracts'
 import { keysStore } from '@/stores/keys'
 import { useToast } from '@/hooks/use-toast'
 import { mainStore } from '@/stores/main'
+import { useAuth } from '@/contexts/AuthContext'
 
 export function DocuSignDialog({
   contract,
@@ -22,6 +23,7 @@ export function DocuSignDialog({
   onClose: () => void
 }) {
   const { toast } = useToast()
+  const { user } = useAuth()
   const [loading, setLoading] = useState(false)
   const [step, setStep] = useState<1 | 2>(1)
 
@@ -44,6 +46,27 @@ export function DocuSignDialog({
         description: 'Envelope criado e disparado para o e-mail do inquilino.',
       })
     }, 1500)
+  }
+
+  const handleWhatsAppSend = () => {
+    setLoading(true)
+    setTimeout(() => {
+      setLoading(false)
+      mainStore.addAuditLog({
+        propertyId: contract.propertyId,
+        action: 'Link de Assinatura enviado via WhatsApp API',
+        user: user?.name || 'Sistema',
+        details: `Disparado para ${contract.tenantName} às ${new Date().toLocaleTimeString()}`,
+      })
+      toast({
+        title: 'WhatsApp Enviado',
+        description: 'Link seguro de assinatura encaminhado com sucesso para o cliente.',
+      })
+      if (step === 1) {
+        contractsStore.updateDocuSignStatus(contract.id, 'Sent')
+        setStep(2)
+      }
+    }, 1200)
   }
 
   const handleSimulateSign = () => {
@@ -85,7 +108,7 @@ export function DocuSignDialog({
             <FileSignature className="w-5 h-5 text-blue-600" /> Integração DocuSign API
           </DialogTitle>
           <DialogDescription>
-            Envie a minuta para assinatura digital. O status será sincronizado automaticamente.
+            Envie a minuta para assinatura digital por E-mail ou WhatsApp.
           </DialogDescription>
         </DialogHeader>
 
@@ -107,24 +130,39 @@ export function DocuSignDialog({
         </div>
 
         <DialogFooter className="flex-col sm:flex-row gap-2">
-          <Button variant="outline" onClick={onClose} disabled={loading}>
+          <Button
+            variant="outline"
+            onClick={onClose}
+            disabled={loading}
+            className="w-full sm:w-auto"
+          >
             Cancelar
           </Button>
+
+          <Button
+            onClick={handleWhatsAppSend}
+            disabled={loading}
+            className="w-full sm:w-auto bg-green-600 hover:bg-green-700"
+          >
+            <MessageCircle className="w-4 h-4 mr-2" />
+            Enviar via WhatsApp
+          </Button>
+
           {step === 1 ? (
             <Button
               onClick={handleSend}
               disabled={loading}
-              className="bg-blue-600 hover:bg-blue-700"
+              className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700"
             >
-              {loading ? 'Enviando...' : 'Disparar Envelope DocuSign'}
+              Disparar Envelope
             </Button>
           ) : (
             <Button
               onClick={handleSimulateSign}
               disabled={loading}
-              className="bg-emerald-600 hover:bg-emerald-700"
+              className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700"
             >
-              {loading ? 'Verificando...' : 'Simular Inquilino Assinando'}
+              Simular Assinatura
             </Button>
           )}
         </DialogFooter>

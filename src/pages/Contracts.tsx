@@ -9,6 +9,7 @@ import {
   Archive,
   PenTool,
   ShieldCheck,
+  MessageCircle,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import {
@@ -117,6 +118,20 @@ export default function Contracts() {
     })
   }
 
+  const handleWhatsAppSend = (contract: LeaseContract) => {
+    mainStore.addAuditLog({
+      propertyId: contract.propertyId,
+      action: 'Link de Assinatura enviado via WhatsApp API',
+      user: user?.name || 'Sistema',
+      details: `Enviado manualmente para ${contract.tenantName} às ${new Date().toLocaleTimeString()}`,
+    })
+    toast({
+      title: 'WhatsApp Enviado',
+      description: `Link DocuSign enviado para ${contract.tenantName}.`,
+    })
+    contractsStore.updateDocuSignStatus(contract.id, 'Sent')
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -155,7 +170,9 @@ export default function Contracts() {
             <TableBody>
               {contracts.map((contract) => {
                 const needsApproval = contract.isCritical && !contract.managerApproval
-                const canApprove = ['Admin', 'Gerente', 'Jurídico'].includes(user?.role || '')
+                const canApprove = ['Admin', 'Gerente', 'Jurídico', 'Gestor de Contrato'].includes(
+                  user?.role || '',
+                )
 
                 return (
                   <TableRow key={contract.id}>
@@ -221,7 +238,7 @@ export default function Contracts() {
                               onClick={() => handleApproveCritical(contract)}
                               className="text-emerald-600 font-medium"
                             >
-                              <ShieldCheck className="w-4 h-4 mr-2" /> Aprovar Emissão (Jurídico)
+                              <ShieldCheck className="w-4 h-4 mr-2" /> Aprovar Emissão
                             </DropdownMenuItem>
                           )}
 
@@ -233,13 +250,22 @@ export default function Contracts() {
 
                           {(contract.status === 'Aguardando Assinatura' ||
                             contract.status === 'Finalizado') && (
-                            <DropdownMenuItem
-                              onClick={() => setDocusignContract(contract)}
-                              disabled={needsApproval}
-                            >
-                              <PenTool className="w-4 h-4 mr-2 text-blue-600" />
-                              {needsApproval ? 'DocuSign Bloqueado' : 'Enviar para DocuSign'}
-                            </DropdownMenuItem>
+                            <>
+                              <DropdownMenuItem
+                                onClick={() => setDocusignContract(contract)}
+                                disabled={needsApproval}
+                              >
+                                <PenTool className="w-4 h-4 mr-2 text-blue-600" />
+                                {needsApproval ? 'DocuSign Bloqueado' : 'Enviar para DocuSign'}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleWhatsAppSend(contract)}
+                                disabled={needsApproval}
+                              >
+                                <MessageCircle className="w-4 h-4 mr-2 text-green-600" />
+                                Enviar Link via WhatsApp
+                              </DropdownMenuItem>
+                            </>
                           )}
 
                           <DropdownMenuSeparator />

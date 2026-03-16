@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { Building2, MapPin, FolderOpen, AlertCircle, Clock } from 'lucide-react'
+import { Building2, MapPin, FolderOpen, AlertCircle, Clock, Plus } from 'lucide-react'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import useMainStore, { Property } from '@/stores/main'
 import { PropertyDetailSheet } from '@/components/PropertyDetailSheet'
+import { NewPropertyDialog } from '@/components/NewPropertyDialog'
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -26,6 +27,7 @@ const getStatusColor = (status: string) => {
 const Properties = () => {
   const store = useMainStore()
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null)
+  const [newPropertyOpen, setNewPropertyOpen] = useState(false)
 
   const pendingAnalyses = store.properties.filter((p) => p.status === 'Análise Gerencial').length
   const pendingInspections = store.properties.filter((p) => p.status === 'Vistoria').length
@@ -34,11 +36,15 @@ const Properties = () => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Gestão de Imóveis e Contratos</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Gestão de Imóveis e Captação</h1>
           <p className="text-muted-foreground">
-            Acompanhe o workflow de locação e acesse a trilha de auditoria completa no SharePoint.
+            Acompanhe as captações, workflow de locação e acesse a trilha de auditoria completa no
+            SharePoint.
           </p>
         </div>
+        <Button onClick={() => setNewPropertyOpen(true)} className="gap-2">
+          <Plus className="w-4 h-4" /> Nova Captação
+        </Button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3 mb-6">
@@ -83,6 +89,11 @@ const Properties = () => {
                   {property.status}
                 </Badge>
               </div>
+              {property.rentValue && (
+                <div className="absolute bottom-2 left-2 bg-black/70 text-white px-2 py-1 rounded text-xs font-semibold backdrop-blur-sm">
+                  R$ {property.rentValue.toLocaleString('pt-BR')}
+                </div>
+              )}
             </div>
             <CardHeader className="pb-2">
               <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
@@ -118,6 +129,7 @@ const Properties = () => {
       </div>
 
       <PropertyDetailSheet property={selectedProperty} onClose={() => setSelectedProperty(null)} />
+      <NewPropertyDialog open={newPropertyOpen} onClose={() => setNewPropertyOpen(false)} />
     </div>
   )
 }

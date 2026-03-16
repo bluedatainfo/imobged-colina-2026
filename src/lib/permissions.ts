@@ -1,15 +1,28 @@
-export type Role = 'Admin' | 'Gerente' | 'Vistoriador' | 'Jurídico' | 'Financeiro'
+export type Role =
+  | 'Admin'
+  | 'Gerente'
+  | 'Vistoriador'
+  | 'Jurídico'
+  | 'Financeiro'
+  | 'Gestor de Contrato'
 
 export const ROUTE_ACCESS: Record<string, Role[]> = {
-  '/': ['Admin', 'Gerente', 'Vistoriador', 'Jurídico', 'Financeiro'],
-  '/manager-approval': ['Admin', 'Gerente'],
-  '/contracts': ['Admin', 'Gerente', 'Jurídico'],
-  '/documents': ['Admin', 'Gerente', 'Jurídico', 'Financeiro'],
-  '/properties': ['Admin', 'Gerente', 'Vistoriador', 'Jurídico', 'Financeiro'],
+  '/': ['Admin', 'Gerente', 'Vistoriador', 'Jurídico', 'Financeiro', 'Gestor de Contrato'],
+  '/manager-approval': ['Admin', 'Gerente', 'Gestor de Contrato'],
+  '/contracts': ['Admin', 'Gerente', 'Jurídico', 'Gestor de Contrato'],
+  '/documents': ['Admin', 'Gerente', 'Jurídico', 'Financeiro', 'Gestor de Contrato'],
+  '/properties': [
+    'Admin',
+    'Gerente',
+    'Vistoriador',
+    'Jurídico',
+    'Financeiro',
+    'Gestor de Contrato',
+  ],
   '/inspections': ['Admin', 'Gerente', 'Vistoriador'],
   '/legal': ['Admin', 'Gerente', 'Jurídico'],
-  '/renewals': ['Admin', 'Gerente', 'Financeiro'],
-  '/keys': ['Admin', 'Gerente', 'Vistoriador'],
+  '/renewals': ['Admin', 'Gerente', 'Financeiro', 'Gestor de Contrato'],
+  '/keys': ['Admin', 'Gerente', 'Vistoriador', 'Gestor de Contrato'],
   '/settings': ['Admin'],
 }
 

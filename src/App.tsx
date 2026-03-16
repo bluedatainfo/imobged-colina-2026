@@ -16,6 +16,7 @@ import Login from './pages/Login'
 import Renewals from './pages/Renewals'
 import KeysControl from './pages/KeysControl'
 import AccessDenied from './pages/AccessDenied'
+import Portal from './pages/Portal'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { checkAccess } from './lib/permissions'
 
@@ -33,7 +34,11 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 const AppRoutes = () => (
   <Routes>
+    {/* Public Routes */}
     <Route path="/login" element={<Login />} />
+    <Route path="/portal" element={<Portal />} />
+
+    {/* Protected Routes */}
     <Route
       element={
         <ProtectedRoute>

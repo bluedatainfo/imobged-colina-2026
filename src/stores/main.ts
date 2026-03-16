@@ -5,6 +5,7 @@ export type AgencyProfile = {
   address: string
   website: string
   logo: string
+  primaryColor: string
 }
 
 export type RoleSettings = {
@@ -62,6 +63,7 @@ export type Property = {
   image: string
   slaStart?: string
   tenant?: string
+  rentValue?: number
 }
 
 type State = {
@@ -79,6 +81,7 @@ let state: State = {
     address: 'Av. Paulista, 1000 - São Paulo, SP',
     website: 'https://imobiliariaprime.com.br',
     logo: 'https://img.usecurling.com/i?q=building&shape=lineal-color&color=blue',
+    primaryColor: '#0f172a',
   },
   settings: {
     managementEmails: 'gerencia@imobged.com',
@@ -114,6 +117,7 @@ let state: State = {
       status: 'Análise Gerencial',
       image: 'https://img.usecurling.com/p/400/300?q=apartment',
       tenant: 'João Pedro',
+      rentValue: 2500,
     },
     {
       id: '103',
@@ -123,6 +127,7 @@ let state: State = {
       status: 'Confecção de Contrato',
       image: 'https://img.usecurling.com/p/400/300?q=house',
       tenant: 'Maria Souza',
+      rentValue: 3200,
     },
     {
       id: '104',
@@ -131,6 +136,7 @@ let state: State = {
       type: 'Comercial',
       status: 'Disponível para Locação',
       image: 'https://img.usecurling.com/p/400/300?q=office',
+      rentValue: 4800,
     },
   ],
   auditLogs: [
@@ -186,6 +192,16 @@ export const mainStore = {
   },
   saveInspection: (data: InspectionData) => {
     state = { ...state, inspectionsData: { ...state.inspectionsData, [data.propertyId]: data } }
+    emit()
+  },
+  addProperty: (property: Omit<Property, 'id' | 'status' | 'image'>) => {
+    const newProperty: Property = {
+      ...property,
+      id: Math.floor(Math.random() * 1000).toString(),
+      status: 'Pendente/Rascunho',
+      image: `https://img.usecurling.com/p/400/300?q=${property.type === 'Comercial' ? 'office' : 'house'}`,
+    }
+    state = { ...state, properties: [...state.properties, newProperty] }
     emit()
   },
 }

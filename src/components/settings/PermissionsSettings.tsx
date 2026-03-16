@@ -20,7 +20,14 @@ import { useToast } from '@/hooks/use-toast'
 import useUsersStore, { usersStore } from '@/stores/users'
 import { Role } from '@/lib/permissions'
 
-const availableRoles: Role[] = ['Admin', 'Gerente', 'Vistoriador', 'Jurídico', 'Financeiro']
+const availableRoles: Role[] = [
+  'Admin',
+  'Gerente',
+  'Gestor de Contrato',
+  'Vistoriador',
+  'Jurídico',
+  'Financeiro',
+]
 
 export default function PermissionsSettings() {
   const { users } = useUsersStore()
@@ -73,7 +80,7 @@ export default function PermissionsSettings() {
                       value={user.role}
                       onValueChange={(val: Role) => handleRoleChange(user.id, val)}
                     >
-                      <SelectTrigger className="w-[180px]">
+                      <SelectTrigger className="w-[200px]">
                         <UserCog className="w-4 h-4 mr-2 text-muted-foreground" />
                         <SelectValue />
                       </SelectTrigger>
