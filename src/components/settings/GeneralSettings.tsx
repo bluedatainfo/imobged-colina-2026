@@ -17,7 +17,7 @@ import useMainStore, { mainStore } from '@/stores/main'
 export default function GeneralSettings() {
   const { toast } = useToast()
   const store = useMainStore()
-  const tenantDomain = store.sharepoint.tenantDomain
+  const primaryDomain = store.sharepoint.primaryDomain
   const [formData, setFormData] = useState(store.settings)
 
   useEffect(() => {
@@ -38,15 +38,15 @@ export default function GeneralSettings() {
     val: string,
   ) => {
     const cleanVal = val.replace(/@.*/, '').trim()
-    handleChange(field, cleanVal && tenantDomain ? `${cleanVal}@${tenantDomain}` : '')
+    handleChange(field, cleanVal && primaryDomain ? `${cleanVal}@${primaryDomain}` : '')
   }
 
   const handleSave = () => {
-    if (!tenantDomain) {
+    if (!primaryDomain) {
       toast({
         variant: 'destructive',
         title: 'Erro de Configuração',
-        description: 'Um Domínio válido é necessário para salvar configurações de e-mail.',
+        description: 'Um Domínio Primário válido é necessário para salvar configurações de e-mail.',
       })
       return
     }
@@ -70,10 +70,11 @@ export default function GeneralSettings() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {!tenantDomain && (
+          {!primaryDomain && (
             <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md flex items-center gap-2 border border-destructive/20 mb-4">
               <AlertCircle className="w-4 h-4 shrink-0" />
-              Forneça um Domínio válido na aba Integração SharePoint para configurar contas.
+              Forneça um Domínio Primário válido na aba Integração SharePoint para configurar
+              contas.
             </div>
           )}
           <div className="grid gap-2">
@@ -86,10 +87,10 @@ export default function GeneralSettings() {
                   value={getLocalPart(formData.managementEmails)}
                   placeholder="gerencia"
                   onChange={(e) => handleEmailChange('managementEmails', e.target.value)}
-                  disabled={!tenantDomain}
+                  disabled={!primaryDomain}
                 />
                 <span className="inline-flex items-center px-3 border border-l-0 border-input rounded-r-md bg-muted text-muted-foreground text-sm">
-                  @{tenantDomain || 'dominio.com'}
+                  @{primaryDomain || 'dominio.com'}
                 </span>
               </div>
             </div>
@@ -104,10 +105,10 @@ export default function GeneralSettings() {
                   value={getLocalPart(formData.administrativeEmails)}
                   placeholder="admin"
                   onChange={(e) => handleEmailChange('administrativeEmails', e.target.value)}
-                  disabled={!tenantDomain}
+                  disabled={!primaryDomain}
                 />
                 <span className="inline-flex items-center px-3 border border-l-0 border-input rounded-r-md bg-muted text-muted-foreground text-sm">
-                  @{tenantDomain || 'dominio.com'}
+                  @{primaryDomain || 'dominio.com'}
                 </span>
               </div>
             </div>
@@ -122,10 +123,10 @@ export default function GeneralSettings() {
                   value={getLocalPart(formData.operationalEmails)}
                   placeholder="operacao"
                   onChange={(e) => handleEmailChange('operationalEmails', e.target.value)}
-                  disabled={!tenantDomain}
+                  disabled={!primaryDomain}
                 />
                 <span className="inline-flex items-center px-3 border border-l-0 border-input rounded-r-md bg-muted text-muted-foreground text-sm">
-                  @{tenantDomain || 'dominio.com'}
+                  @{primaryDomain || 'dominio.com'}
                 </span>
               </div>
             </div>

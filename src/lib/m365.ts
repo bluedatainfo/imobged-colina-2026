@@ -3,23 +3,23 @@ import { mainStore } from '@/stores/main'
 
 export const m365Service = {
   sendEmail: (to: string, subject: string, body?: string) => {
-    const { tenantId } = mainStore.getState().sharepoint
+    const { primaryDomain } = mainStore.getState().sharepoint
     toast({
-      title: `E-mail M365 Enviado [Tenant: ${tenantId || 'Não configurado'}]`,
+      title: `E-mail M365 Enviado [Domínio: ${primaryDomain || 'Não configurado'}]`,
       description: `Para: ${to}\nAssunto: ${subject}`,
     })
   },
   saveToLibrary: (library: string, fileName: string) => {
-    const { tenantId } = mainStore.getState().sharepoint
+    const { sharepointDomain } = mainStore.getState().sharepoint
     toast({
-      title: `SharePoint: Gestão de Locação [Tenant: ${tenantId || 'N/A'}]`,
+      title: `SharePoint: Gestão de Locação [Domínio SP: ${sharepointDomain || 'N/A'}]`,
       description: `Arquivo ${fileName} salvo em "${library}".`,
     })
   },
   syncToList: (listName: string, itemData: string) => {
-    const { tenantId } = mainStore.getState().sharepoint
+    const { sharepointDomain } = mainStore.getState().sharepoint
     toast({
-      title: `Lista SharePoint: ${listName} [Tenant: ${tenantId || 'N/A'}]`,
+      title: `Lista SharePoint: ${listName} [Domínio SP: ${sharepointDomain || 'N/A'}]`,
       description: 'Sincronizado com sucesso.',
     })
   },
@@ -31,9 +31,9 @@ export const m365Service = {
     })
   },
   moveDocument: (fileName: string, targetLibrary: string) => {
-    const { tenantId } = mainStore.getState().sharepoint
+    const { sharepointDomain } = mainStore.getState().sharepoint
     toast({
-      title: `Sincronização Condicional Ativa [Tenant: ${tenantId || 'N/A'}]`,
+      title: `Sincronização Condicional Ativa [Domínio SP: ${sharepointDomain || 'N/A'}]`,
       description: `Arquivo ${fileName} movido automaticamente para a biblioteca "${targetLibrary}".`,
     })
   },

@@ -18,8 +18,8 @@ export type RoleSettings = {
 export type SiteKey = 'locacao' | 'captacao' | 'vendas' | 'juridico' | 'financeiro'
 
 export type SharePointSettings = {
-  tenantId: string
-  tenantDomain: string
+  primaryDomain: string
+  sharepointDomain: string
   tenantName: string
   teamsWebhookUrl?: string
   sites: Record<SiteKey, string>
@@ -117,8 +117,8 @@ let state: State = {
     slaHours: 24,
   },
   sharepoint: {
-    tenantId: 'a1b2c3d4-e5f6-4a1b-9c2d-3e4f5a6b7c8d',
-    tenantDomain: 'imobged.onmicrosoft.com',
+    primaryDomain: 'imobged.onmicrosoft.com',
+    sharepointDomain: 'imobged.sharepoint.com',
     tenantName: 'IMOBGED Corp',
     teamsWebhookUrl: 'https://imobged.onmicrosoft.com.webhook.office.com/teams/alertas-gerais',
     sites: {

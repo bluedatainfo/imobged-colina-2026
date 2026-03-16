@@ -31,22 +31,14 @@ const resolveTenantByDomain = async (domain: string) => {
     ).catch(() => null)
 
     if (!response || !response.ok) {
-      throw new Error(
-        'Unable to find a valid Microsoft 365 Tenant for this domain. Please verify your entry.',
-      )
+      throw new Error('Domínio não encontrado no Microsoft 365.')
     }
-
-    const data = await response.json()
-    const match = data.issuer?.match(/microsoftonline\.com\/([^/]+)\//)
-    const tenantId = match ? match[1] : 'unknown-id'
 
     const tenantName = normalized.split('.')[0].toUpperCase() + ' Corp'
 
-    return { tenantId, tenantName }
+    return { tenantName }
   } catch (error) {
-    throw new Error(
-      'Unable to find a valid Microsoft 365 Tenant for this domain. Please verify your entry.',
-    )
+    throw new Error('Domínio não encontrado ou falha de comunicação.')
   }
 }
 
@@ -62,82 +54,75 @@ export default function SharePointSettings() {
   const { toast } = useToast()
   const store = useMainStore()
   const [formData, setFormData] = useState(store.sharepoint)
-  const [domainInput, setDomainInput] = useState(store.sharepoint.tenantDomain || '')
+
+  const [primaryInput, setPrimaryInput] = useState(store.sharepoint.primaryDomain || '')
+  const [spInput, setSpInput] = useState(store.sharepoint.sharepointDomain || '')
 
   const [isTesting, setIsTesting] = useState(false)
   const [testResult, setTestResult] = useState<'idle' | 'success' | 'error'>('idle')
 
-  const [domainStatus, setDomainStatus] = useState<'idle' | 'validating' | 'active' | 'invalid'>(
-    () => {
-      if (!store.sharepoint.tenantDomain) return 'idle'
-      return 'active'
-    },
+  const [primaryStatus, setPrimaryStatus] = useState<'idle' | 'validating' | 'active' | 'invalid'>(
+    store.sharepoint.primaryDomain ? 'active' : 'idle',
   )
-  const [domainError, setDomainError] = useState<string | null>(null)
+  const [primaryError, setPrimaryError] = useState<string | null>(null)
+
+  const [spStatus, setSpStatus] = useState<'idle' | 'validating' | 'active' | 'invalid'>(
+    store.sharepoint.sharepointDomain ? 'active' : 'idle',
+  )
+  const [spError, setSpError] = useState<string | null>(null)
 
   useEffect(() => {
     let isMounted = true
-    const currentDomain = domainInput.trim()
+    const currentDomain = primaryInput.trim()
 
     if (!currentDomain) {
-      setDomainStatus('idle')
-      setDomainError(null)
+      setPrimaryStatus('idle')
+      setPrimaryError(null)
       return
     }
 
     if (!/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(currentDomain)) {
-      setDomainStatus('invalid')
-      setDomainError('Formato de domínio inválido.')
+      setPrimaryStatus('invalid')
+      setPrimaryError('Formato de domínio primário inválido.')
       return
     }
 
     if (
-      currentDomain === store.sharepoint.tenantDomain &&
-      formData.tenantId === store.sharepoint.tenantId
+      currentDomain === store.sharepoint.primaryDomain &&
+      formData.tenantName === store.sharepoint.tenantName
     ) {
-      setDomainStatus('active')
-      setDomainError(null)
+      setPrimaryStatus('active')
+      setPrimaryError(null)
       return
     }
 
-    setDomainStatus('validating')
-    setDomainError(null)
+    setPrimaryStatus('validating')
+    setPrimaryError(null)
 
     const timer = setTimeout(async () => {
       try {
-        const { tenantId, tenantName } = await resolveTenantByDomain(currentDomain)
+        const { tenantName } = await resolveTenantByDomain(currentDomain)
         if (!isMounted) return
 
-        setDomainStatus('active')
-        setDomainError(null)
-
-        const domainPrefix = currentDomain.split('.')[0]
-        const defaultSites = {
-          locacao: `https://${domainPrefix}.sharepoint.com/sites/Locacao`,
-          captacao: `https://${domainPrefix}.sharepoint.com/sites/Captacao`,
-          vendas: `https://${domainPrefix}.sharepoint.com/sites/Vendas`,
-          juridico: `https://${domainPrefix}.sharepoint.com/sites/Juridico`,
-          financeiro: `https://${domainPrefix}.sharepoint.com/sites/Financeiro`,
-        }
+        setPrimaryStatus('active')
+        setPrimaryError(null)
 
         setFormData((prev) => ({
           ...prev,
-          tenantDomain: currentDomain,
-          tenantId,
+          primaryDomain: currentDomain,
           tenantName,
           teamsWebhookUrl: `https://${currentDomain}.webhook.office.com/teams/alertas`,
-          sites: defaultSites,
         }))
 
         toast({
-          title: 'Domínio Validado',
-          description: `Tenant ${tenantName} encontrado. Clique em Salvar para aplicar as alterações.`,
+          title: 'Domínio Primário Validado',
+          description: `Tenant ${tenantName} encontrado. Clique em Salvar para aplicar.`,
         })
       } catch (e) {
         if (isMounted) {
-          setDomainStatus('invalid')
-          setDomainError((e as Error).message)
-          setFormData((prev) => ({ ...prev, tenantId: '', tenantName: '' }))
+          setPrimaryStatus('invalid')
+          setPrimaryError((e as Error).message)
+          setFormData((prev) => ({ ...prev, tenantName: '' }))
         }
       }
     }, 800)
@@ -146,39 +131,77 @@ export default function SharePointSettings() {
       isMounted = false
       clearTimeout(timer)
     }
-  }, [domainInput]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [primaryInput]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleDomainChange = (value: string) => {
-    setDomainInput(value)
-    if (value !== formData.tenantDomain) {
+  useEffect(() => {
+    let isMounted = true
+    const currentDomain = spInput.trim()
+
+    if (!currentDomain) {
+      setSpStatus('idle')
+      setSpError(null)
+      return
+    }
+
+    if (!/^[a-zA-Z0-9.-]+\.sharepoint\.com$/.test(currentDomain)) {
+      setSpStatus('invalid')
+      setSpError('O domínio deve terminar em .sharepoint.com')
+      return
+    }
+
+    if (currentDomain === store.sharepoint.sharepointDomain) {
+      setSpStatus('active')
+      setSpError(null)
+      return
+    }
+
+    setSpStatus('validating')
+    setSpError(null)
+
+    const timer = setTimeout(() => {
+      if (!isMounted) return
+
+      setSpStatus('active')
+      setSpError(null)
+
+      const defaultSites = {
+        locacao: `https://${currentDomain}/sites/Locacao`,
+        captacao: `https://${currentDomain}/sites/Captacao`,
+        vendas: `https://${currentDomain}/sites/Vendas`,
+        juridico: `https://${currentDomain}/sites/Juridico`,
+        financeiro: `https://${currentDomain}/sites/Financeiro`,
+      }
+
       setFormData((prev) => ({
         ...prev,
-        tenantDomain: value,
-        tenantId: '',
-        tenantName: '',
-        teamsWebhookUrl: '',
-        sites: { locacao: '', captacao: '', vendas: '', juridico: '', financeiro: '' },
+        sharepointDomain: currentDomain,
+        sites: defaultSites,
       }))
+    }, 800)
+
+    return () => {
+      isMounted = false
+      clearTimeout(timer)
     }
-  }
+  }, [spInput]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSiteChange = (field: keyof typeof formData.sites, value: string) => {
     setFormData((prev) => ({ ...prev, sites: { ...prev.sites, [field]: value } }))
   }
 
-  const sitePrefix = formData.tenantDomain
-    ? `https://${formData.tenantDomain.split('.')[0]}.sharepoint.com/sites/`
+  const sitePrefix = formData.sharepointDomain
+    ? `https://${formData.sharepointDomain}/sites/`
     : 'https://dominio.sharepoint.com/sites/'
 
-  const domainPrefix = formData.tenantDomain
-    ? `https://${formData.tenantDomain}.webhook.office.com/teams/`
+  const domainPrefix = formData.primaryDomain
+    ? `https://${formData.primaryDomain}.webhook.office.com/teams/`
     : 'https://dominio.webhook.office.com/teams/'
 
   const handleSave = () => {
-    if (!domainInput.trim()) {
+    if (!primaryInput.trim() && !spInput.trim()) {
       mainStore.updateSharePointSettings({
-        tenantId: '',
-        tenantDomain: '',
+        primaryDomain: '',
+        sharepointDomain: '',
         tenantName: '',
         teamsWebhookUrl: '',
         sites: { locacao: '', captacao: '', vendas: '', juridico: '', financeiro: '' },
@@ -191,16 +214,25 @@ export default function SharePointSettings() {
       usersStore.enforceDomain('')
       toast({
         title: 'Integração Removida',
-        description: 'Todas as configurações do SharePoint foram limpas.',
+        description: 'Todas as configurações de M365 e SharePoint foram limpas.',
       })
       return
     }
 
-    if (domainStatus !== 'active' || !formData.tenantDomain || !formData.tenantId) {
+    if (primaryStatus !== 'active' || !formData.primaryDomain) {
       toast({
         variant: 'destructive',
         title: 'Erro de Validação',
-        description: 'Forneça um Domínio válido antes de salvar.',
+        description: 'Um Domínio Primário válido é necessário.',
+      })
+      return
+    }
+
+    if (spStatus !== 'active' || !formData.sharepointDomain) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro de Validação',
+        description: 'Um Domínio SharePoint válido é necessário.',
       })
       return
     }
@@ -216,12 +248,12 @@ export default function SharePointSettings() {
         variant: 'destructive',
         title: 'Mapeamento Inválido',
         description:
-          'Verifique se os sites departamentais e o Webhook estão preenchidos corretamente para o domínio atual.',
+          'Verifique se os sites departamentais e o Webhook estão preenchidos corretamente para os domínios atuais.',
       })
       return
     }
 
-    const isNewDomain = formData.tenantDomain !== store.sharepoint.tenantDomain
+    const isNewDomain = formData.primaryDomain !== store.sharepoint.primaryDomain
 
     mainStore.updateSharePointSettings(formData)
 
@@ -231,19 +263,19 @@ export default function SharePointSettings() {
         administrativeEmails: '',
         operationalEmails: '',
       })
-      usersStore.enforceDomain(formData.tenantDomain)
-      if (formData.tenantDomain && usersStore.getState().users.length === 0) {
+      usersStore.enforceDomain(formData.primaryDomain)
+      if (formData.primaryDomain && usersStore.getState().users.length === 0) {
         usersStore.addUser({
           name: 'Admin Sistema',
-          email: `admin@${formData.tenantDomain}`,
+          email: `admin@${formData.primaryDomain}`,
           role: 'Admin',
         })
       }
     }
 
     toast({
-      title: 'Integração SharePoint Salva',
-      description: 'Mapeamento de sites e configurações atualizados.',
+      title: 'Integração M365 Salva',
+      description: 'Configurações de domínio e sites atualizados com sucesso.',
     })
   }
 
@@ -252,7 +284,12 @@ export default function SharePointSettings() {
     setTestResult('idle')
     setTimeout(() => {
       setIsTesting(false)
-      if (domainStatus !== 'active' || !formData.tenantDomain) {
+      if (
+        primaryStatus !== 'active' ||
+        spStatus !== 'active' ||
+        !formData.primaryDomain ||
+        !formData.sharepointDomain
+      ) {
         setTestResult('error')
         return
       }
@@ -273,21 +310,21 @@ export default function SharePointSettings() {
   const isWebhookPathValid =
     formData.teamsWebhookUrl?.startsWith(domainPrefix) &&
     webhookPath.length > 0 &&
-    domainStatus === 'active'
+    primaryStatus === 'active'
 
   const renderSiteInput = (label: string, siteKey: keyof typeof formData.sites) => {
     const value = formData.sites[siteKey] || ''
     const path = value.startsWith(sitePrefix)
       ? value.substring(sitePrefix.length)
       : value.split('/').pop() || ''
-    const isValid = value.startsWith(sitePrefix) && path.length > 0 && domainStatus === 'active'
+    const isValid = value.startsWith(sitePrefix) && path.length > 0 && spStatus === 'active'
 
     return (
       <div key={siteKey} className="space-y-2">
         <Label className="flex items-center justify-between text-sm">
           <span>{label}</span>
           {isValid && <CheckCircle2 className="w-4 h-4 text-emerald-600" />}
-          {!isValid && domainStatus === 'active' && formData.tenantDomain && (
+          {!isValid && spStatus === 'active' && formData.sharepointDomain && (
             <AlertCircle className="w-4 h-4 text-destructive" />
           )}
         </Label>
@@ -301,7 +338,7 @@ export default function SharePointSettings() {
           <Input
             className={cn(
               'rounded-l-none font-mono text-sm',
-              !isValid && domainStatus === 'active' && formData.tenantDomain
+              !isValid && spStatus === 'active' && formData.sharepointDomain
                 ? 'border-destructive focus-visible:ring-destructive'
                 : '',
             )}
@@ -309,7 +346,7 @@ export default function SharePointSettings() {
             onChange={(e) =>
               handleSiteChange(siteKey, e.target.value ? `${sitePrefix}${e.target.value}` : '')
             }
-            disabled={domainStatus !== 'active' || !formData.tenantDomain}
+            disabled={spStatus !== 'active' || !formData.sharepointDomain}
             placeholder="nome-do-setor"
           />
         </div>
@@ -322,17 +359,17 @@ export default function SharePointSettings() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Server className="w-5 h-5 text-primary" /> Conexão M365 & Tenant
+            <Server className="w-5 h-5 text-primary" /> Conexão M365 & Domínios
           </CardTitle>
           <CardDescription>
-            Configure seu ambiente Microsoft 365 informando o domínio da organização.
+            Configure seu ambiente Microsoft 365 informando os domínios corporativos da organização.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid md:grid-cols-2 gap-6">
           <div className="space-y-2">
             <Label className="flex items-center justify-between">
-              <span>Domínio (Microsoft 365)</span>
-              {domainStatus === 'active' && formData.tenantDomain && (
+              <span>Domínio Primário (M365 & Identidade)</span>
+              {primaryStatus === 'active' && formData.primaryDomain && (
                 <Badge
                   variant="outline"
                   className="text-emerald-600 border-emerald-200 bg-emerald-50"
@@ -340,25 +377,74 @@ export default function SharePointSettings() {
                   <Globe className="w-3 h-3 mr-1" /> Verificado
                 </Badge>
               )}
-              {domainStatus === 'invalid' && <Badge variant="destructive">Domínio Inválido</Badge>}
-              {domainStatus === 'validating' && (
+              {primaryStatus === 'invalid' && <Badge variant="destructive">Inválido</Badge>}
+              {primaryStatus === 'validating' && (
                 <Badge variant="secondary" className="gap-1">
-                  <Loader2 className="w-3 h-3 animate-spin" /> Buscando Tenant...
+                  <Loader2 className="w-3 h-3 animate-spin" /> Validando...
                 </Badge>
               )}
-              {domainStatus === 'idle' && <Badge variant="secondary">Desconectado</Badge>}
+              {primaryStatus === 'idle' && <Badge variant="secondary">Desconectado</Badge>}
             </Label>
             <Input
-              value={domainInput}
-              onChange={(e) => handleDomainChange(e.target.value)}
-              placeholder="Ex: imobiliariacolina.com.br ou company.onmicrosoft.com"
+              value={primaryInput}
+              onChange={(e) => {
+                setPrimaryInput(e.target.value)
+                if (e.target.value !== formData.primaryDomain) {
+                  setFormData((prev) => ({
+                    ...prev,
+                    primaryDomain: '',
+                    tenantName: '',
+                    teamsWebhookUrl: '',
+                  }))
+                }
+              }}
+              placeholder="Ex: company.com.br ou company.onmicrosoft.com"
               className={
-                domainStatus === 'invalid'
+                primaryStatus === 'invalid'
                   ? 'border-destructive focus-visible:ring-destructive'
                   : ''
               }
             />
-            {domainError && <p className="text-sm text-destructive mt-1">{domainError}</p>}
+            {primaryError && <p className="text-sm text-destructive mt-1">{primaryError}</p>}
+          </div>
+
+          <div className="space-y-2">
+            <Label className="flex items-center justify-between text-sm">
+              <span>Domínio SharePoint (Documentos)</span>
+              {spStatus === 'active' && formData.sharepointDomain && (
+                <Badge
+                  variant="outline"
+                  className="text-emerald-600 border-emerald-200 bg-emerald-50"
+                >
+                  <Globe className="w-3 h-3 mr-1" /> Verificado
+                </Badge>
+              )}
+              {spStatus === 'invalid' && <Badge variant="destructive">Inválido</Badge>}
+              {spStatus === 'validating' && (
+                <Badge variant="secondary" className="gap-1">
+                  <Loader2 className="w-3 h-3 animate-spin" /> Validando...
+                </Badge>
+              )}
+              {spStatus === 'idle' && <Badge variant="secondary">Desconectado</Badge>}
+            </Label>
+            <Input
+              value={spInput}
+              onChange={(e) => {
+                setSpInput(e.target.value)
+                if (e.target.value !== formData.sharepointDomain) {
+                  setFormData((prev) => ({
+                    ...prev,
+                    sharepointDomain: '',
+                    sites: { locacao: '', captacao: '', vendas: '', juridico: '', financeiro: '' },
+                  }))
+                }
+              }}
+              placeholder="Ex: company.sharepoint.com"
+              className={
+                spStatus === 'invalid' ? 'border-destructive focus-visible:ring-destructive' : ''
+              }
+            />
+            {spError && <p className="text-sm text-destructive mt-1">{spError}</p>}
           </div>
 
           <div className="space-y-2">
@@ -378,13 +464,13 @@ export default function SharePointSettings() {
             </div>
           </div>
 
-          <div className="space-y-2 md:col-span-2">
+          <div className="space-y-2">
             <Label className="flex items-center justify-between text-sm">
               <span>Canal de Alertas Teams (Webhook)</span>
               {isWebhookPathValid && <CheckCircle2 className="w-4 h-4 text-emerald-600" />}
               {!isWebhookPathValid &&
-                domainStatus === 'active' &&
-                formData.tenantDomain &&
+                primaryStatus === 'active' &&
+                formData.primaryDomain &&
                 formData.teamsWebhookUrl && <AlertCircle className="w-4 h-4 text-destructive" />}
             </Label>
             <div className="flex w-full">
@@ -398,8 +484,8 @@ export default function SharePointSettings() {
                 className={cn(
                   'rounded-l-none font-mono text-sm',
                   !isWebhookPathValid &&
-                    domainStatus === 'active' &&
-                    formData.tenantDomain &&
+                    primaryStatus === 'active' &&
+                    formData.primaryDomain &&
                     formData.teamsWebhookUrl
                     ? 'border-destructive focus-visible:ring-destructive'
                     : '',
@@ -412,7 +498,7 @@ export default function SharePointSettings() {
                   }))
                 }
                 placeholder="id-do-canal"
-                disabled={domainStatus !== 'active' || !formData.tenantDomain}
+                disabled={primaryStatus !== 'active' || !formData.primaryDomain}
               />
             </div>
           </div>
@@ -429,10 +515,10 @@ export default function SharePointSettings() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {(domainStatus !== 'active' || !formData.tenantDomain) && (
+          {(spStatus !== 'active' || !formData.sharepointDomain) && (
             <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md flex items-center gap-2 border border-destructive/20">
               <AlertCircle className="w-4 h-4 shrink-0" />
-              Forneça um Domínio válido para configurar os sites departamentais.
+              Forneça um Domínio SharePoint válido para configurar os sites departamentais.
             </div>
           )}
           <div className="grid md:grid-cols-2 gap-x-6 gap-y-6">
@@ -446,7 +532,13 @@ export default function SharePointSettings() {
           <Button
             variant="outline"
             onClick={testConnection}
-            disabled={isTesting || domainStatus !== 'active' || !formData.tenantDomain}
+            disabled={
+              isTesting ||
+              primaryStatus !== 'active' ||
+              spStatus !== 'active' ||
+              !formData.primaryDomain ||
+              !formData.sharepointDomain
+            }
           >
             {isTesting ? (
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />

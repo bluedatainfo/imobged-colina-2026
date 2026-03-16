@@ -45,7 +45,7 @@ const availableRoles: Role[] = [
 
 export default function PermissionsSettings() {
   const { users } = useUsersStore()
-  const tenantDomain = useMainStore().sharepoint.tenantDomain
+  const primaryDomain = useMainStore().sharepoint.primaryDomain
   const { toast } = useToast()
 
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -83,19 +83,19 @@ export default function PermissionsSettings() {
   }
 
   const handleSave = () => {
-    if (!formData.name || !localEmailPart || !tenantDomain) {
+    if (!formData.name || !localEmailPart || !primaryDomain) {
       toast({ variant: 'destructive', title: 'Erro', description: 'Preencha todos os campos.' })
       return
     }
 
-    const fullEmail = `${localEmailPart}@${tenantDomain}`
+    const fullEmail = `${localEmailPart}@${primaryDomain}`
 
     if (editId) {
       usersStore.updateUser(editId, { ...formData, email: fullEmail })
       toast({ title: 'Usuário Atualizado', description: 'Dados salvos com sucesso.' })
     } else {
       usersStore.addUser({ ...formData, email: fullEmail })
-      toast({ title: 'Usuário Adicionado', description: 'Novo acesso concedido ao Tenant.' })
+      toast({ title: 'Usuário Adicionado', description: 'Novo acesso concedido à organização.' })
     }
     setDialogOpen(false)
   }
@@ -112,20 +112,20 @@ export default function PermissionsSettings() {
               <span>
                 Gerencie quais emails corporativos têm permissão para acessar a plataforma.
               </span>
-              {tenantDomain ? (
+              {primaryDomain ? (
                 <span className="inline-flex items-center text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-1 rounded w-fit mt-1">
                   <CheckCircle2 className="w-3 h-3 mr-1" /> Permissões restritas ao domínio
-                  vinculado: @{tenantDomain}
+                  vinculado: @{primaryDomain}
                 </span>
               ) : (
                 <span className="inline-flex items-center text-xs font-medium text-destructive bg-destructive/10 border border-destructive/20 px-2 py-1 rounded w-fit mt-1">
-                  <AlertCircle className="w-3 h-3 mr-1" /> Configure um Domínio para gerenciar
-                  acessos
+                  <AlertCircle className="w-3 h-3 mr-1" /> Configure o Domínio Primário para
+                  gerenciar acessos
                 </span>
               )}
             </CardDescription>
           </div>
-          <Button onClick={handleOpenNew} className="gap-2" disabled={!tenantDomain}>
+          <Button onClick={handleOpenNew} className="gap-2" disabled={!primaryDomain}>
             <Plus className="w-4 h-4" /> Novo Usuário
           </Button>
         </CardHeader>
@@ -188,9 +188,9 @@ export default function PermissionsSettings() {
               {users.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
-                    {tenantDomain
+                    {primaryDomain
                       ? 'Nenhum usuário cadastrado para este domínio.'
-                      : 'Cadastre um Domínio na Integração SharePoint para começar a adicionar usuários.'}
+                      : 'Cadastre o Domínio Primário na Integração SharePoint para começar a adicionar usuários.'}
                   </TableCell>
                 </TableRow>
               )}
@@ -204,7 +204,7 @@ export default function PermissionsSettings() {
           <DialogHeader>
             <DialogTitle>{editId ? 'Editar Usuário M365' : 'Autorizar Novo Usuário'}</DialogTitle>
             <DialogDescription>
-              Apenas contas pertencentes ao domínio oficial do Tenant podem ser cadastradas.
+              Apenas contas pertencentes ao domínio oficial da organização podem ser cadastradas.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -226,7 +226,7 @@ export default function PermissionsSettings() {
                   placeholder="joao.silva"
                 />
                 <span className="inline-flex items-center px-3 border border-l-0 border-input rounded-r-md bg-muted text-muted-foreground text-sm font-medium">
-                  @{tenantDomain}
+                  @{primaryDomain}
                 </span>
               </div>
             </div>

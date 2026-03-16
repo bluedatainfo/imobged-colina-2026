@@ -22,22 +22,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return new Promise<void>((resolve, reject) => {
       setTimeout(() => {
         const { sharepoint } = mainStore.getState()
-        if (!sharepoint.tenantId || !sharepoint.tenantId.trim()) {
-          reject(new Error('Acesso negado. Tenant ID não configurado nas definições do sistema.'))
-          return
-        }
-
-        const isValidTenantId = (id: string) => {
-          return /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(
-            id,
-          )
-        }
-
-        if (!isValidTenantId(sharepoint.tenantId.trim())) {
+        if (!sharepoint.primaryDomain || !sharepoint.primaryDomain.trim()) {
           reject(
-            new Error(
-              `Acesso negado. O Tenant configurado no sistema (${sharepoint.tenantId}) é inválido.`,
-            ),
+            new Error('Acesso negado. Domínio Primário não configurado nas definições do sistema.'),
           )
           return
         }
@@ -51,7 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else {
           reject(
             new Error(
-              `Acesso negado. Usuário não encontrado no Tenant (${sharepoint.tenantId}) autorizado.`,
+              `Acesso negado. Usuário não encontrado no domínio (${sharepoint.primaryDomain}) autorizado.`,
             ),
           )
         }

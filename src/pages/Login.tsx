@@ -48,7 +48,7 @@ export default function Login() {
       toast({
         variant: 'destructive',
         title: 'Erro de autenticação',
-        description: err.message || 'Falha ao validar credenciais no Tenant.',
+        description: err.message || 'Falha ao validar credenciais.',
       })
       setStep(1)
       setPassword('')
@@ -99,7 +99,9 @@ export default function Login() {
               <ShieldCheck className="h-4 w-4 text-emerald-500" />
               <span>Autenticação Segura SSO Corporativo</span>
             </div>
-            <span className="opacity-70 mt-1">Tenant ID: {sharepoint.tenantId}</span>
+            <span className="opacity-70 mt-1">
+              Domínio Autorizado: {sharepoint.primaryDomain || 'Não configurado'}
+            </span>
           </div>
         </CardContent>
       </Card>
@@ -118,7 +120,7 @@ export default function Login() {
             </DialogTitle>
             <DialogDescription>
               {step === 1
-                ? `Validando acesso para o Tenant corporativo vinculado.`
+                ? `Validando acesso para o domínio corporativo vinculado.`
                 : `Insira a senha de acesso para ${email}`}
             </DialogDescription>
           </DialogHeader>
@@ -164,7 +166,7 @@ export default function Login() {
                 </Button>
               ) : (
                 <Button onClick={handleLoginSubmit} disabled={!password || isLoading}>
-                  {isLoading ? 'Verificando Tenant...' : 'Entrar na Plataforma'}
+                  {isLoading ? 'Verificando Domínio...' : 'Entrar na Plataforma'}
                 </Button>
               )}
             </div>
