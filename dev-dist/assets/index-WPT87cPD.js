@@ -19995,6 +19995,13 @@ var PenTool = createLucideIcon("pen-tool", [
 		key: "xmgehs"
 	}]
 ]);
+var Pencil = createLucideIcon("pencil", [["path", {
+	d: "M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z",
+	key: "1a8usu"
+}], ["path", {
+	d: "m15 5 4 4",
+	key: "1mk7zo"
+}]]);
 var Plus = createLucideIcon("plus", [["path", {
 	d: "M5 12h14",
 	key: "1ays0h"
@@ -20262,6 +20269,28 @@ var Target = createLucideIcon("target", [
 		cy: "12",
 		r: "2",
 		key: "1c9p78"
+	}]
+]);
+var Trash2 = createLucideIcon("trash-2", [
+	["path", {
+		d: "M10 11v6",
+		key: "nco0om"
+	}],
+	["path", {
+		d: "M14 11v6",
+		key: "outv1u"
+	}],
+	["path", {
+		d: "M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6",
+		key: "miytrc"
+	}],
+	["path", {
+		d: "M3 6h18",
+		key: "d0wm0j"
+	}],
+	["path", {
+		d: "M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2",
+		key: "e791ji"
 	}]
 ]);
 var TrendingUp = createLucideIcon("trending-up", [["path", {
@@ -27853,6 +27882,35 @@ var usersStore = {
 			} : u)
 		};
 		emit$3();
+	},
+	addUser: (user) => {
+		const newUser = {
+			...user,
+			id: `usr-${Math.random().toString(36).substring(2, 9)}`,
+			avatar: `https://img.usecurling.com/ppl/thumbnail?seed=${Math.floor(Math.random() * 100)}`
+		};
+		state$4 = {
+			...state$4,
+			users: [...state$4.users, newUser]
+		};
+		emit$3();
+	},
+	updateUser: (id, data) => {
+		state$4 = {
+			...state$4,
+			users: state$4.users.map((u) => u.id === id ? {
+				...u,
+				...data
+			} : u)
+		};
+		emit$3();
+	},
+	removeUser: (id) => {
+		state$4 = {
+			...state$4,
+			users: state$4.users.filter((u) => u.id !== id)
+		};
+		emit$3();
 	}
 };
 function useUsersStore() {
@@ -27865,12 +27923,16 @@ function AuthProvider({ children }) {
 	const [currentUserId, setCurrentUserId] = (0, import_react.useState)(null);
 	const { users } = usersStore.getState();
 	const user = currentUserId ? users.find((u) => u.id === currentUserId) || null : null;
-	const loginM365 = async () => {
-		return new Promise((resolve) => {
+	const loginM365 = async (email, password) => {
+		return new Promise((resolve, reject) => {
 			setTimeout(() => {
-				setCurrentUserId("usr-1");
-				resolve();
-			}, 800);
+				const { users } = usersStore.getState();
+				const foundUser = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+				if (foundUser) {
+					setCurrentUserId(foundUser.id);
+					resolve();
+				} else reject(/* @__PURE__ */ new Error("Acesso negado. Usuário não encontrado no Tenant autorizado."));
+			}, 1200);
 		});
 	};
 	const logout = () => {
@@ -27880,7 +27942,7 @@ function AuthProvider({ children }) {
 		setCurrentUserId(id);
 	};
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AuthContext.Provider, {
-		"data-uid": "src/contexts/AuthContext.tsx:38:5",
+		"data-uid": "src/contexts/AuthContext.tsx:45:5",
 		"data-prohibitions": "[editContent]",
 		value: {
 			user,
@@ -66550,6 +66612,7 @@ function AgencySettings() {
 //#region src/components/settings/PermissionsSettings.tsx
 var availableRoles = [
 	"Admin",
+	"Diretor",
 	"Gerente",
 	"Gestor de Contrato",
 	"Vistoriador",
@@ -66559,6 +66622,13 @@ var availableRoles = [
 function PermissionsSettings() {
 	const { users } = useUsersStore();
 	const { toast } = useToast();
+	const [dialogOpen, setDialogOpen] = (0, import_react.useState)(false);
+	const [editId, setEditId] = (0, import_react.useState)(null);
+	const [formData, setFormData] = (0, import_react.useState)({
+		name: "",
+		email: "",
+		role: "Vistoriador"
+	});
 	const handleRoleChange = (userId, newRole) => {
 		usersStore.updateUserRole(userId, newRole);
 		toast({
@@ -66566,90 +66636,160 @@ function PermissionsSettings() {
 			description: `O perfil de acesso foi alterado para ${newRole}.`
 		});
 	};
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-		"data-uid": "src/components/settings/PermissionsSettings.tsx:45:5",
+	const handleOpenNew = () => {
+		setEditId(null);
+		setFormData({
+			name: "",
+			email: "",
+			role: "Vistoriador"
+		});
+		setDialogOpen(true);
+	};
+	const handleOpenEdit = (user) => {
+		setEditId(user.id);
+		setFormData({
+			name: user.name,
+			email: user.email,
+			role: user.role
+		});
+		setDialogOpen(true);
+	};
+	const handleRemove = (id) => {
+		usersStore.removeUser(id);
+		toast({
+			title: "Usuário Removido",
+			description: "Acesso revogado com sucesso."
+		});
+	};
+	const handleSave = () => {
+		if (!formData.name || !formData.email) {
+			toast({
+				variant: "destructive",
+				title: "Erro",
+				description: "Preencha todos os campos."
+			});
+			return;
+		}
+		if (editId) {
+			usersStore.updateUser(editId, formData);
+			toast({
+				title: "Usuário Atualizado",
+				description: "Dados salvos com sucesso."
+			});
+		} else {
+			usersStore.addUser(formData);
+			toast({
+				title: "Usuário Adicionado",
+				description: "Novo acesso concedido ao Tenant."
+			});
+		}
+		setDialogOpen(false);
+	};
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		"data-uid": "src/components/settings/PermissionsSettings.tsx:95:5",
 		"data-prohibitions": "[editContent]",
 		className: "space-y-6",
-		children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
-			"data-uid": "src/components/settings/PermissionsSettings.tsx:46:7",
+		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
+			"data-uid": "src/components/settings/PermissionsSettings.tsx:96:7",
 			"data-prohibitions": "[editContent]",
 			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardHeader, {
-				"data-uid": "src/components/settings/PermissionsSettings.tsx:47:9",
+				"data-uid": "src/components/settings/PermissionsSettings.tsx:97:9",
 				"data-prohibitions": "[]",
-				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardTitle, {
-					"data-uid": "src/components/settings/PermissionsSettings.tsx:48:11",
+				className: "flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					"data-uid": "src/components/settings/PermissionsSettings.tsx:98:11",
 					"data-prohibitions": "[]",
-					className: "flex items-center gap-2",
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Shield, {
-						"data-uid": "src/components/settings/PermissionsSettings.tsx:49:13",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardTitle, {
+						"data-uid": "src/components/settings/PermissionsSettings.tsx:99:13",
+						"data-prohibitions": "[]",
+						className: "flex items-center gap-2",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Shield, {
+							"data-uid": "src/components/settings/PermissionsSettings.tsx:100:15",
+							"data-prohibitions": "[editContent]",
+							className: "w-5 h-5 text-primary"
+						}), " Contas e Acessos M365"]
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardDescription, {
+						"data-uid": "src/components/settings/PermissionsSettings.tsx:102:13",
+						"data-prohibitions": "[]",
+						children: "Gerencie quais emails corporativos têm permissão para acessar a plataforma."
+					})]
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+					"data-uid": "src/components/settings/PermissionsSettings.tsx:106:11",
+					"data-prohibitions": "[]",
+					onClick: handleOpenNew,
+					className: "gap-2",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Plus, {
+						"data-uid": "src/components/settings/PermissionsSettings.tsx:107:13",
 						"data-prohibitions": "[editContent]",
-						className: "w-5 h-5 text-primary"
-					}), " Gestão de Acessos (RBAC)"]
-				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardDescription, {
-					"data-uid": "src/components/settings/PermissionsSettings.tsx:51:11",
-					"data-prohibitions": "[]",
-					children: "Defina os papéis de cada usuário para restringir o acesso a módulos específicos do sistema."
+						className: "w-4 h-4"
+					}), " Novo Usuário"]
 				})]
 			}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardContent, {
-				"data-uid": "src/components/settings/PermissionsSettings.tsx:56:9",
+				"data-uid": "src/components/settings/PermissionsSettings.tsx:110:9",
 				"data-prohibitions": "[editContent]",
 				className: "p-0",
 				children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Table, {
-					"data-uid": "src/components/settings/PermissionsSettings.tsx:57:11",
+					"data-uid": "src/components/settings/PermissionsSettings.tsx:111:11",
 					"data-prohibitions": "[editContent]",
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableHeader, {
-						"data-uid": "src/components/settings/PermissionsSettings.tsx:58:13",
+						"data-uid": "src/components/settings/PermissionsSettings.tsx:112:13",
 						"data-prohibitions": "[]",
 						children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(TableRow, {
-							"data-uid": "src/components/settings/PermissionsSettings.tsx:59:15",
+							"data-uid": "src/components/settings/PermissionsSettings.tsx:113:15",
 							"data-prohibitions": "[]",
 							children: [
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableHead, {
-									"data-uid": "src/components/settings/PermissionsSettings.tsx:60:17",
+									"data-uid": "src/components/settings/PermissionsSettings.tsx:114:17",
 									"data-prohibitions": "[]",
 									children: "Usuário"
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableHead, {
-									"data-uid": "src/components/settings/PermissionsSettings.tsx:61:17",
+									"data-uid": "src/components/settings/PermissionsSettings.tsx:115:17",
 									"data-prohibitions": "[]",
-									children: "Email M365"
+									children: "Email M365 Autorizado"
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableHead, {
-									"data-uid": "src/components/settings/PermissionsSettings.tsx:62:17",
+									"data-uid": "src/components/settings/PermissionsSettings.tsx:116:17",
 									"data-prohibitions": "[]",
 									children: "Perfil de Acesso"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableHead, {
+									"data-uid": "src/components/settings/PermissionsSettings.tsx:117:17",
+									"data-prohibitions": "[]",
+									className: "text-right",
+									children: "Ações"
 								})
 							]
 						})
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableBody, {
-						"data-uid": "src/components/settings/PermissionsSettings.tsx:65:13",
+						"data-uid": "src/components/settings/PermissionsSettings.tsx:120:13",
 						"data-prohibitions": "[editContent]",
 						children: users.map((user) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(TableRow, {
-							"data-uid": "src/components/settings/PermissionsSettings.tsx:67:17",
+							"data-uid": "src/components/settings/PermissionsSettings.tsx:122:17",
 							"data-prohibitions": "[editContent]",
 							children: [
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableCell, {
-									"data-uid": "src/components/settings/PermissionsSettings.tsx:68:19",
+									"data-uid": "src/components/settings/PermissionsSettings.tsx:123:19",
 									"data-prohibitions": "[editContent]",
 									children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-										"data-uid": "src/components/settings/PermissionsSettings.tsx:69:21",
+										"data-uid": "src/components/settings/PermissionsSettings.tsx:124:21",
 										"data-prohibitions": "[editContent]",
 										className: "flex items-center gap-3",
 										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Avatar, {
-											"data-uid": "src/components/settings/PermissionsSettings.tsx:70:23",
+											"data-uid": "src/components/settings/PermissionsSettings.tsx:125:23",
 											"data-prohibitions": "[editContent]",
 											className: "h-8 w-8",
 											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(AvatarImage, {
-												"data-uid": "src/components/settings/PermissionsSettings.tsx:71:25",
+												"data-uid": "src/components/settings/PermissionsSettings.tsx:126:25",
 												"data-prohibitions": "[editContent]",
 												src: user.avatar
 											}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AvatarFallback, {
-												"data-uid": "src/components/settings/PermissionsSettings.tsx:72:25",
+												"data-uid": "src/components/settings/PermissionsSettings.tsx:127:25",
 												"data-prohibitions": "[editContent]",
 												children: user.name.substring(0, 2)
 											})]
 										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-											"data-uid": "src/components/settings/PermissionsSettings.tsx:74:23",
+											"data-uid": "src/components/settings/PermissionsSettings.tsx:129:23",
 											"data-prohibitions": "[editContent]",
 											className: "font-medium",
 											children: user.name
@@ -66657,49 +66797,199 @@ function PermissionsSettings() {
 									})
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableCell, {
-									"data-uid": "src/components/settings/PermissionsSettings.tsx:77:19",
+									"data-uid": "src/components/settings/PermissionsSettings.tsx:132:19",
 									"data-prohibitions": "[editContent]",
 									className: "text-muted-foreground",
 									children: user.email
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(TableCell, {
-									"data-uid": "src/components/settings/PermissionsSettings.tsx:78:19",
+									"data-uid": "src/components/settings/PermissionsSettings.tsx:133:19",
 									"data-prohibitions": "[editContent]",
 									children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Select, {
-										"data-uid": "src/components/settings/PermissionsSettings.tsx:79:21",
+										"data-uid": "src/components/settings/PermissionsSettings.tsx:134:21",
 										"data-prohibitions": "[editContent]",
 										value: user.role,
 										onValueChange: (val) => handleRoleChange(user.id, val),
 										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(SelectTrigger, {
-											"data-uid": "src/components/settings/PermissionsSettings.tsx:83:23",
+											"data-uid": "src/components/settings/PermissionsSettings.tsx:138:23",
 											"data-prohibitions": "[]",
-											className: "w-[200px]",
+											className: "w-[180px]",
 											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(UserCog, {
-												"data-uid": "src/components/settings/PermissionsSettings.tsx:84:25",
+												"data-uid": "src/components/settings/PermissionsSettings.tsx:139:25",
 												"data-prohibitions": "[editContent]",
 												className: "w-4 h-4 mr-2 text-muted-foreground"
 											}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectValue, {
-												"data-uid": "src/components/settings/PermissionsSettings.tsx:85:25",
+												"data-uid": "src/components/settings/PermissionsSettings.tsx:140:25",
 												"data-prohibitions": "[editContent]"
 											})]
 										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectContent, {
-											"data-uid": "src/components/settings/PermissionsSettings.tsx:87:23",
+											"data-uid": "src/components/settings/PermissionsSettings.tsx:142:23",
 											"data-prohibitions": "[editContent]",
 											children: availableRoles.map((role) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectItem, {
-												"data-uid": "src/components/settings/PermissionsSettings.tsx:89:27",
+												"data-uid": "src/components/settings/PermissionsSettings.tsx:144:27",
 												"data-prohibitions": "[editContent]",
 												value: role,
 												children: role
 											}, role))
 										})]
 									})
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(TableCell, {
+									"data-uid": "src/components/settings/PermissionsSettings.tsx:151:19",
+									"data-prohibitions": "[]",
+									className: "text-right space-x-1",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+										"data-uid": "src/components/settings/PermissionsSettings.tsx:152:21",
+										"data-prohibitions": "[]",
+										variant: "ghost",
+										size: "icon",
+										onClick: () => handleOpenEdit(user),
+										children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Pencil, {
+											"data-uid": "src/components/settings/PermissionsSettings.tsx:153:23",
+											"data-prohibitions": "[editContent]",
+											className: "w-4 h-4 text-muted-foreground"
+										})
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+										"data-uid": "src/components/settings/PermissionsSettings.tsx:155:21",
+										"data-prohibitions": "[]",
+										variant: "ghost",
+										size: "icon",
+										onClick: () => handleRemove(user.id),
+										className: "text-destructive hover:text-destructive hover:bg-destructive/10",
+										children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Trash2, {
+											"data-uid": "src/components/settings/PermissionsSettings.tsx:161:23",
+											"data-prohibitions": "[editContent]",
+											className: "w-4 h-4"
+										})
+									})]
 								})
 							]
 						}, user.id))
 					})]
 				})
 			})]
-		})
+		}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Dialog, {
+			"data-uid": "src/components/settings/PermissionsSettings.tsx:171:7",
+			"data-prohibitions": "[editContent]",
+			open: dialogOpen,
+			onOpenChange: setDialogOpen,
+			children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DialogContent, {
+				"data-uid": "src/components/settings/PermissionsSettings.tsx:172:9",
+				"data-prohibitions": "[editContent]",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DialogHeader, {
+						"data-uid": "src/components/settings/PermissionsSettings.tsx:173:11",
+						"data-prohibitions": "[editContent]",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DialogTitle, {
+							"data-uid": "src/components/settings/PermissionsSettings.tsx:174:13",
+							"data-prohibitions": "[editContent]",
+							children: editId ? "Editar Usuário M365" : "Autorizar Novo Usuário"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(DialogDescription, {
+							"data-uid": "src/components/settings/PermissionsSettings.tsx:175:13",
+							"data-prohibitions": "[]",
+							children: "Certifique-se de que o e-mail pertence ao Tenant oficial configurado."
+						})]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						"data-uid": "src/components/settings/PermissionsSettings.tsx:179:11",
+						"data-prohibitions": "[editContent]",
+						className: "grid gap-4 py-4",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								"data-uid": "src/components/settings/PermissionsSettings.tsx:180:13",
+								"data-prohibitions": "[]",
+								className: "grid gap-2",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label, {
+									"data-uid": "src/components/settings/PermissionsSettings.tsx:181:15",
+									"data-prohibitions": "[]",
+									children: "Nome Completo"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+									"data-uid": "src/components/settings/PermissionsSettings.tsx:182:15",
+									"data-prohibitions": "[editContent]",
+									value: formData.name,
+									onChange: (e) => setFormData({
+										...formData,
+										name: e.target.value
+									}),
+									placeholder: "Ex: João Silva"
+								})]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								"data-uid": "src/components/settings/PermissionsSettings.tsx:188:13",
+								"data-prohibitions": "[]",
+								className: "grid gap-2",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label, {
+									"data-uid": "src/components/settings/PermissionsSettings.tsx:189:15",
+									"data-prohibitions": "[]",
+									children: "Email M365"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+									"data-uid": "src/components/settings/PermissionsSettings.tsx:190:15",
+									"data-prohibitions": "[editContent]",
+									type: "email",
+									value: formData.email,
+									onChange: (e) => setFormData({
+										...formData,
+										email: e.target.value
+									}),
+									placeholder: "joao.silva@imobged.com"
+								})]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								"data-uid": "src/components/settings/PermissionsSettings.tsx:197:13",
+								"data-prohibitions": "[editContent]",
+								className: "grid gap-2",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label, {
+									"data-uid": "src/components/settings/PermissionsSettings.tsx:198:15",
+									"data-prohibitions": "[]",
+									children: "Perfil de Acesso Inicial"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Select, {
+									"data-uid": "src/components/settings/PermissionsSettings.tsx:199:15",
+									"data-prohibitions": "[editContent]",
+									value: formData.role,
+									onValueChange: (val) => setFormData({
+										...formData,
+										role: val
+									}),
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectTrigger, {
+										"data-uid": "src/components/settings/PermissionsSettings.tsx:203:17",
+										"data-prohibitions": "[]",
+										children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectValue, {
+											"data-uid": "src/components/settings/PermissionsSettings.tsx:204:19",
+											"data-prohibitions": "[editContent]"
+										})
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectContent, {
+										"data-uid": "src/components/settings/PermissionsSettings.tsx:206:17",
+										"data-prohibitions": "[editContent]",
+										children: availableRoles.map((role) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectItem, {
+											"data-uid": "src/components/settings/PermissionsSettings.tsx:208:21",
+											"data-prohibitions": "[editContent]",
+											value: role,
+											children: role
+										}, role))
+									})]
+								})]
+							})
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DialogFooter, {
+						"data-uid": "src/components/settings/PermissionsSettings.tsx:216:11",
+						"data-prohibitions": "[]",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+							"data-uid": "src/components/settings/PermissionsSettings.tsx:217:13",
+							"data-prohibitions": "[]",
+							variant: "outline",
+							onClick: () => setDialogOpen(false),
+							children: "Cancelar"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+							"data-uid": "src/components/settings/PermissionsSettings.tsx:220:13",
+							"data-prohibitions": "[]",
+							onClick: handleSave,
+							children: "Salvar Usuário"
+						})]
+					})
+				]
+			})
+		})]
 	});
 }
 //#endregion
@@ -66844,102 +67134,120 @@ function Login() {
 	const { loginM365 } = useAuth();
 	const navigate = useNavigate();
 	const { toast } = useToast();
+	const { sharepoint } = useMainStore();
+	const [showDialog, setShowDialog] = (0, import_react.useState)(false);
 	const [isLoading, setIsLoading] = (0, import_react.useState)(false);
-	const handleLogin = async () => {
+	const [step, setStep] = (0, import_react.useState)(1);
+	const [email, setEmail] = (0, import_react.useState)("ana.silva@imobged.com");
+	const [password, setPassword] = (0, import_react.useState)("");
+	const handleNext = () => {
+		if (!email.trim()) return;
+		setStep(2);
+	};
+	const handleLoginSubmit = async () => {
+		if (!email || !password) return;
 		setIsLoading(true);
 		try {
-			await loginM365();
+			await loginM365(email, password);
 			toast({
 				title: "Login bem-sucedido",
-				description: "Conectado via Microsoft 365 SSO."
+				description: "Identidade verificada via Microsoft 365."
 			});
 			navigate("/");
 		} catch (err) {
 			toast({
 				variant: "destructive",
 				title: "Erro de autenticação",
-				description: "Falha ao conectar com Microsoft 365."
+				description: err.message || "Falha ao validar credenciais no Tenant."
 			});
+			setStep(1);
+			setPassword("");
 		} finally {
 			setIsLoading(false);
 		}
 	};
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-		"data-uid": "src/pages/Login.tsx:36:5",
+	const handleOpenChange = (open) => {
+		setShowDialog(open);
+		if (!open) {
+			setStep(1);
+			setPassword("");
+		}
+	};
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		"data-uid": "src/pages/Login.tsx:69:5",
 		"data-prohibitions": "[editContent]",
 		className: "min-h-screen flex items-center justify-center bg-muted/50 p-4",
-		children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
-			"data-uid": "src/pages/Login.tsx:37:7",
+		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
+			"data-uid": "src/pages/Login.tsx:70:7",
 			"data-prohibitions": "[editContent]",
 			className: "w-full max-w-md shadow-lg border-primary/10",
 			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardHeader, {
-				"data-uid": "src/pages/Login.tsx:38:9",
+				"data-uid": "src/pages/Login.tsx:71:9",
 				"data-prohibitions": "[]",
 				className: "text-center space-y-2",
 				children: [
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-						"data-uid": "src/pages/Login.tsx:39:11",
+						"data-uid": "src/pages/Login.tsx:72:11",
 						"data-prohibitions": "[]",
 						className: "mx-auto bg-primary/10 w-16 h-16 rounded-full flex items-center justify-center mb-4",
 						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Building, {
-							"data-uid": "src/pages/Login.tsx:40:13",
+							"data-uid": "src/pages/Login.tsx:73:13",
 							"data-prohibitions": "[editContent]",
 							className: "h-8 w-8 text-primary"
 						})
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardTitle, {
-						"data-uid": "src/pages/Login.tsx:42:11",
+						"data-uid": "src/pages/Login.tsx:75:11",
 						"data-prohibitions": "[]",
 						className: "text-2xl",
 						children: "ImobGED"
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardDescription, {
-						"data-uid": "src/pages/Login.tsx:43:11",
+						"data-uid": "src/pages/Login.tsx:76:11",
 						"data-prohibitions": "[]",
 						children: "Gestão Documental e de Rotinas Imobiliárias"
 					})
 				]
 			}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardContent, {
-				"data-uid": "src/pages/Login.tsx:45:9",
+				"data-uid": "src/pages/Login.tsx:78:9",
 				"data-prohibitions": "[editContent]",
 				className: "space-y-4 pt-4",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-					"data-uid": "src/pages/Login.tsx:46:11",
-					"data-prohibitions": "[editContent]",
+					"data-uid": "src/pages/Login.tsx:79:11",
+					"data-prohibitions": "[]",
 					className: "w-full h-12 text-base font-medium shadow-sm transition-all hover:scale-[1.02]",
-					onClick: handleLogin,
-					disabled: isLoading,
-					children: isLoading ? "Autenticando..." : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-						"data-uid": "src/pages/Login.tsx:54:15",
+					onClick: () => setShowDialog(true),
+					children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+						"data-uid": "src/pages/Login.tsx:83:13",
 						"data-prohibitions": "[]",
 						className: "flex items-center",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("svg", {
-							"data-uid": "src/pages/Login.tsx:55:17",
+							"data-uid": "src/pages/Login.tsx:84:15",
 							"data-prohibitions": "[]",
 							className: "w-5 h-5 mr-3 shrink-0",
 							viewBox: "0 0 21 21",
 							xmlns: "http://www.w3.org/2000/svg",
 							children: [
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", {
-									"data-uid": "src/pages/Login.tsx:60:19",
+									"data-uid": "src/pages/Login.tsx:89:17",
 									"data-prohibitions": "[editContent]",
 									fill: "#f25022",
 									d: "M1 1h9v9H1z"
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", {
-									"data-uid": "src/pages/Login.tsx:61:19",
+									"data-uid": "src/pages/Login.tsx:90:17",
 									"data-prohibitions": "[editContent]",
 									fill: "#00a4ef",
 									d: "M1 11h9v9H1z"
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", {
-									"data-uid": "src/pages/Login.tsx:62:19",
+									"data-uid": "src/pages/Login.tsx:91:17",
 									"data-prohibitions": "[editContent]",
 									fill: "#7fba00",
 									d: "M11 1h9v9h-9z"
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", {
-									"data-uid": "src/pages/Login.tsx:63:19",
+									"data-uid": "src/pages/Login.tsx:92:17",
 									"data-prohibitions": "[editContent]",
 									fill: "#ffb900",
 									d: "M11 11h9v9h-9z"
@@ -66948,21 +67256,170 @@ function Login() {
 						}), "Entrar com Microsoft 365"]
 					})
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					"data-uid": "src/pages/Login.tsx:69:11",
-					"data-prohibitions": "[]",
-					className: "flex items-center justify-center gap-2 text-sm text-muted-foreground mt-4",
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ShieldCheck, {
-						"data-uid": "src/pages/Login.tsx:70:13",
-						"data-prohibitions": "[editContent]",
-						className: "h-4 w-4 text-emerald-500"
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-						"data-uid": "src/pages/Login.tsx:71:13",
+					"data-uid": "src/pages/Login.tsx:97:11",
+					"data-prohibitions": "[editContent]",
+					className: "flex flex-col items-center justify-center gap-1 text-xs text-muted-foreground mt-4",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						"data-uid": "src/pages/Login.tsx:98:13",
 						"data-prohibitions": "[]",
-						children: "Autenticação Segura SSO"
+						className: "flex items-center gap-2",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ShieldCheck, {
+							"data-uid": "src/pages/Login.tsx:99:15",
+							"data-prohibitions": "[editContent]",
+							className: "h-4 w-4 text-emerald-500"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+							"data-uid": "src/pages/Login.tsx:100:15",
+							"data-prohibitions": "[]",
+							children: "Autenticação Segura SSO Corporativo"
+						})]
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+						"data-uid": "src/pages/Login.tsx:102:13",
+						"data-prohibitions": "[editContent]",
+						className: "opacity-70 mt-1",
+						children: ["Tenant ID: ", sharepoint.tenantId]
 					})]
 				})]
 			})]
-		})
+		}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Dialog, {
+			"data-uid": "src/pages/Login.tsx:107:7",
+			"data-prohibitions": "[editContent]",
+			open: showDialog,
+			onOpenChange: handleOpenChange,
+			children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DialogContent, {
+				"data-uid": "src/pages/Login.tsx:108:9",
+				"data-prohibitions": "[editContent]",
+				className: "sm:max-w-md",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DialogHeader, {
+						"data-uid": "src/pages/Login.tsx:109:11",
+						"data-prohibitions": "[editContent]",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DialogTitle, {
+							"data-uid": "src/pages/Login.tsx:110:13",
+							"data-prohibitions": "[]",
+							className: "flex items-center gap-2",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("svg", {
+								"data-uid": "src/pages/Login.tsx:111:15",
+								"data-prohibitions": "[]",
+								className: "w-5 h-5",
+								viewBox: "0 0 21 21",
+								xmlns: "http://www.w3.org/2000/svg",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", {
+										"data-uid": "src/pages/Login.tsx:112:17",
+										"data-prohibitions": "[editContent]",
+										fill: "#f25022",
+										d: "M1 1h9v9H1z"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", {
+										"data-uid": "src/pages/Login.tsx:113:17",
+										"data-prohibitions": "[editContent]",
+										fill: "#00a4ef",
+										d: "M1 11h9v9H1z"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", {
+										"data-uid": "src/pages/Login.tsx:114:17",
+										"data-prohibitions": "[editContent]",
+										fill: "#7fba00",
+										d: "M11 1h9v9h-9z"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", {
+										"data-uid": "src/pages/Login.tsx:115:17",
+										"data-prohibitions": "[editContent]",
+										fill: "#ffb900",
+										d: "M11 11h9v9h-9z"
+									})
+								]
+							}), "Sign in to your account"]
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(DialogDescription, {
+							"data-uid": "src/pages/Login.tsx:119:13",
+							"data-prohibitions": "[editContent]",
+							children: step === 1 ? `Validando acesso para o Tenant corporativo vinculado.` : `Insira a senha de acesso para ${email}`
+						})]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						"data-uid": "src/pages/Login.tsx:125:11",
+						"data-prohibitions": "[editContent]",
+						className: "py-4",
+						children: step === 1 ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							"data-uid": "src/pages/Login.tsx:127:15",
+							"data-prohibitions": "[]",
+							className: "grid gap-3",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label, {
+								"data-uid": "src/pages/Login.tsx:128:17",
+								"data-prohibitions": "[]",
+								htmlFor: "email",
+								children: "E-mail corporativo M365"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+								"data-uid": "src/pages/Login.tsx:129:17",
+								"data-prohibitions": "[editContent]",
+								id: "email",
+								type: "email",
+								placeholder: "nome@imobiliaria.com.br",
+								value: email,
+								onChange: (e) => setEmail(e.target.value),
+								onKeyDown: (e) => e.key === "Enter" && handleNext(),
+								autoFocus: true
+							})]
+						}) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							"data-uid": "src/pages/Login.tsx:140:15",
+							"data-prohibitions": "[]",
+							className: "grid gap-3 animate-fade-in",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Label, {
+								"data-uid": "src/pages/Login.tsx:141:17",
+								"data-prohibitions": "[]",
+								htmlFor: "password",
+								children: "Senha"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
+								"data-uid": "src/pages/Login.tsx:142:17",
+								"data-prohibitions": "[editContent]",
+								id: "password",
+								type: "password",
+								placeholder: "••••••••",
+								value: password,
+								onChange: (e) => setPassword(e.target.value),
+								onKeyDown: (e) => e.key === "Enter" && handleLoginSubmit(),
+								autoFocus: true
+							})]
+						})
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DialogFooter, {
+						"data-uid": "src/pages/Login.tsx:154:11",
+						"data-prohibitions": "[editContent]",
+						className: "sm:justify-between flex-row",
+						children: [step === 2 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+							"data-uid": "src/pages/Login.tsx:156:15",
+							"data-prohibitions": "[]",
+							variant: "ghost",
+							size: "sm",
+							onClick: () => setStep(1),
+							disabled: isLoading,
+							children: "Voltar"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							"data-uid": "src/pages/Login.tsx:160:13",
+							"data-prohibitions": "[editContent]",
+							className: step === 1 ? "w-full flex justify-end" : "",
+							children: step === 1 ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+								"data-uid": "src/pages/Login.tsx:162:17",
+								"data-prohibitions": "[]",
+								onClick: handleNext,
+								disabled: !email.trim(),
+								children: ["Avançar ", /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ArrowRight, {
+									"data-uid": "src/pages/Login.tsx:163:27",
+									"data-prohibitions": "[editContent]",
+									className: "w-4 h-4 ml-2"
+								})]
+							}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+								"data-uid": "src/pages/Login.tsx:166:17",
+								"data-prohibitions": "[editContent]",
+								onClick: handleLoginSubmit,
+								disabled: !password || isLoading,
+								children: isLoading ? "Verificando Tenant..." : "Entrar na Plataforma"
+							})
+						})]
+					})
+				]
+			})
+		})]
 	});
 }
 //#endregion
@@ -69103,4 +69560,4 @@ var App = () => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(BrowserRouter, {
 }));
 //#endregion
 
-//# sourceMappingURL=index-CFd-AlsU.js.map
+//# sourceMappingURL=index-WPT87cPD.js.map

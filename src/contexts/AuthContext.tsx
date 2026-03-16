@@ -3,7 +3,7 @@ import { SystemUser, usersStore } from '@/stores/users'
 
 type AuthContextType = {
   user: SystemUser | null
-  loginM365: () => Promise<void>
+  loginM365: (email: string, password?: string) => Promise<void>
   logout: () => void
   switchUser: (id: string) => void
 }
@@ -17,12 +17,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { users } = usersStore.getState()
   const user = currentUserId ? users.find((u) => u.id === currentUserId) || null : null
 
-  const loginM365 = async () => {
-    return new Promise<void>((resolve) => {
+  const loginM365 = async (email: string, password?: string) => {
+    return new Promise<void>((resolve, reject) => {
       setTimeout(() => {
-        setCurrentUserId('usr-1') // Default to Admin for demo
-        resolve()
-      }, 800)
+        const { users } = usersStore.getState()
+        const foundUser = users.find((u) => u.email.toLowerCase() === email.toLowerCase())
+
+        if (foundUser) {
+          setCurrentUserId(foundUser.id)
+          resolve()
+        } else {
+          reject(new Error('Acesso negado. Usuário não encontrado no Tenant autorizado.'))
+        }
+      }, 1200)
     })
   }
 

@@ -1350,12 +1350,12 @@ section[aria-label='Notifications alt+T'] {
   width: 140px;
 }
 
-.w-\[1px\]{
-  width: 1px;
+.w-\[180px\]{
+  width: 180px;
 }
 
-.w-\[200px\]{
-  width: 200px;
+.w-\[1px\]{
+  width: 1px;
 }
 
 .w-\[220px\]{
@@ -3561,6 +3561,10 @@ section[aria-label='Notifications alt+T'] {
   background-color: rgb(29 78 216 / var(--tw-bg-opacity, 1));
 }
 
+.hover\:bg-destructive\/10:hover{
+  background-color: hsl(var(--destructive) / 0.1);
+}
+
 .hover\:bg-destructive\/80:hover{
   background-color: hsl(var(--destructive) / 0.8);
 }
@@ -3632,6 +3636,10 @@ section[aria-label='Notifications alt+T'] {
 .hover\:text-blue-700:hover{
   --tw-text-opacity: 1;
   color: rgb(29 78 216 / var(--tw-text-opacity, 1));
+}
+
+.hover\:text-destructive:hover{
+  color: hsl(var(--destructive));
 }
 
 .hover\:text-emerald-700:hover{
@@ -4629,6 +4637,10 @@ section[aria-label='Notifications alt+T'] {
     max-width: 500px;
   }
 
+  .sm\:max-w-md{
+    max-width: 28rem;
+  }
+
   .sm\:max-w-sm{
     max-width: 24rem;
   }
@@ -4655,6 +4667,10 @@ section[aria-label='Notifications alt+T'] {
 
   .sm\:justify-end{
     justify-content: flex-end;
+  }
+
+  .sm\:justify-between{
+    justify-content: space-between;
   }
 
   .sm\:gap-2\.5{

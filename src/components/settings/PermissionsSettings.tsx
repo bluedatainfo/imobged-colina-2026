@@ -1,4 +1,5 @@
-import { Shield, UserCog } from 'lucide-react'
+import { useState } from 'react'
+import { Shield, UserCog, Plus, Pencil, Trash2 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Table,
@@ -15,13 +16,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useToast } from '@/hooks/use-toast'
-import useUsersStore, { usersStore } from '@/stores/users'
+import useUsersStore, { SystemUser, usersStore } from '@/stores/users'
 import { Role } from '@/lib/permissions'
 
 const availableRoles: Role[] = [
   'Admin',
+  'Diretor',
   'Gerente',
   'Gestor de Contrato',
   'Vistoriador',
@@ -33,6 +46,10 @@ export default function PermissionsSettings() {
   const { users } = useUsersStore()
   const { toast } = useToast()
 
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [editId, setEditId] = useState<string | null>(null)
+  const [formData, setFormData] = useState({ name: '', email: '', role: 'Vistoriador' as Role })
+
   const handleRoleChange = (userId: string, newRole: Role) => {
     usersStore.updateUserRole(userId, newRole)
     toast({
@@ -41,25 +58,63 @@ export default function PermissionsSettings() {
     })
   }
 
+  const handleOpenNew = () => {
+    setEditId(null)
+    setFormData({ name: '', email: '', role: 'Vistoriador' })
+    setDialogOpen(true)
+  }
+
+  const handleOpenEdit = (user: SystemUser) => {
+    setEditId(user.id)
+    setFormData({ name: user.name, email: user.email, role: user.role })
+    setDialogOpen(true)
+  }
+
+  const handleRemove = (id: string) => {
+    usersStore.removeUser(id)
+    toast({ title: 'Usuário Removido', description: 'Acesso revogado com sucesso.' })
+  }
+
+  const handleSave = () => {
+    if (!formData.name || !formData.email) {
+      toast({ variant: 'destructive', title: 'Erro', description: 'Preencha todos os campos.' })
+      return
+    }
+
+    if (editId) {
+      usersStore.updateUser(editId, formData)
+      toast({ title: 'Usuário Atualizado', description: 'Dados salvos com sucesso.' })
+    } else {
+      usersStore.addUser(formData)
+      toast({ title: 'Usuário Adicionado', description: 'Novo acesso concedido ao Tenant.' })
+    }
+    setDialogOpen(false)
+  }
+
   return (
     <div className="space-y-6">
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Shield className="w-5 h-5 text-primary" /> Gestão de Acessos (RBAC)
-          </CardTitle>
-          <CardDescription>
-            Defina os papéis de cada usuário para restringir o acesso a módulos específicos do
-            sistema.
-          </CardDescription>
+        <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="w-5 h-5 text-primary" /> Contas e Acessos M365
+            </CardTitle>
+            <CardDescription>
+              Gerencie quais emails corporativos têm permissão para acessar a plataforma.
+            </CardDescription>
+          </div>
+          <Button onClick={handleOpenNew} className="gap-2">
+            <Plus className="w-4 h-4" /> Novo Usuário
+          </Button>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Usuário</TableHead>
-                <TableHead>Email M365</TableHead>
+                <TableHead>Email M365 Autorizado</TableHead>
                 <TableHead>Perfil de Acesso</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -80,7 +135,7 @@ export default function PermissionsSettings() {
                       value={user.role}
                       onValueChange={(val: Role) => handleRoleChange(user.id, val)}
                     >
-                      <SelectTrigger className="w-[200px]">
+                      <SelectTrigger className="w-[180px]">
                         <UserCog className="w-4 h-4 mr-2 text-muted-foreground" />
                         <SelectValue />
                       </SelectTrigger>
@@ -93,12 +148,79 @@ export default function PermissionsSettings() {
                       </SelectContent>
                     </Select>
                   </TableCell>
+                  <TableCell className="text-right space-x-1">
+                    <Button variant="ghost" size="icon" onClick={() => handleOpenEdit(user)}>
+                      <Pencil className="w-4 h-4 text-muted-foreground" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleRemove(user.id)}
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editId ? 'Editar Usuário M365' : 'Autorizar Novo Usuário'}</DialogTitle>
+            <DialogDescription>
+              Certifique-se de que o e-mail pertence ao Tenant oficial configurado.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label>Nome Completo</Label>
+              <Input
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="Ex: João Silva"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Email M365</Label>
+              <Input
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                placeholder="joao.silva@imobged.com"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Perfil de Acesso Inicial</Label>
+              <Select
+                value={formData.role}
+                onValueChange={(val: Role) => setFormData({ ...formData, role: val })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableRoles.map((role) => (
+                    <SelectItem key={role} value={role}>
+                      {role}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSave}>Salvar Usuário</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -71,6 +71,29 @@ export const usersStore = {
     }
     emit()
   },
+  addUser: (user: Omit<SystemUser, 'id' | 'avatar'>) => {
+    const newUser: SystemUser = {
+      ...user,
+      id: `usr-${Math.random().toString(36).substring(2, 9)}`,
+      avatar: `https://img.usecurling.com/ppl/thumbnail?seed=${Math.floor(Math.random() * 100)}`,
+    }
+    state = { ...state, users: [...state.users, newUser] }
+    emit()
+  },
+  updateUser: (id: string, data: Partial<SystemUser>) => {
+    state = {
+      ...state,
+      users: state.users.map((u) => (u.id === id ? { ...u, ...data } : u)),
+    }
+    emit()
+  },
+  removeUser: (id: string) => {
+    state = {
+      ...state,
+      users: state.users.filter((u) => u.id !== id),
+    }
+    emit()
+  },
 }
 
 export default function useUsersStore() {
