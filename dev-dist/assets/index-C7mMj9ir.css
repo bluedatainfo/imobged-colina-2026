@@ -2904,6 +2904,11 @@ section[aria-label='Notifications alt+T'] {
   letter-spacing: 0.1em;
 }
 
+.text-\[\#0067b8\]{
+  --tw-text-opacity: 1;
+  color: rgb(0 103 184 / var(--tw-text-opacity, 1));
+}
+
 .text-accent-foreground{
   color: hsl(var(--accent-foreground));
 }

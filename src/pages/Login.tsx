@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import useMainStore from '@/stores/main'
@@ -9,10 +9,16 @@ import { useToast } from '@/hooks/use-toast'
 import { ArrowLeft, Loader2 } from 'lucide-react'
 
 export default function Login() {
-  const { loginM365 } = useAuth()
+  const { loginM365, user, isExchanging } = useAuth()
   const navigate = useNavigate()
   const { toast } = useToast()
   const { sharepoint } = useMainStore()
+
+  useEffect(() => {
+    if (user) {
+      navigate('/', { replace: true })
+    }
+  }, [user, navigate])
 
   const [isLoading, setIsLoading] = useState(false)
   const [step, setStep] = useState<1 | 2>(1)
@@ -56,6 +62,22 @@ export default function Login() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  if (isExchanging) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#f0f2f5] p-4 relative overflow-hidden font-sans">
+        <div className="absolute inset-0 z-0 bg-gradient-to-br from-blue-50/50 to-indigo-100/50"></div>
+        <Card className="w-full max-w-[440px] shadow-2xl border-0 p-8 sm:p-10 rounded-lg relative z-10 bg-white flex flex-col items-center text-center">
+          <Loader2 className="w-10 h-10 animate-spin text-[#0067b8] mb-6" />
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Autenticando...</h2>
+          <p className="text-sm text-gray-600">Conectando de forma segura ao Microsoft Entra ID.</p>
+        </Card>
+        <div className="absolute bottom-4 right-4 text-xs text-gray-400 font-medium">
+          Secured by Microsoft Entra
+        </div>
+      </div>
+    )
   }
 
   return (

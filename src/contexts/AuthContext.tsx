@@ -9,6 +9,7 @@ type AuthContextType = {
   loginM365: (email: string, password?: string) => Promise<void>
   logout: () => void
   switchUser: (id: string) => void
+  isExchanging: boolean
 }
 
 const AuthContext = createContext<AuthContextType | null>(null)
@@ -36,6 +37,7 @@ async function generateCodeChallenge(codeVerifier: string) {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [isExchanging, setIsExchanging] = useState(false)
 
   // Derive current user dynamically so role changes reflect immediately
   const { users } = usersStore.getState()
@@ -60,6 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     if (code) {
+      setIsExchanging(true)
       window.history.replaceState({}, document.title, window.location.pathname)
 
       const { sharepoint } = mainStore.getState()
@@ -67,6 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const codeVerifier = sessionStorage.getItem('pkce_code_verifier')
 
       if (!clientId || !tenantId || !codeVerifier) {
+        setIsExchanging(false)
         toast({
           variant: 'destructive',
           title: 'Sessão Incompleta ou Expirada',
@@ -81,7 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       tokenParams.append('client_id', clientId)
       tokenParams.append(
         'scope',
-        'openid profile email User.Read Files.ReadWrite.All Sites.Read.All',
+        'openid profile email User.Read Files.ReadWrite.All Sites.Read.All offline_access',
       )
       tokenParams.append('code', code)
       tokenParams.append('redirect_uri', redirectUri)
@@ -93,8 +97,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: tokenParams.toString(),
       })
-        .then((res) => {
-          if (!res.ok) throw new Error('Falha ao obter token de acesso')
+        .then(async (res) => {
+          if (!res.ok) {
+            const errData = await res.json().catch(() => null)
+            console.error('Token Exchange Error:', errData)
+            throw new Error(
+              errData?.error_description ||
+                errData?.error ||
+                'Falha ao obter token de acesso do Microsoft Entra ID.',
+            )
+          }
           return res.json()
         })
         .then((tokenData) => {
@@ -104,8 +116,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
           return fetch('https://graph.microsoft.com/v1.0/me', {
             headers: { Authorization: `Bearer ${token}` },
-          }).then((res) => {
-            if (!res.ok) throw new Error('Graph API Error')
+          }).then(async (res) => {
+            if (!res.ok) {
+              const errData = await res.json().catch(() => null)
+              console.error('Graph API Error:', errData)
+              throw new Error(errData?.error?.message || 'Erro de permissão na Graph API.')
+            }
             return res.json().then((data) => ({ data, token }))
           })
         })
@@ -156,6 +172,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               e.message || 'Não foi possível completar a autenticação com o Microsoft 365.',
           })
         })
+        .finally(() => {
+          setIsExchanging(false)
+        })
     }
   }, [])
 
@@ -170,7 +189,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const redirectUri = encodeURIComponent(window.location.origin + '/login')
       const scope = encodeURIComponent(
-        'openid profile email User.Read Files.ReadWrite.All Sites.Read.All',
+        'openid profile email User.Read Files.ReadWrite.All Sites.Read.All offline_access',
       )
 
       const authUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize?client_id=${clientId}&response_type=code&redirect_uri=${redirectUri}&scope=${scope}&code_challenge=${codeChallenge}&code_challenge_method=S256&login_hint=${encodeURIComponent(
@@ -229,7 +248,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const logout = () => {
-    // Clear all auth-related caches and sessions safely
     sessionStorage.removeItem('m365_token')
     sessionStorage.removeItem('pkce_code_verifier')
     setCurrentUserId(null)
@@ -240,7 +258,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loginM365, logout, switchUser }}>
+    <AuthContext.Provider value={{ user, loginM365, logout, switchUser, isExchanging }}>
       {children}
     </AuthContext.Provider>
   )

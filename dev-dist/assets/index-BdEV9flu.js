@@ -27947,6 +27947,7 @@ async function generateCodeChallenge(codeVerifier) {
 }
 function AuthProvider({ children }) {
 	const [currentUserId, setCurrentUserId] = (0, import_react.useState)(null);
+	const [isExchanging, setIsExchanging] = (0, import_react.useState)(false);
 	const { users } = usersStore.getState();
 	const user = currentUserId ? users.find((u) => u.id === currentUserId) || null : null;
 	(0, import_react.useEffect)(() => {
@@ -27964,11 +27965,13 @@ function AuthProvider({ children }) {
 			return;
 		}
 		if (code) {
+			setIsExchanging(true);
 			window.history.replaceState({}, document.title, window.location.pathname);
 			const { sharepoint } = mainStore.getState();
 			const { clientId, tenantId } = sharepoint;
 			const codeVerifier = sessionStorage.getItem("pkce_code_verifier");
 			if (!clientId || !tenantId || !codeVerifier) {
+				setIsExchanging(false);
 				toast$1({
 					variant: "destructive",
 					title: "Sessão Incompleta ou Expirada",
@@ -27979,7 +27982,7 @@ function AuthProvider({ children }) {
 			const redirectUri = window.location.origin + "/login";
 			const tokenParams = new URLSearchParams();
 			tokenParams.append("client_id", clientId);
-			tokenParams.append("scope", "openid profile email User.Read Files.ReadWrite.All Sites.Read.All");
+			tokenParams.append("scope", "openid profile email User.Read Files.ReadWrite.All Sites.Read.All offline_access");
 			tokenParams.append("code", code);
 			tokenParams.append("redirect_uri", redirectUri);
 			tokenParams.append("grant_type", "authorization_code");
@@ -27988,15 +27991,23 @@ function AuthProvider({ children }) {
 				method: "POST",
 				headers: { "Content-Type": "application/x-www-form-urlencoded" },
 				body: tokenParams.toString()
-			}).then((res) => {
-				if (!res.ok) throw new Error("Falha ao obter token de acesso");
+			}).then(async (res) => {
+				if (!res.ok) {
+					const errData = await res.json().catch(() => null);
+					console.error("Token Exchange Error:", errData);
+					throw new Error(errData?.error_description || errData?.error || "Falha ao obter token de acesso do Microsoft Entra ID.");
+				}
 				return res.json();
 			}).then((tokenData) => {
 				const token = tokenData.access_token;
 				sessionStorage.setItem("m365_token", token);
 				sessionStorage.removeItem("pkce_code_verifier");
-				return fetch("https://graph.microsoft.com/v1.0/me", { headers: { Authorization: `Bearer ${token}` } }).then((res) => {
-					if (!res.ok) throw new Error("Graph API Error");
+				return fetch("https://graph.microsoft.com/v1.0/me", { headers: { Authorization: `Bearer ${token}` } }).then(async (res) => {
+					if (!res.ok) {
+						const errData = await res.json().catch(() => null);
+						console.error("Graph API Error:", errData);
+						throw new Error(errData?.error?.message || "Erro de permissão na Graph API.");
+					}
 					return res.json().then((data) => ({
 						data,
 						token
@@ -28034,6 +28045,8 @@ function AuthProvider({ children }) {
 					title: "Erro de Integração",
 					description: e.message || "Não foi possível completar a autenticação com o Microsoft 365."
 				});
+			}).finally(() => {
+				setIsExchanging(false);
 			});
 		}
 	}, []);
@@ -28044,7 +28057,7 @@ function AuthProvider({ children }) {
 			const codeVerifier = generateRandomString(64);
 			sessionStorage.setItem("pkce_code_verifier", codeVerifier);
 			const codeChallenge = await generateCodeChallenge(codeVerifier);
-			const authUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(window.location.origin + "/login")}&scope=${encodeURIComponent("openid profile email User.Read Files.ReadWrite.All Sites.Read.All")}&code_challenge=${codeChallenge}&code_challenge_method=S256&login_hint=${encodeURIComponent(email)}`;
+			const authUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(window.location.origin + "/login")}&scope=${encodeURIComponent("openid profile email User.Read Files.ReadWrite.All Sites.Read.All offline_access")}&code_challenge=${codeChallenge}&code_challenge_method=S256&login_hint=${encodeURIComponent(email)}`;
 			window.location.href = authUrl;
 			return new Promise(() => {});
 		}
@@ -28086,13 +28099,14 @@ function AuthProvider({ children }) {
 		setCurrentUserId(id);
 	};
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AuthContext.Provider, {
-		"data-uid": "src/contexts/AuthContext.tsx:243:5",
+		"data-uid": "src/contexts/AuthContext.tsx:261:5",
 		"data-prohibitions": "[editContent]",
 		value: {
 			user,
 			loginM365,
 			logout,
-			switchUser
+			switchUser,
+			isExchanging
 		},
 		children
 	});
@@ -68141,10 +68155,13 @@ var NotFound = () => {
 //#endregion
 //#region src/pages/Login.tsx
 function Login() {
-	const { loginM365 } = useAuth();
+	const { loginM365, user, isExchanging } = useAuth();
 	const navigate = useNavigate();
 	const { toast } = useToast();
 	const { sharepoint } = useMainStore();
+	(0, import_react.useEffect)(() => {
+		if (user) navigate("/", { replace: true });
+	}, [user, navigate]);
 	const [isLoading, setIsLoading] = (0, import_react.useState)(false);
 	const [step, setStep] = (0, import_react.useState)(1);
 	const [email, setEmail] = (0, import_react.useState)(sharepoint.primaryDomain ? `admin@${sharepoint.primaryDomain}` : "");
@@ -68182,53 +68199,95 @@ function Login() {
 			setIsLoading(false);
 		}
 	};
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-		"data-uid": "src/pages/Login.tsx:62:5",
-		"data-prohibitions": "[editContent]",
+	if (isExchanging) return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		"data-uid": "src/pages/Login.tsx:69:7",
+		"data-prohibitions": "[]",
 		className: "min-h-screen flex items-center justify-center bg-[#f0f2f5] p-4 relative overflow-hidden font-sans",
 		children: [
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-				"data-uid": "src/pages/Login.tsx:63:7",
+				"data-uid": "src/pages/Login.tsx:70:9",
 				"data-prohibitions": "[]",
 				className: "absolute inset-0 z-0 bg-gradient-to-br from-blue-50/50 to-indigo-100/50"
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
-				"data-uid": "src/pages/Login.tsx:65:7",
+				"data-uid": "src/pages/Login.tsx:71:9",
+				"data-prohibitions": "[]",
+				className: "w-full max-w-[440px] shadow-2xl border-0 p-8 sm:p-10 rounded-lg relative z-10 bg-white flex flex-col items-center text-center",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(LoaderCircle, {
+						"data-uid": "src/pages/Login.tsx:72:11",
+						"data-prohibitions": "[editContent]",
+						className: "w-10 h-10 animate-spin text-[#0067b8] mb-6"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+						"data-uid": "src/pages/Login.tsx:73:11",
+						"data-prohibitions": "[]",
+						className: "text-xl font-semibold text-gray-900 mb-2",
+						children: "Autenticando..."
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						"data-uid": "src/pages/Login.tsx:74:11",
+						"data-prohibitions": "[]",
+						className: "text-sm text-gray-600",
+						children: "Conectando de forma segura ao Microsoft Entra ID."
+					})
+				]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				"data-uid": "src/pages/Login.tsx:76:9",
+				"data-prohibitions": "[]",
+				className: "absolute bottom-4 right-4 text-xs text-gray-400 font-medium",
+				children: "Secured by Microsoft Entra"
+			})
+		]
+	});
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		"data-uid": "src/pages/Login.tsx:84:5",
+		"data-prohibitions": "[editContent]",
+		className: "min-h-screen flex items-center justify-center bg-[#f0f2f5] p-4 relative overflow-hidden font-sans",
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				"data-uid": "src/pages/Login.tsx:85:7",
+				"data-prohibitions": "[]",
+				className: "absolute inset-0 z-0 bg-gradient-to-br from-blue-50/50 to-indigo-100/50"
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
+				"data-uid": "src/pages/Login.tsx:87:7",
 				"data-prohibitions": "[editContent]",
 				className: "w-full max-w-[440px] shadow-2xl border-0 p-8 sm:p-10 rounded-lg relative z-10 bg-white",
 				children: [
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						"data-uid": "src/pages/Login.tsx:66:9",
+						"data-uid": "src/pages/Login.tsx:88:9",
 						"data-prohibitions": "[editContent]",
 						className: "mb-8 flex items-center gap-3",
 						children: [
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("svg", {
-								"data-uid": "src/pages/Login.tsx:67:11",
+								"data-uid": "src/pages/Login.tsx:89:11",
 								"data-prohibitions": "[]",
 								className: "h-6 w-auto shrink-0",
 								viewBox: "0 0 21 21",
 								xmlns: "http://www.w3.org/2000/svg",
 								children: [
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", {
-										"data-uid": "src/pages/Login.tsx:72:13",
+										"data-uid": "src/pages/Login.tsx:94:13",
 										"data-prohibitions": "[editContent]",
 										fill: "#f25022",
 										d: "M1 1h9v9H1z"
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", {
-										"data-uid": "src/pages/Login.tsx:73:13",
+										"data-uid": "src/pages/Login.tsx:95:13",
 										"data-prohibitions": "[editContent]",
 										fill: "#00a4ef",
 										d: "M1 11h9v9H1z"
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", {
-										"data-uid": "src/pages/Login.tsx:74:13",
+										"data-uid": "src/pages/Login.tsx:96:13",
 										"data-prohibitions": "[editContent]",
 										fill: "#7fba00",
 										d: "M11 1h9v9h-9z"
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("path", {
-										"data-uid": "src/pages/Login.tsx:75:13",
+										"data-uid": "src/pages/Login.tsx:97:13",
 										"data-prohibitions": "[editContent]",
 										fill: "#ffb900",
 										d: "M11 11h9v9h-9z"
@@ -68236,13 +68295,13 @@ function Login() {
 								]
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-								"data-uid": "src/pages/Login.tsx:77:11",
+								"data-uid": "src/pages/Login.tsx:99:11",
 								"data-prohibitions": "[]",
 								className: "text-xl font-semibold text-gray-400",
 								children: "|"
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-								"data-uid": "src/pages/Login.tsx:78:11",
+								"data-uid": "src/pages/Login.tsx:100:11",
 								"data-prohibitions": "[editContent]",
 								className: "text-lg font-semibold text-gray-700 tracking-tight",
 								children: sharepoint.tenantName || "Microsoft 365"
@@ -68250,44 +68309,44 @@ function Login() {
 						]
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", {
-						"data-uid": "src/pages/Login.tsx:83:9",
+						"data-uid": "src/pages/Login.tsx:105:9",
 						"data-prohibitions": "[editContent]",
 						className: "text-2xl font-semibold text-gray-900 mb-1",
 						children: step === 1 ? "Sign in" : "Enter password"
 					}),
 					step === 1 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-						"data-uid": "src/pages/Login.tsx:88:11",
+						"data-uid": "src/pages/Login.tsx:110:11",
 						"data-prohibitions": "[]",
 						className: "text-sm text-gray-600 mb-6",
 						children: "to continue to ImobGED System"
 					}) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						"data-uid": "src/pages/Login.tsx:90:11",
+						"data-uid": "src/pages/Login.tsx:112:11",
 						"data-prohibitions": "[editContent]",
 						className: "flex items-center gap-2 mb-6",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-							"data-uid": "src/pages/Login.tsx:91:13",
+							"data-uid": "src/pages/Login.tsx:113:13",
 							"data-prohibitions": "[]",
 							onClick: () => setStep(1),
 							className: "text-gray-500 hover:text-gray-800 transition-colors bg-gray-100 rounded-full p-1",
 							title: "Change user",
 							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ArrowLeft, {
-								"data-uid": "src/pages/Login.tsx:96:15",
+								"data-uid": "src/pages/Login.tsx:118:15",
 								"data-prohibitions": "[editContent]",
 								className: "w-4 h-4"
 							})
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-							"data-uid": "src/pages/Login.tsx:98:13",
+							"data-uid": "src/pages/Login.tsx:120:13",
 							"data-prohibitions": "[editContent]",
 							className: "text-sm font-medium text-gray-800 truncate",
 							children: email
 						})]
 					}),
 					step === 1 ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						"data-uid": "src/pages/Login.tsx:103:11",
+						"data-uid": "src/pages/Login.tsx:125:11",
 						"data-prohibitions": "[editContent]",
 						className: "space-y-4 animate-in fade-in slide-in-from-right-4 duration-300",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-							"data-uid": "src/pages/Login.tsx:104:13",
+							"data-uid": "src/pages/Login.tsx:126:13",
 							"data-prohibitions": "[editContent]",
 							type: "email",
 							placeholder: "Email, phone, or Skype",
@@ -68297,33 +68356,33 @@ function Login() {
 							className: "h-10 border-gray-300 focus-visible:ring-blue-600 rounded-none border-t-0 border-l-0 border-r-0 border-b-[1px] bg-transparent px-0 focus-visible:ring-0 focus-visible:border-b-[2px] focus-visible:border-blue-600 text-[15px] shadow-none",
 							autoFocus: true
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							"data-uid": "src/pages/Login.tsx:113:13",
+							"data-uid": "src/pages/Login.tsx:135:13",
 							"data-prohibitions": "[editContent]",
 							className: "flex justify-between items-center pt-6",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-								"data-uid": "src/pages/Login.tsx:114:15",
+								"data-uid": "src/pages/Login.tsx:136:15",
 								"data-prohibitions": "[]",
 								className: "text-[13px] text-blue-600 hover:underline cursor-pointer font-medium",
 								children: "Can't access your account?"
 							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-								"data-uid": "src/pages/Login.tsx:117:15",
+								"data-uid": "src/pages/Login.tsx:139:15",
 								"data-prohibitions": "[editContent]",
 								onClick: handleNext,
 								disabled: !email.trim() || isLoading,
 								className: "bg-[#0067b8] hover:bg-[#005da6] text-white rounded-none px-8 h-[34px] font-medium transition-colors",
 								children: isLoading ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LoaderCircle, {
-									"data-uid": "src/pages/Login.tsx:122:30",
+									"data-uid": "src/pages/Login.tsx:144:30",
 									"data-prohibitions": "[editContent]",
 									className: "w-4 h-4 animate-spin"
 								}) : "Next"
 							})]
 						})]
 					}) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						"data-uid": "src/pages/Login.tsx:127:11",
+						"data-uid": "src/pages/Login.tsx:149:11",
 						"data-prohibitions": "[editContent]",
 						className: "space-y-4 animate-in fade-in slide-in-from-right-4 duration-300",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-							"data-uid": "src/pages/Login.tsx:128:13",
+							"data-uid": "src/pages/Login.tsx:150:13",
 							"data-prohibitions": "[editContent]",
 							type: "password",
 							placeholder: "Password",
@@ -68333,16 +68392,16 @@ function Login() {
 							className: "h-10 border-gray-300 focus-visible:ring-blue-600 rounded-none border-t-0 border-l-0 border-r-0 border-b-[1px] bg-transparent px-0 focus-visible:ring-0 focus-visible:border-b-[2px] focus-visible:border-blue-600 text-[15px] shadow-none",
 							autoFocus: true
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							"data-uid": "src/pages/Login.tsx:137:13",
+							"data-uid": "src/pages/Login.tsx:159:13",
 							"data-prohibitions": "[editContent]",
 							className: "flex justify-between items-center pt-6",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-								"data-uid": "src/pages/Login.tsx:138:15",
+								"data-uid": "src/pages/Login.tsx:160:15",
 								"data-prohibitions": "[]",
 								className: "text-[13px] text-blue-600 hover:underline cursor-pointer font-medium",
 								children: "Forgot my password"
 							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-								"data-uid": "src/pages/Login.tsx:141:15",
+								"data-uid": "src/pages/Login.tsx:163:15",
 								"data-prohibitions": "[editContent]",
 								onClick: handleLoginSubmit,
 								disabled: !password || isLoading,
@@ -68354,7 +68413,7 @@ function Login() {
 				]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-				"data-uid": "src/pages/Login.tsx:153:7",
+				"data-uid": "src/pages/Login.tsx:175:7",
 				"data-prohibitions": "[]",
 				className: "absolute bottom-4 right-4 text-xs text-gray-400 font-medium",
 				children: "Secured by Microsoft Entra"
@@ -70500,4 +70559,4 @@ var App = () => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(BrowserRouter, {
 }));
 //#endregion
 
-//# sourceMappingURL=index-CSQAISs5.js.map
+//# sourceMappingURL=index-BdEV9flu.js.map
