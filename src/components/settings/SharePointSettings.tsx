@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Globe,
+  RefreshCw,
 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -16,6 +17,14 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/hooks/use-toast'
 import useMainStore, { mainStore } from '@/stores/main'
+import { usersStore } from '@/stores/users'
+
+const getDomainFromTenant = (tenantId: string) => {
+  if (!tenantId) return ''
+  if (tenantId === 'a1b2c3d4-e5f6-4a1b-9c2d-3e4f5a6b7c8d') return 'imobged.com'
+  const cleanId = tenantId.replace(/[^a-f0-9]/gi, '')
+  return `tenant-${cleanId.substring(0, 6)}.com`
+}
 
 export default function SharePointSettings() {
   const { toast } = useToast()
@@ -41,11 +50,23 @@ export default function SharePointSettings() {
       }
 
       setTenantStatus('validating')
-      // Simulate validation request to check tenant ID
       setTimeout(() => {
         if (isValidTenantId(formData.tenantId.trim())) {
           setTenantStatus('active')
           setTenantIdError(null)
+
+          const resolvedDomain = getDomainFromTenant(formData.tenantId.trim())
+          if (resolvedDomain !== formData.tenantDomain) {
+            setFormData((prev) => ({
+              ...prev,
+              tenantDomain: resolvedDomain,
+              teamsWebhookUrl: '', // Clear path on domain change to prevent leaks
+            }))
+            toast({
+              title: 'Novo Domínio Identificado',
+              description: `O domínio ${resolvedDomain} foi vinculado ao Tenant.`,
+            })
+          }
         } else {
           setTenantStatus('invalid')
           setTenantIdError(
@@ -56,7 +77,7 @@ export default function SharePointSettings() {
     }, 500)
 
     return () => clearTimeout(handler)
-  }, [formData.tenantId])
+  }, [formData.tenantId, toast])
 
   const handleChange = (field: keyof typeof formData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
@@ -70,25 +91,38 @@ export default function SharePointSettings() {
     setFormData((prev) => ({ ...prev, libraries: { ...prev.libraries, [field]: value } }))
   }
 
-  const handleListChange = (field: keyof typeof formData.lists, value: string) => {
-    setFormData((prev) => ({ ...prev, lists: { ...prev.lists, [field]: value } }))
-  }
-
   const handleSave = () => {
     if (tenantStatus === 'invalid' || !formData.tenantId?.trim()) {
       toast({
         variant: 'destructive',
         title: 'Erro de Validação',
-        description: 'Forneça um Tenant ID válido do Microsoft Entra ID antes de salvar.',
+        description: 'Forneça um Tenant ID válido antes de salvar.',
       })
       return
     }
 
+    const domainChanged = formData.tenantDomain !== store.sharepoint.tenantDomain
+
     mainStore.updateSharePointSettings(formData)
-    toast({
-      title: 'Integração SharePoint Salva',
-      description: 'Mapeamento de sites departamentais, bibliotecas e Tenant ID atualizados.',
-    })
+
+    if (domainChanged && formData.tenantDomain) {
+      // Clear dependent fields globally
+      mainStore.updateSettings({
+        managementEmails: '',
+        administrativeEmails: '',
+        operationalEmails: '',
+      })
+      usersStore.enforceDomain(formData.tenantDomain)
+      toast({
+        title: 'Integração Salva & Sincronizada',
+        description: `Dados atualizados e permissões restritas para @${formData.tenantDomain}`,
+      })
+    } else {
+      toast({
+        title: 'Integração SharePoint Salva',
+        description: 'Mapeamento de sites e configurações atualizados.',
+      })
+    }
   }
 
   const testConnection = () => {
@@ -102,6 +136,11 @@ export default function SharePointSettings() {
       setTestResult(allSitesValid && tenantStatus === 'active' ? 'success' : 'error')
     }, 2000)
   }
+
+  const domainPrefix = `https://${formData.tenantDomain || 'dominio'}.webhook.office.com/teams/`
+  const webhookPath = formData.teamsWebhookUrl?.startsWith(domainPrefix)
+    ? formData.teamsWebhookUrl.replace(domainPrefix, '')
+    : formData.teamsWebhookUrl || ''
 
   return (
     <div className="space-y-6">
@@ -118,9 +157,12 @@ export default function SharePointSettings() {
           <div className="space-y-2">
             <Label className="flex items-center justify-between">
               <span>Tenant ID (Microsoft Entra ID)</span>
-              {tenantStatus === 'active' && (
-                <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white border-transparent">
-                  Tenant Ativo
+              {tenantStatus === 'active' && formData.tenantDomain && (
+                <Badge
+                  variant="outline"
+                  className="text-emerald-600 border-emerald-200 bg-emerald-50"
+                >
+                  <Globe className="w-3 h-3 mr-1" /> Vinculado: {formData.tenantDomain}
                 </Badge>
               )}
               {tenantStatus === 'invalid' && <Badge variant="destructive">Tenant Inválido</Badge>}
@@ -139,13 +181,26 @@ export default function SharePointSettings() {
             />
             {tenantIdError && <p className="text-sm text-destructive mt-1">{tenantIdError}</p>}
           </div>
+
           <div className="space-y-2">
             <Label>Canal de Alertas Teams (Webhook)</Label>
-            <Input
-              value={formData.teamsWebhookUrl || ''}
-              onChange={(e) => handleChange('teamsWebhookUrl', e.target.value)}
-              placeholder="https://..."
-            />
+            <div className="flex w-full">
+              <span
+                className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-input bg-muted text-muted-foreground text-xs whitespace-nowrap overflow-hidden text-ellipsis max-w-[180px] sm:max-w-[220px]"
+                title={domainPrefix}
+              >
+                {domainPrefix}
+              </span>
+              <Input
+                className="rounded-l-none font-mono text-sm"
+                value={webhookPath}
+                onChange={(e) =>
+                  handleChange('teamsWebhookUrl', `${domainPrefix}${e.target.value}`)
+                }
+                placeholder="id-do-canal-xyz"
+                disabled={tenantStatus !== 'active'}
+              />
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -188,72 +243,8 @@ export default function SharePointSettings() {
               onChange={(e) => handleSiteChange('juridico', e.target.value)}
             />
           </div>
-          <div className="space-y-2">
-            <Label>Financeiro (Site URL)</Label>
-            <Input
-              value={formData.sites.financeiro}
-              onChange={(e) => handleSiteChange('financeiro', e.target.value)}
-            />
-          </div>
         </CardContent>
       </Card>
-
-      <div className="grid md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Database className="w-5 h-5 text-primary" /> Bibliotecas Padrão
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>Templates DOCX Base</Label>
-              <Input
-                value={formData.libraries.templates}
-                onChange={(e) => handleLibraryChange('templates', e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Contratos em Elaboração</Label>
-              <Input
-                value={formData.libraries.contracts}
-                onChange={(e) => handleLibraryChange('contracts', e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Arquivo Permanente (Ativos)</Label>
-              <Input
-                value={formData.libraries.archive}
-                onChange={(e) => handleLibraryChange('archive', e.target.value)}
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Database className="w-5 h-5 text-primary" /> Listas SharePoint
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>Controle de Processos</Label>
-              <Input
-                value={formData.lists.processControl}
-                onChange={(e) => handleListChange('processControl', e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Audit Log (Trilha)</Label>
-              <Input
-                value={formData.lists.auditLog}
-                onChange={(e) => handleListChange('auditLog', e.target.value)}
-              />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-muted/50 p-4 rounded-lg border gap-4">
         <div className="flex flex-col sm:flex-row sm:items-center gap-4">
@@ -261,7 +252,7 @@ export default function SharePointSettings() {
             {isTesting ? (
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
             ) : (
-              <Link className="w-4 h-4 mr-2" />
+              <RefreshCw className="w-4 h-4 mr-2" />
             )}{' '}
             Testar Conexão Multi-Site
           </Button>

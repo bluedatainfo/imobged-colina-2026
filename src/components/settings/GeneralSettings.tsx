@@ -17,10 +17,24 @@ import useMainStore, { mainStore } from '@/stores/main'
 export default function GeneralSettings() {
   const { toast } = useToast()
   const store = useMainStore()
+  const tenantDomain = store.sharepoint.tenantDomain || 'imobged.com'
   const [formData, setFormData] = useState(store.settings)
 
   const handleChange = (field: keyof typeof formData, value: string | number) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
+  }
+
+  const getLocalPart = (email: string) => {
+    if (!email) return ''
+    return email.split('@')[0]
+  }
+
+  const handleEmailChange = (
+    field: 'managementEmails' | 'administrativeEmails' | 'operationalEmails',
+    val: string,
+  ) => {
+    const cleanVal = val.replace(/@.*/, '').trim()
+    handleChange(field, cleanVal ? `${cleanVal}@${tenantDomain}` : '')
   }
 
   const handleSave = () => {
@@ -40,37 +54,59 @@ export default function GeneralSettings() {
           </CardTitle>
           <CardDescription>
             Atribua contas do Microsoft 365 para as funções que receberão e-mails automatizados.
+            Apenas endereços do domínio validado ({tenantDomain}) são permitidos.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-2">
             <Label>Conta M365 (Gerência)</Label>
-            <div className="flex gap-2">
-              <Mail className="w-5 h-5 text-muted-foreground mt-2" />
-              <Input
-                value={formData.managementEmails}
-                onChange={(e) => handleChange('managementEmails', e.target.value)}
-              />
+            <div className="flex gap-2 items-center">
+              <Mail className="w-5 h-5 text-muted-foreground shrink-0" />
+              <div className="flex w-full">
+                <Input
+                  className="rounded-r-none focus-visible:z-10"
+                  value={getLocalPart(formData.managementEmails)}
+                  placeholder="gerencia"
+                  onChange={(e) => handleEmailChange('managementEmails', e.target.value)}
+                />
+                <span className="inline-flex items-center px-3 border border-l-0 border-input rounded-r-md bg-muted text-muted-foreground text-sm">
+                  @{tenantDomain}
+                </span>
+              </div>
             </div>
           </div>
           <div className="grid gap-2">
             <Label>Conta M365 (Administrativo)</Label>
-            <div className="flex gap-2">
-              <Mail className="w-5 h-5 text-muted-foreground mt-2" />
-              <Input
-                value={formData.administrativeEmails}
-                onChange={(e) => handleChange('administrativeEmails', e.target.value)}
-              />
+            <div className="flex gap-2 items-center">
+              <Mail className="w-5 h-5 text-muted-foreground shrink-0" />
+              <div className="flex w-full">
+                <Input
+                  className="rounded-r-none focus-visible:z-10"
+                  value={getLocalPart(formData.administrativeEmails)}
+                  placeholder="admin"
+                  onChange={(e) => handleEmailChange('administrativeEmails', e.target.value)}
+                />
+                <span className="inline-flex items-center px-3 border border-l-0 border-input rounded-r-md bg-muted text-muted-foreground text-sm">
+                  @{tenantDomain}
+                </span>
+              </div>
             </div>
           </div>
           <div className="grid gap-2">
             <Label>Conta M365 (Operacional / Vistorias)</Label>
-            <div className="flex gap-2">
-              <Mail className="w-5 h-5 text-muted-foreground mt-2" />
-              <Input
-                value={formData.operationalEmails}
-                onChange={(e) => handleChange('operationalEmails', e.target.value)}
-              />
+            <div className="flex gap-2 items-center">
+              <Mail className="w-5 h-5 text-muted-foreground shrink-0" />
+              <div className="flex w-full">
+                <Input
+                  className="rounded-r-none focus-visible:z-10"
+                  value={getLocalPart(formData.operationalEmails)}
+                  placeholder="operacao"
+                  onChange={(e) => handleEmailChange('operationalEmails', e.target.value)}
+                />
+                <span className="inline-flex items-center px-3 border border-l-0 border-input rounded-r-md bg-muted text-muted-foreground text-sm">
+                  @{tenantDomain}
+                </span>
+              </div>
             </div>
           </div>
         </CardContent>

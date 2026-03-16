@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Shield, UserCog, Plus, Pencil, Trash2 } from 'lucide-react'
+import { Shield, UserCog, Plus, Pencil, Trash2, CheckCircle2 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Table,
@@ -30,6 +30,7 @@ import { Label } from '@/components/ui/label'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useToast } from '@/hooks/use-toast'
 import useUsersStore, { SystemUser, usersStore } from '@/stores/users'
+import useMainStore from '@/stores/main'
 import { Role } from '@/lib/permissions'
 
 const availableRoles: Role[] = [
@@ -44,11 +45,14 @@ const availableRoles: Role[] = [
 
 export default function PermissionsSettings() {
   const { users } = useUsersStore()
+  const tenantDomain = useMainStore((s) => s.sharepoint.tenantDomain) || 'imobged.com'
   const { toast } = useToast()
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
-  const [formData, setFormData] = useState({ name: '', email: '', role: 'Vistoriador' as Role })
+
+  const [formData, setFormData] = useState({ name: '', role: 'Vistoriador' as Role })
+  const [localEmailPart, setLocalEmailPart] = useState('')
 
   const handleRoleChange = (userId: string, newRole: Role) => {
     usersStore.updateUserRole(userId, newRole)
@@ -60,13 +64,16 @@ export default function PermissionsSettings() {
 
   const handleOpenNew = () => {
     setEditId(null)
-    setFormData({ name: '', email: '', role: 'Vistoriador' })
+    setLocalEmailPart('')
+    setFormData({ name: '', role: 'Vistoriador' })
     setDialogOpen(true)
   }
 
   const handleOpenEdit = (user: SystemUser) => {
     setEditId(user.id)
-    setFormData({ name: user.name, email: user.email, role: user.role })
+    const [local] = user.email.split('@')
+    setLocalEmailPart(local)
+    setFormData({ name: user.name, role: user.role })
     setDialogOpen(true)
   }
 
@@ -76,16 +83,18 @@ export default function PermissionsSettings() {
   }
 
   const handleSave = () => {
-    if (!formData.name || !formData.email) {
+    if (!formData.name || !localEmailPart) {
       toast({ variant: 'destructive', title: 'Erro', description: 'Preencha todos os campos.' })
       return
     }
 
+    const fullEmail = `${localEmailPart}@${tenantDomain}`
+
     if (editId) {
-      usersStore.updateUser(editId, formData)
+      usersStore.updateUser(editId, { ...formData, email: fullEmail })
       toast({ title: 'Usuário Atualizado', description: 'Dados salvos com sucesso.' })
     } else {
-      usersStore.addUser(formData)
+      usersStore.addUser({ ...formData, email: fullEmail })
       toast({ title: 'Usuário Adicionado', description: 'Novo acesso concedido ao Tenant.' })
     }
     setDialogOpen(false)
@@ -99,8 +108,14 @@ export default function PermissionsSettings() {
             <CardTitle className="flex items-center gap-2">
               <Shield className="w-5 h-5 text-primary" /> Contas e Acessos M365
             </CardTitle>
-            <CardDescription>
-              Gerencie quais emails corporativos têm permissão para acessar a plataforma.
+            <CardDescription className="flex flex-col gap-1 mt-1">
+              <span>
+                Gerencie quais emails corporativos têm permissão para acessar a plataforma.
+              </span>
+              <span className="inline-flex items-center text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-1 rounded w-fit mt-1">
+                <CheckCircle2 className="w-3 h-3 mr-1" /> Permissões restritas ao domínio vinculado:
+                @{tenantDomain}
+              </span>
             </CardDescription>
           </div>
           <Button onClick={handleOpenNew} className="gap-2">
@@ -163,6 +178,13 @@ export default function PermissionsSettings() {
                   </TableCell>
                 </TableRow>
               ))}
+              {users.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
+                    Nenhum usuário cadastrado para este domínio.
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>
@@ -173,7 +195,7 @@ export default function PermissionsSettings() {
           <DialogHeader>
             <DialogTitle>{editId ? 'Editar Usuário M365' : 'Autorizar Novo Usuário'}</DialogTitle>
             <DialogDescription>
-              Certifique-se de que o e-mail pertence ao Tenant oficial configurado.
+              Apenas contas pertencentes ao domínio oficial do Tenant podem ser cadastradas.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -186,13 +208,18 @@ export default function PermissionsSettings() {
               />
             </div>
             <div className="grid gap-2">
-              <Label>Email M365</Label>
-              <Input
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="joao.silva@imobged.com"
-              />
+              <Label>Identificação (Email)</Label>
+              <div className="flex">
+                <Input
+                  className="rounded-r-none focus-visible:z-10"
+                  value={localEmailPart}
+                  onChange={(e) => setLocalEmailPart(e.target.value.replace(/@.*/, '').trim())}
+                  placeholder="joao.silva"
+                />
+                <span className="inline-flex items-center px-3 border border-l-0 border-input rounded-r-md bg-muted text-muted-foreground text-sm font-medium">
+                  @{tenantDomain}
+                </span>
+              </div>
             </div>
             <div className="grid gap-2">
               <Label>Perfil de Acesso Inicial</Label>

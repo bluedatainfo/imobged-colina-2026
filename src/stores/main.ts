@@ -19,6 +19,7 @@ export type SiteKey = 'locacao' | 'captacao' | 'vendas' | 'juridico' | 'financei
 
 export type SharePointSettings = {
   tenantId: string
+  tenantDomain: string
   teamsWebhookUrl?: string
   sites: Record<SiteKey, string>
   libraries: {
@@ -116,7 +117,8 @@ let state: State = {
   },
   sharepoint: {
     tenantId: 'a1b2c3d4-e5f6-4a1b-9c2d-3e4f5a6b7c8d',
-    teamsWebhookUrl: 'https://imobged.webhook.office.com/teams',
+    tenantDomain: 'imobged.com',
+    teamsWebhookUrl: 'https://imobged.com.webhook.office.com/teams/alertas-gerais',
     sites: {
       locacao: 'https://imobged.sharepoint.com/sites/GestaoDeLocacao',
       captacao: 'https://imobged.sharepoint.com/sites/Captacao',
@@ -172,25 +174,6 @@ let state: State = {
       rentValue: 3200,
       location: { x: 75, y: 25 },
     },
-    {
-      id: '104',
-      title: 'Sala Comercial',
-      address: 'Av. Paulista, 1000',
-      type: 'Comercial',
-      status: 'Disponível para Locação',
-      image: 'https://img.usecurling.com/p/400/300?q=office',
-      rentValue: 4800,
-      location: { x: 80, y: 80 },
-    },
-    {
-      id: '105',
-      title: 'Galpão Industrial',
-      address: 'Rodovia BR-116, Km 42',
-      type: 'Comercial',
-      status: 'Vistoria',
-      image: 'https://img.usecurling.com/p/400/300?q=warehouse',
-      location: { x: 20, y: 80 },
-    },
   ],
   auditLogs: [
     {
@@ -202,94 +185,9 @@ let state: State = {
       timestamp: new Date().toISOString(),
       ipAddress: '192.168.0.10',
     },
-    {
-      id: 'log2',
-      action: 'Login efetuado com sucesso',
-      user: 'Carlos Santos',
-      userEmail: 'carlos.santos@imobged.com',
-      timestamp: new Date(Date.now() - 3600000).toISOString(),
-      ipAddress: '172.16.254.1',
-    },
-    {
-      id: 'log3',
-      action: 'Visualização de Documento (RG_Locatario_Joao.pdf)',
-      user: 'Mariana Costa',
-      userEmail: 'mariana.costa@imobged.com',
-      timestamp: new Date(Date.now() - 7200000).toISOString(),
-      ipAddress: '10.0.0.15',
-    },
-    {
-      id: 'log4',
-      action: 'Configurações de Segurança Atualizadas',
-      user: 'Ana Silva',
-      userEmail: 'ana.silva@imobged.com',
-      timestamp: new Date(Date.now() - 86400000).toISOString(),
-      ipAddress: '192.168.0.10',
-    },
   ],
   inspectionsData: {},
-  maintenanceTickets: [
-    {
-      id: 'MT-8821',
-      propertyId: '104',
-      address: 'Av. Paulista, 1000',
-      item: 'Elétrica',
-      notes: 'Quadro de força com disjuntores desarmando sozinhos.',
-      photo: 'https://img.usecurling.com/p/200/200?q=electrical',
-      status: 'Pendente',
-      createdAt: new Date(Date.now() - 86400000).toISOString(),
-    },
-    {
-      id: 'MT-8822',
-      propertyId: '101',
-      address: 'Rua Flores, 123',
-      item: 'Hidráulica',
-      notes: 'Vazamento no banheiro social.',
-      photo: null,
-      status: 'Em Andamento',
-      createdAt: new Date(Date.now() - 172800000).toISOString(),
-    },
-    {
-      id: 'MT-8823',
-      propertyId: '102',
-      address: 'Rua das Margaridas, 88',
-      item: 'Pintura',
-      notes: 'Pintura descascando na sala de estar.',
-      photo: 'https://img.usecurling.com/p/200/200?q=wall',
-      status: 'Concluído',
-      createdAt: new Date(Date.now() - 432000000).toISOString(),
-    },
-    {
-      id: 'MT-8824',
-      propertyId: '103',
-      address: 'Rua dos Ipês, 45',
-      item: 'Estrutural',
-      notes: 'Rachadura na varanda externa.',
-      photo: null,
-      status: 'Pendente',
-      createdAt: new Date(Date.now() - 50000000).toISOString(),
-    },
-    {
-      id: 'MT-8825',
-      propertyId: '101',
-      address: 'Rua Flores, 123',
-      item: 'Elétrica',
-      notes: 'Tomada em curto na cozinha.',
-      photo: null,
-      status: 'Concluído',
-      createdAt: new Date(Date.now() - 250000000).toISOString(),
-    },
-    {
-      id: 'MT-8826',
-      propertyId: '105',
-      address: 'Rodovia BR-116, Km 42',
-      item: 'Estrutural',
-      notes: 'Goteira identificada no galpão principal.',
-      photo: 'https://img.usecurling.com/p/200/200?q=roof',
-      status: 'Em Andamento',
-      createdAt: new Date(Date.now() - 90000000).toISOString(),
-    },
-  ],
+  maintenanceTickets: [],
 }
 
 let listeners: Array<() => void> = []
@@ -332,38 +230,6 @@ export const mainStore = {
     state = {
       ...state,
       properties: state.properties.map((p) => (p.id === id ? { ...p, status } : p)),
-    }
-    emit()
-  },
-  saveInspection: (data: InspectionData) => {
-    state = { ...state, inspectionsData: { ...state.inspectionsData, [data.propertyId]: data } }
-    emit()
-  },
-  addProperty: (property: Omit<Property, 'id' | 'status' | 'image'>) => {
-    const newProperty: Property = {
-      ...property,
-      id: Math.floor(Math.random() * 1000).toString(),
-      status: 'Pendente/Rascunho',
-      image: `https://img.usecurling.com/p/400/300?q=${property.type === 'Comercial' ? 'office' : 'house'}`,
-      location: { x: Math.floor(Math.random() * 80) + 10, y: Math.floor(Math.random() * 80) + 10 },
-    }
-    state = { ...state, properties: [...state.properties, newProperty] }
-    emit()
-  },
-  addMaintenanceTicket: (ticket: Omit<MaintenanceTicket, 'id' | 'createdAt' | 'status'>) => {
-    const newTicket: MaintenanceTicket = {
-      ...ticket,
-      id: `MT-${Math.floor(Math.random() * 10000)}`,
-      status: 'Pendente',
-      createdAt: new Date().toISOString(),
-    }
-    state = { ...state, maintenanceTickets: [newTicket, ...state.maintenanceTickets] }
-    emit()
-  },
-  updateMaintenanceStatus: (id: string, status: MaintenanceStatus) => {
-    state = {
-      ...state,
-      maintenanceTickets: state.maintenanceTickets.map((t) => (t.id === id ? { ...t, status } : t)),
     }
     emit()
   },
