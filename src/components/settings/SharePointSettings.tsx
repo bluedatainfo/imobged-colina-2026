@@ -12,7 +12,9 @@ import { cn } from '@/lib/utils'
 
 const getDomainFromTenant = (tenantId: string) => {
   if (!tenantId) return ''
-  if (tenantId === 'a1b2c3d4-e5f6-4a1b-9c2d-3e4f5a6b7c8d') return 'imobged.com'
+  const normalizedId = tenantId.toLowerCase().trim()
+  if (normalizedId === 'a1b2c3d4-e5f6-4a1b-9c2d-3e4f5a6b7c8d') return 'imobged.com'
+  if (normalizedId === 'bf7f8315-5eb1-44a0-bb92-c6640af6a671') return 'imobiliariacolina.com.br'
   const cleanId = tenantId.replace(/[^a-f0-9]/gi, '')
   return `tenant-${cleanId.substring(0, 6)}.com`
 }
