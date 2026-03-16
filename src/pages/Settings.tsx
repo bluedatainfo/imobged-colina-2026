@@ -1,9 +1,19 @@
+import { lazy, Suspense } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import GeneralSettings from '@/components/settings/GeneralSettings'
-import SharePointSettings from '@/components/settings/SharePointSettings'
-import AgencySettings from '@/components/settings/AgencySettings'
-import PermissionsSettings from '@/components/settings/PermissionsSettings'
-import SecuritySettings from '@/components/settings/SecuritySettings'
+import { Loader2 } from 'lucide-react'
+
+// Lazy loading large components to prevent build memory issues
+const GeneralSettings = lazy(() => import('@/components/settings/GeneralSettings'))
+const SharePointSettings = lazy(() => import('@/components/settings/SharePointSettings'))
+const AgencySettings = lazy(() => import('@/components/settings/AgencySettings'))
+const PermissionsSettings = lazy(() => import('@/components/settings/PermissionsSettings'))
+const SecuritySettings = lazy(() => import('@/components/settings/SecuritySettings'))
+
+const SettingsFallback = () => (
+  <div className="flex h-32 w-full items-center justify-center">
+    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+  </div>
+)
 
 const Settings = () => {
   return (
@@ -23,21 +33,23 @@ const Settings = () => {
           <TabsTrigger value="agency">Dados da Imobiliária</TabsTrigger>
           <TabsTrigger value="general">Geral & SLA</TabsTrigger>
         </TabsList>
-        <TabsContent value="permissions">
-          <PermissionsSettings />
-        </TabsContent>
-        <TabsContent value="security">
-          <SecuritySettings />
-        </TabsContent>
-        <TabsContent value="sharepoint">
-          <SharePointSettings />
-        </TabsContent>
-        <TabsContent value="agency">
-          <AgencySettings />
-        </TabsContent>
-        <TabsContent value="general">
-          <GeneralSettings />
-        </TabsContent>
+        <Suspense fallback={<SettingsFallback />}>
+          <TabsContent value="permissions">
+            <PermissionsSettings />
+          </TabsContent>
+          <TabsContent value="security">
+            <SecuritySettings />
+          </TabsContent>
+          <TabsContent value="sharepoint">
+            <SharePointSettings />
+          </TabsContent>
+          <TabsContent value="agency">
+            <AgencySettings />
+          </TabsContent>
+          <TabsContent value="general">
+            <GeneralSettings />
+          </TabsContent>
+        </Suspense>
       </Tabs>
     </div>
   )

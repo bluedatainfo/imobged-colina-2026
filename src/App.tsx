@@ -1,27 +1,31 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { Toaster } from '@/components/ui/toaster'
 import { Toaster as Sonner } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import Layout from './components/Layout'
-import Index from './pages/Index'
-import Documents from './pages/Documents'
-import DocumentAlerts from './pages/DocumentAlerts'
-import Properties from './pages/Properties'
-import PropertyDossier from './pages/PropertyDossier'
-import Inspections from './pages/Inspections'
-import LegalReview from './pages/LegalReview'
-import ManagerApproval from './pages/ManagerApproval'
-import Contracts from './pages/Contracts'
-import Settings from './pages/Settings'
-import NotFound from './pages/NotFound'
-import Login from './pages/Login'
-import Renewals from './pages/Renewals'
-import KeysControl from './pages/KeysControl'
-import Maintenance from './pages/Maintenance'
-import AccessDenied from './pages/AccessDenied'
-import Portal from './pages/Portal'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { checkAccess } from './lib/permissions'
+import { Loader2 } from 'lucide-react'
+
+// Code splitting routes to prevent out-of-memory errors during build chunking
+const Index = lazy(() => import('./pages/Index'))
+const Documents = lazy(() => import('./pages/Documents'))
+const DocumentAlerts = lazy(() => import('./pages/DocumentAlerts'))
+const Properties = lazy(() => import('./pages/Properties'))
+const PropertyDossier = lazy(() => import('./pages/PropertyDossier'))
+const Inspections = lazy(() => import('./pages/Inspections'))
+const LegalReview = lazy(() => import('./pages/LegalReview'))
+const ManagerApproval = lazy(() => import('./pages/ManagerApproval'))
+const Contracts = lazy(() => import('./pages/Contracts'))
+const Settings = lazy(() => import('./pages/Settings'))
+const NotFound = lazy(() => import('./pages/NotFound'))
+const Login = lazy(() => import('./pages/Login'))
+const Renewals = lazy(() => import('./pages/Renewals'))
+const KeysControl = lazy(() => import('./pages/KeysControl'))
+const Maintenance = lazy(() => import('./pages/Maintenance'))
+const AccessDenied = lazy(() => import('./pages/AccessDenied'))
+const Portal = lazy(() => import('./pages/Portal'))
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAuth()
@@ -35,37 +39,45 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>
 }
 
-const AppRoutes = () => (
-  <Routes>
-    {/* Public Routes */}
-    <Route path="/login" element={<Login />} />
-    <Route path="/portal" element={<Portal />} />
+const SuspenseFallback = () => (
+  <div className="flex h-[calc(100vh-4rem)] w-full items-center justify-center">
+    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+  </div>
+)
 
-    {/* Protected Routes */}
-    <Route
-      element={
-        <ProtectedRoute>
-          <Layout />
-        </ProtectedRoute>
-      }
-    >
-      <Route path="/" element={<Index />} />
-      <Route path="/manager-approval" element={<ManagerApproval />} />
-      <Route path="/contracts" element={<Contracts />} />
-      <Route path="/documents" element={<Documents />} />
-      <Route path="/document-alerts" element={<DocumentAlerts />} />
-      <Route path="/properties" element={<Properties />} />
-      <Route path="/properties/:id/dossier" element={<PropertyDossier />} />
-      <Route path="/inspections" element={<Inspections />} />
-      <Route path="/legal" element={<LegalReview />} />
-      <Route path="/renewals" element={<Renewals />} />
-      <Route path="/keys" element={<KeysControl />} />
-      <Route path="/maintenance" element={<Maintenance />} />
-      <Route path="/settings" element={<Settings />} />
-      <Route path="/access-denied" element={<AccessDenied />} />
-    </Route>
-    <Route path="*" element={<NotFound />} />
-  </Routes>
+const AppRoutes = () => (
+  <Suspense fallback={<SuspenseFallback />}>
+    <Routes>
+      {/* Public Routes */}
+      <Route path="/login" element={<Login />} />
+      <Route path="/portal" element={<Portal />} />
+
+      {/* Protected Routes */}
+      <Route
+        element={
+          <ProtectedRoute>
+            <Layout />
+          </ProtectedRoute>
+        }
+      >
+        <Route path="/" element={<Index />} />
+        <Route path="/manager-approval" element={<ManagerApproval />} />
+        <Route path="/contracts" element={<Contracts />} />
+        <Route path="/documents" element={<Documents />} />
+        <Route path="/document-alerts" element={<DocumentAlerts />} />
+        <Route path="/properties" element={<Properties />} />
+        <Route path="/properties/:id/dossier" element={<PropertyDossier />} />
+        <Route path="/inspections" element={<Inspections />} />
+        <Route path="/legal" element={<LegalReview />} />
+        <Route path="/renewals" element={<Renewals />} />
+        <Route path="/keys" element={<KeysControl />} />
+        <Route path="/maintenance" element={<Maintenance />} />
+        <Route path="/settings" element={<Settings />} />
+        <Route path="/access-denied" element={<AccessDenied />} />
+      </Route>
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  </Suspense>
 )
 
 const App = () => (
