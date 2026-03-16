@@ -66598,7 +66598,7 @@ var availableRoles = [
 ];
 function PermissionsSettings() {
 	const { users } = useUsersStore();
-	const tenantDomain = useMainStore((s) => s.sharepoint.tenantDomain) || "imobged.com";
+	const tenantDomain = useMainStore().sharepoint.tenantDomain || "imobged.com";
 	const { toast } = useToast();
 	const [dialogOpen, setDialogOpen] = (0, import_react.useState)(false);
 	const [editId, setEditId] = (0, import_react.useState)(null);
@@ -69893,4 +69893,4 @@ var App = () => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(BrowserRouter, {
 }));
 //#endregion
 
-//# sourceMappingURL=index-XMmh8P3c.js.map
+//# sourceMappingURL=index-qxEgo8JH.js.map

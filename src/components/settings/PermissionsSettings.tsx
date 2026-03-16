@@ -45,7 +45,7 @@ const availableRoles: Role[] = [
 
 export default function PermissionsSettings() {
   const { users } = useUsersStore()
-  const tenantDomain = useMainStore((s) => s.sharepoint.tenantDomain) || 'imobged.com'
+  const tenantDomain = useMainStore().sharepoint.tenantDomain || 'imobged.com'
   const { toast } = useToast()
 
   const [dialogOpen, setDialogOpen] = useState(false)
