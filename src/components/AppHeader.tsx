@@ -1,10 +1,11 @@
-import { Bell, Search, LogOut, Users } from 'lucide-react'
+import { Bell, Search, LogOut, Users, HelpCircle } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { useAuth } from '@/contexts/AuthContext'
 import useUsersStore from '@/stores/users'
+import { helpStore } from '@/stores/help'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,12 +36,20 @@ export function AppHeader() {
           />
         </div>
       </div>
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" className="relative">
+      <div className="flex items-center gap-2 sm:gap-4">
+        <Button
+          variant="ghost"
+          size="icon"
+          title="Ajuda Contextual (F1)"
+          onClick={() => helpStore.setOpen(true)}
+        >
+          <HelpCircle className="h-5 w-5 text-muted-foreground hover:text-foreground" />
+        </Button>
+        <Button variant="ghost" size="icon" className="relative hidden sm:flex">
           <Bell className="h-5 w-5" />
           <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-destructive"></span>
         </Button>
-        <div className="flex items-center gap-2 border-l pl-4">
+        <div className="flex items-center gap-2 border-l pl-2 sm:pl-4">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-8 w-8 rounded-full">

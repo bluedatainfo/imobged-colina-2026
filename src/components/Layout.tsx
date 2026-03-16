@@ -3,6 +3,7 @@ import { SidebarProvider } from '@/components/ui/sidebar'
 import { AppSidebar } from './AppSidebar'
 import { AppHeader } from './AppHeader'
 import { GlobalFAB } from './GlobalFAB'
+import { ContextualHelp } from './ContextualHelp'
 
 export default function Layout() {
   return (
@@ -15,6 +16,7 @@ export default function Layout() {
             <Outlet />
           </main>
           <GlobalFAB />
+          <ContextualHelp />
         </div>
       </div>
     </SidebarProvider>

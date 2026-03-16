@@ -17371,11 +17371,11 @@ var reducer = (state, action) => {
 			};
 	}
 };
-var listeners$5 = [];
+var listeners$6 = [];
 var memoryState = { toasts: [] };
 function dispatch(action) {
 	memoryState = reducer(memoryState, action);
-	listeners$5.forEach((listener) => {
+	listeners$6.forEach((listener) => {
 		listener(memoryState);
 	});
 }
@@ -17412,10 +17412,10 @@ function toast$1({ ...props }) {
 function useToast() {
 	const [state, setState] = import_react.useState(memoryState);
 	import_react.useEffect(() => {
-		listeners$5.push(setState);
+		listeners$6.push(setState);
 		return () => {
-			const index = listeners$5.indexOf(setState);
-			if (index > -1) listeners$5.splice(index, 1);
+			const index = listeners$6.indexOf(setState);
+			if (index > -1) listeners$6.splice(index, 1);
 		};
 	}, [state]);
 	return {
@@ -19313,6 +19313,22 @@ var CircleCheck = createLucideIcon("circle-check", [["circle", {
 	d: "m9 12 2 2 4-4",
 	key: "dzmm74"
 }]]);
+var CircleQuestionMark = createLucideIcon("circle-question-mark", [
+	["circle", {
+		cx: "12",
+		cy: "12",
+		r: "10",
+		key: "1mglay"
+	}],
+	["path", {
+		d: "M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3",
+		key: "1u773s"
+	}],
+	["path", {
+		d: "M12 17h.01",
+		key: "p32p05"
+	}]
+]);
 var CircleX = createLucideIcon("circle-x", [
 	["circle", {
 		cx: "12",
@@ -19759,6 +19775,22 @@ var Image$1 = createLucideIcon("image", [
 	["path", {
 		d: "m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21",
 		key: "1xmnt7"
+	}]
+]);
+var Info = createLucideIcon("info", [
+	["circle", {
+		cx: "12",
+		cy: "12",
+		r: "10",
+		key: "1mglay"
+	}],
+	["path", {
+		d: "M12 16v-4",
+		key: "1dtifu"
+	}],
+	["path", {
+		d: "M12 8h.01",
+		key: "e9boi3"
 	}]
 ]);
 var KeyRound = createLucideIcon("key-round", [["path", {
@@ -27467,7 +27499,7 @@ var SidebarMenuSubButton = import_react.forwardRef(({ asChild = false, size = "m
 SidebarMenuSubButton.displayName = "SidebarMenuSubButton";
 //#endregion
 //#region src/stores/main.ts
-var state$4 = {
+var state$5 = {
 	agencyProfile: {
 		name: "Imobiliária Prime",
 		address: "Av. Paulista, 1000 - São Paulo, SP",
@@ -27643,45 +27675,45 @@ var state$4 = {
 		}
 	]
 };
-var listeners$4 = [];
-var emit$3 = () => listeners$4.forEach((l) => l());
+var listeners$5 = [];
+var emit$4 = () => listeners$5.forEach((l) => l());
 var mainStore = {
-	getState: () => state$4,
+	getState: () => state$5,
 	subscribe: (l) => {
-		listeners$4.push(l);
+		listeners$5.push(l);
 		return () => {
-			listeners$4 = listeners$4.filter((fn) => fn !== l);
+			listeners$5 = listeners$5.filter((fn) => fn !== l);
 		};
 	},
 	updateAgencyProfile: (s) => {
-		state$4 = {
-			...state$4,
+		state$5 = {
+			...state$5,
 			agencyProfile: {
-				...state$4.agencyProfile,
+				...state$5.agencyProfile,
 				...s
 			}
 		};
-		emit$3();
+		emit$4();
 	},
 	updateSettings: (s) => {
-		state$4 = {
-			...state$4,
+		state$5 = {
+			...state$5,
 			settings: {
-				...state$4.settings,
+				...state$5.settings,
 				...s
 			}
 		};
-		emit$3();
+		emit$4();
 	},
 	updateSharePointSettings: (s) => {
-		state$4 = {
-			...state$4,
+		state$5 = {
+			...state$5,
 			sharepoint: {
-				...state$4.sharepoint,
+				...state$5.sharepoint,
 				...s
 			}
 		};
-		emit$3();
+		emit$4();
 	},
 	addAuditLog: (log) => {
 		const newLog = {
@@ -27689,31 +27721,31 @@ var mainStore = {
 			id: Math.random().toString(36).substring(2, 9),
 			timestamp: (/* @__PURE__ */ new Date()).toISOString()
 		};
-		state$4 = {
-			...state$4,
-			auditLogs: [newLog, ...state$4.auditLogs]
+		state$5 = {
+			...state$5,
+			auditLogs: [newLog, ...state$5.auditLogs]
 		};
-		emit$3();
+		emit$4();
 	},
 	updatePropertyStatus: (id, status) => {
-		state$4 = {
-			...state$4,
-			properties: state$4.properties.map((p) => p.id === id ? {
+		state$5 = {
+			...state$5,
+			properties: state$5.properties.map((p) => p.id === id ? {
 				...p,
 				status
 			} : p)
 		};
-		emit$3();
+		emit$4();
 	},
 	saveInspection: (data) => {
-		state$4 = {
-			...state$4,
+		state$5 = {
+			...state$5,
 			inspectionsData: {
-				...state$4.inspectionsData,
+				...state$5.inspectionsData,
 				[data.propertyId]: data
 			}
 		};
-		emit$3();
+		emit$4();
 	},
 	addProperty: (property) => {
 		const newProperty = {
@@ -27726,11 +27758,11 @@ var mainStore = {
 				y: Math.floor(Math.random() * 80) + 10
 			}
 		};
-		state$4 = {
-			...state$4,
-			properties: [...state$4.properties, newProperty]
+		state$5 = {
+			...state$5,
+			properties: [...state$5.properties, newProperty]
 		};
-		emit$3();
+		emit$4();
 	},
 	addMaintenanceTicket: (ticket) => {
 		const newTicket = {
@@ -27739,21 +27771,21 @@ var mainStore = {
 			status: "Pendente",
 			createdAt: (/* @__PURE__ */ new Date()).toISOString()
 		};
-		state$4 = {
-			...state$4,
-			maintenanceTickets: [newTicket, ...state$4.maintenanceTickets]
+		state$5 = {
+			...state$5,
+			maintenanceTickets: [newTicket, ...state$5.maintenanceTickets]
 		};
-		emit$3();
+		emit$4();
 	},
 	updateMaintenanceStatus: (id, status) => {
-		state$4 = {
-			...state$4,
-			maintenanceTickets: state$4.maintenanceTickets.map((t) => t.id === id ? {
+		state$5 = {
+			...state$5,
+			maintenanceTickets: state$5.maintenanceTickets.map((t) => t.id === id ? {
 				...t,
 				status
 			} : t)
 		};
-		emit$3();
+		emit$4();
 	}
 };
 function useMainStore() {
@@ -27765,7 +27797,7 @@ var isSlaBreached = (slaStart, slaHours) => {
 };
 //#endregion
 //#region src/stores/users.ts
-var state$3 = { users: [
+var state$4 = { users: [
 	{
 		id: "usr-1",
 		name: "Ana Silva",
@@ -27802,25 +27834,25 @@ var state$3 = { users: [
 		avatar: "https://img.usecurling.com/ppl/thumbnail?gender=male&seed=15"
 	}
 ] };
-var listeners$3 = [];
-var emit$2 = () => listeners$3.forEach((l) => l());
+var listeners$4 = [];
+var emit$3 = () => listeners$4.forEach((l) => l());
 var usersStore = {
-	getState: () => state$3,
+	getState: () => state$4,
 	subscribe: (l) => {
-		listeners$3.push(l);
+		listeners$4.push(l);
 		return () => {
-			listeners$3 = listeners$3.filter((fn) => fn !== l);
+			listeners$4 = listeners$4.filter((fn) => fn !== l);
 		};
 	},
 	updateUserRole: (id, role) => {
-		state$3 = {
-			...state$3,
-			users: state$3.users.map((u) => u.id === id ? {
+		state$4 = {
+			...state$4,
+			users: state$4.users.map((u) => u.id === id ? {
 				...u,
 				role
 			} : u)
 		};
-		emit$2();
+		emit$3();
 	}
 };
 function useUsersStore() {
@@ -28370,6 +28402,37 @@ var AvatarFallback = import_react.forwardRef(({ className, ...props }, ref) => /
 	...props
 }));
 AvatarFallback.displayName = Fallback.displayName;
+//#endregion
+//#region src/stores/help.ts
+var state$3 = { isOpen: false };
+var listeners$3 = [];
+var emit$2 = () => listeners$3.forEach((l) => l());
+var helpStore = {
+	getState: () => state$3,
+	subscribe: (l) => {
+		listeners$3.push(l);
+		return () => {
+			listeners$3 = listeners$3.filter((fn) => fn !== l);
+		};
+	},
+	setOpen: (isOpen) => {
+		state$3 = {
+			...state$3,
+			isOpen
+		};
+		emit$2();
+	},
+	toggle: () => {
+		state$3 = {
+			...state$3,
+			isOpen: !state$3.isOpen
+		};
+		emit$2();
+	}
+};
+function useHelpStore() {
+	return (0, import_react.useSyncExternalStore)(helpStore.subscribe, helpStore.getState);
+}
 //#endregion
 //#region ../../cache/modules/imobiliaria-digital-5a674/node_modules/.pnpm/@radix-ui+react-direction@1.1.1_@types+react@19.2.14_react@19.2.4/node_modules/@radix-ui/react-direction/dist/index.mjs
 var DirectionContext = import_react.createContext(void 0);
@@ -29739,27 +29802,27 @@ function AppHeader() {
 	const { user, logout, switchUser } = useAuth();
 	const { users } = useUsersStore();
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("header", {
-		"data-uid": "src/components/AppHeader.tsx:26:5",
+		"data-uid": "src/components/AppHeader.tsx:27:5",
 		"data-prohibitions": "[editContent]",
 		className: "sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60 md:px-6",
 		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-			"data-uid": "src/components/AppHeader.tsx:27:7",
+			"data-uid": "src/components/AppHeader.tsx:28:7",
 			"data-prohibitions": "[]",
 			className: "flex items-center gap-4",
 			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(SidebarTrigger, {
-				"data-uid": "src/components/AppHeader.tsx:28:9",
+				"data-uid": "src/components/AppHeader.tsx:29:9",
 				"data-prohibitions": "[editContent]",
 				className: "md:hidden"
 			}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				"data-uid": "src/components/AppHeader.tsx:29:9",
+				"data-uid": "src/components/AppHeader.tsx:30:9",
 				"data-prohibitions": "[]",
 				className: "hidden relative w-full max-w-sm md:flex items-center",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Search, {
-					"data-uid": "src/components/AppHeader.tsx:30:11",
+					"data-uid": "src/components/AppHeader.tsx:31:11",
 					"data-prohibitions": "[editContent]",
 					className: "absolute left-2.5 h-4 w-4 text-muted-foreground"
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Input, {
-					"data-uid": "src/components/AppHeader.tsx:31:11",
+					"data-uid": "src/components/AppHeader.tsx:32:11",
 					"data-prohibitions": "[editContent]",
 					type: "search",
 					placeholder: "Buscar documentos, imóveis (CMD+K)...",
@@ -29767,167 +29830,183 @@ function AppHeader() {
 				})]
 			})]
 		}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-			"data-uid": "src/components/AppHeader.tsx:38:7",
+			"data-uid": "src/components/AppHeader.tsx:39:7",
 			"data-prohibitions": "[editContent]",
-			className: "flex items-center gap-4",
-			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
-				"data-uid": "src/components/AppHeader.tsx:39:9",
-				"data-prohibitions": "[]",
-				variant: "ghost",
-				size: "icon",
-				className: "relative",
-				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Bell, {
-					"data-uid": "src/components/AppHeader.tsx:40:11",
-					"data-prohibitions": "[editContent]",
-					className: "h-5 w-5"
-				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-					"data-uid": "src/components/AppHeader.tsx:41:11",
+			className: "flex items-center gap-2 sm:gap-4",
+			children: [
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+					"data-uid": "src/components/AppHeader.tsx:40:9",
 					"data-prohibitions": "[]",
-					className: "absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-destructive"
-				})]
-			}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				"data-uid": "src/components/AppHeader.tsx:43:9",
-				"data-prohibitions": "[editContent]",
-				className: "flex items-center gap-2 border-l pl-4",
-				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DropdownMenu, {
-					"data-uid": "src/components/AppHeader.tsx:44:11",
+					variant: "ghost",
+					size: "icon",
+					title: "Ajuda Contextual (F1)",
+					onClick: () => helpStore.setOpen(true),
+					children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CircleQuestionMark, {
+						"data-uid": "src/components/AppHeader.tsx:46:11",
+						"data-prohibitions": "[editContent]",
+						className: "h-5 w-5 text-muted-foreground hover:text-foreground"
+					})
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+					"data-uid": "src/components/AppHeader.tsx:48:9",
+					"data-prohibitions": "[]",
+					variant: "ghost",
+					size: "icon",
+					className: "relative hidden sm:flex",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Bell, {
+						"data-uid": "src/components/AppHeader.tsx:49:11",
+						"data-prohibitions": "[editContent]",
+						className: "h-5 w-5"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+						"data-uid": "src/components/AppHeader.tsx:50:11",
+						"data-prohibitions": "[]",
+						className: "absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-destructive"
+					})]
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					"data-uid": "src/components/AppHeader.tsx:52:9",
 					"data-prohibitions": "[editContent]",
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DropdownMenuTrigger, {
-						"data-uid": "src/components/AppHeader.tsx:45:13",
+					className: "flex items-center gap-2 border-l pl-2 sm:pl-4",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DropdownMenu, {
+						"data-uid": "src/components/AppHeader.tsx:53:11",
 						"data-prohibitions": "[editContent]",
-						asChild: true,
-						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
-							"data-uid": "src/components/AppHeader.tsx:46:15",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DropdownMenuTrigger, {
+							"data-uid": "src/components/AppHeader.tsx:54:13",
 							"data-prohibitions": "[editContent]",
-							variant: "ghost",
-							className: "relative h-8 w-8 rounded-full",
-							children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Avatar, {
-								"data-uid": "src/components/AppHeader.tsx:47:17",
+							asChild: true,
+							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+								"data-uid": "src/components/AppHeader.tsx:55:15",
 								"data-prohibitions": "[editContent]",
-								className: "h-8 w-8",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(AvatarImage, {
-									"data-uid": "src/components/AppHeader.tsx:48:19",
+								variant: "ghost",
+								className: "relative h-8 w-8 rounded-full",
+								children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Avatar, {
+									"data-uid": "src/components/AppHeader.tsx:56:17",
 									"data-prohibitions": "[editContent]",
-									src: user?.avatar,
-									alt: user?.name
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AvatarFallback, {
-									"data-uid": "src/components/AppHeader.tsx:49:19",
-									"data-prohibitions": "[editContent]",
-									children: user?.name?.substring(0, 2) || "US"
-								})]
-							})
-						})
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DropdownMenuContent, {
-						"data-uid": "src/components/AppHeader.tsx:53:13",
-						"data-prohibitions": "[editContent]",
-						className: "w-56",
-						align: "end",
-						forceMount: true,
-						children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DropdownMenuLabel, {
-								"data-uid": "src/components/AppHeader.tsx:54:15",
-								"data-prohibitions": "[editContent]",
-								className: "font-normal",
-								children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-									"data-uid": "src/components/AppHeader.tsx:55:17",
-									"data-prohibitions": "[editContent]",
-									className: "flex flex-col space-y-1",
-									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-										"data-uid": "src/components/AppHeader.tsx:56:19",
-										"data-prohibitions": "[editContent]",
-										className: "text-sm font-medium leading-none",
-										children: user?.name || "Usuário"
-									}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+									className: "h-8 w-8",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(AvatarImage, {
 										"data-uid": "src/components/AppHeader.tsx:57:19",
 										"data-prohibitions": "[editContent]",
-										className: "text-xs leading-none text-muted-foreground flex items-center gap-2 mt-1",
-										children: [
-											user?.email,
-											" ",
-											/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badge, {
-												"data-uid": "src/components/AppHeader.tsx:58:35",
-												"data-prohibitions": "[editContent]",
-												variant: "secondary",
-												children: user?.role
-											})
-										]
+										src: user?.avatar,
+										alt: user?.name
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(AvatarFallback, {
+										"data-uid": "src/components/AppHeader.tsx:58:19",
+										"data-prohibitions": "[editContent]",
+										children: user?.name?.substring(0, 2) || "US"
 									})]
 								})
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DropdownMenuSeparator, {
-								"data-uid": "src/components/AppHeader.tsx:62:15",
-								"data-prohibitions": "[editContent]"
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DropdownMenuSub, {
-								"data-uid": "src/components/AppHeader.tsx:64:15",
-								"data-prohibitions": "[editContent]",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DropdownMenuSubTrigger, {
-									"data-uid": "src/components/AppHeader.tsx:65:17",
+							})
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DropdownMenuContent, {
+							"data-uid": "src/components/AppHeader.tsx:62:13",
+							"data-prohibitions": "[editContent]",
+							className: "w-56",
+							align: "end",
+							forceMount: true,
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DropdownMenuLabel, {
+									"data-uid": "src/components/AppHeader.tsx:63:15",
+									"data-prohibitions": "[editContent]",
+									className: "font-normal",
+									children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										"data-uid": "src/components/AppHeader.tsx:64:17",
+										"data-prohibitions": "[editContent]",
+										className: "flex flex-col space-y-1",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											"data-uid": "src/components/AppHeader.tsx:65:19",
+											"data-prohibitions": "[editContent]",
+											className: "text-sm font-medium leading-none",
+											children: user?.name || "Usuário"
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+											"data-uid": "src/components/AppHeader.tsx:66:19",
+											"data-prohibitions": "[editContent]",
+											className: "text-xs leading-none text-muted-foreground flex items-center gap-2 mt-1",
+											children: [
+												user?.email,
+												" ",
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badge, {
+													"data-uid": "src/components/AppHeader.tsx:67:35",
+													"data-prohibitions": "[editContent]",
+													variant: "secondary",
+													children: user?.role
+												})
+											]
+										})]
+									})
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DropdownMenuSeparator, {
+									"data-uid": "src/components/AppHeader.tsx:71:15",
+									"data-prohibitions": "[editContent]"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DropdownMenuSub, {
+									"data-uid": "src/components/AppHeader.tsx:73:15",
+									"data-prohibitions": "[editContent]",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DropdownMenuSubTrigger, {
+										"data-uid": "src/components/AppHeader.tsx:74:17",
+										"data-prohibitions": "[]",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Users, {
+											"data-uid": "src/components/AppHeader.tsx:75:19",
+											"data-prohibitions": "[editContent]",
+											className: "mr-2 h-4 w-4"
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+											"data-uid": "src/components/AppHeader.tsx:76:19",
+											"data-prohibitions": "[]",
+											children: "Mudar Usuário (Demo)"
+										})]
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(DropdownMenuSubContent, {
+										"data-uid": "src/components/AppHeader.tsx:78:17",
+										"data-prohibitions": "[editContent]",
+										children: users.map((u) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DropdownMenuItem, {
+											"data-uid": "src/components/AppHeader.tsx:80:21",
+											"data-prohibitions": "[editContent]",
+											onClick: () => switchUser(u.id),
+											className: "justify-between",
+											children: [u.name, /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+												"data-uid": "src/components/AppHeader.tsx:86:23",
+												"data-prohibitions": "[editContent]",
+												className: "text-xs text-muted-foreground ml-2",
+												children: u.role
+											})]
+										}, u.id))
+									})]
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DropdownMenuSeparator, {
+									"data-uid": "src/components/AppHeader.tsx:92:15",
+									"data-prohibitions": "[editContent]"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DropdownMenuItem, {
+									"data-uid": "src/components/AppHeader.tsx:93:15",
 									"data-prohibitions": "[]",
-									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Users, {
-										"data-uid": "src/components/AppHeader.tsx:66:19",
+									onClick: logout,
+									className: "text-destructive cursor-pointer",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(LogOut, {
+										"data-uid": "src/components/AppHeader.tsx:94:17",
 										"data-prohibitions": "[editContent]",
 										className: "mr-2 h-4 w-4"
 									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-										"data-uid": "src/components/AppHeader.tsx:67:19",
+										"data-uid": "src/components/AppHeader.tsx:95:17",
 										"data-prohibitions": "[]",
-										children: "Mudar Usuário (Demo)"
+										children: "Sair (SSO)"
 									})]
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(DropdownMenuSubContent, {
-									"data-uid": "src/components/AppHeader.tsx:69:17",
-									"data-prohibitions": "[editContent]",
-									children: users.map((u) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DropdownMenuItem, {
-										"data-uid": "src/components/AppHeader.tsx:71:21",
-										"data-prohibitions": "[editContent]",
-										onClick: () => switchUser(u.id),
-										className: "justify-between",
-										children: [u.name, /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-											"data-uid": "src/components/AppHeader.tsx:77:23",
-											"data-prohibitions": "[editContent]",
-											className: "text-xs text-muted-foreground ml-2",
-											children: u.role
-										})]
-									}, u.id))
-								})]
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DropdownMenuSeparator, {
-								"data-uid": "src/components/AppHeader.tsx:83:15",
-								"data-prohibitions": "[editContent]"
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DropdownMenuItem, {
-								"data-uid": "src/components/AppHeader.tsx:84:15",
-								"data-prohibitions": "[]",
-								onClick: logout,
-								className: "text-destructive cursor-pointer",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(LogOut, {
-									"data-uid": "src/components/AppHeader.tsx:85:17",
-									"data-prohibitions": "[editContent]",
-									className: "mr-2 h-4 w-4"
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-									"data-uid": "src/components/AppHeader.tsx:86:17",
-									"data-prohibitions": "[]",
-									children: "Sair (SSO)"
-								})]
-							})
-						]
-					})]
-				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					"data-uid": "src/components/AppHeader.tsx:90:11",
-					"data-prohibitions": "[editContent]",
-					className: "hidden flex-col text-sm md:flex",
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-						"data-uid": "src/components/AppHeader.tsx:91:13",
+								})
+							]
+						})]
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						"data-uid": "src/components/AppHeader.tsx:99:11",
 						"data-prohibitions": "[editContent]",
-						className: "font-medium leading-none",
-						children: user?.name || "Visitante"
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-						"data-uid": "src/components/AppHeader.tsx:92:13",
-						"data-prohibitions": "[editContent]",
-						className: "text-xs text-muted-foreground",
-						children: user?.role || "Microsoft 365"
+						className: "hidden flex-col text-sm md:flex",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+							"data-uid": "src/components/AppHeader.tsx:100:13",
+							"data-prohibitions": "[editContent]",
+							className: "font-medium leading-none",
+							children: user?.name || "Visitante"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+							"data-uid": "src/components/AppHeader.tsx:101:13",
+							"data-prohibitions": "[editContent]",
+							className: "text-xs text-muted-foreground",
+							children: user?.role || "Microsoft 365"
+						})]
 					})]
-				})]
-			})]
+				})
+			]
 		})]
 	});
 }
@@ -30050,38 +30129,184 @@ function GlobalFAB() {
 	});
 }
 //#endregion
+//#region src/components/ContextualHelp.tsx
+function ContextualHelp() {
+	const { isOpen } = useHelpStore();
+	const location = useLocation();
+	(0, import_react.useEffect)(() => {
+		const handleKeyDown = (e) => {
+			if (e.key === "F1") {
+				e.preventDefault();
+				helpStore.toggle();
+			}
+		};
+		window.addEventListener("keydown", handleKeyDown);
+		return () => window.removeEventListener("keydown", handleKeyDown);
+	}, []);
+	const helpContent = (0, import_react.useMemo)(() => {
+		const path = location.pathname;
+		if (path === "/") return {
+			title: "Painel de Controle",
+			description: "Bem-vindo ao seu dashboard principal. Aqui você tem uma visão geral da operação.",
+			sections: [
+				{
+					icon: Clock,
+					title: "Indicadores de SLA",
+					content: "Monitore violações de SLA em propriedades que estão na fase de \"Análise Gerencial\". O alerta destaca processos que ultrapassaram as horas configuradas."
+				},
+				{
+					icon: FileText,
+					title: "Status de Contratos",
+					content: "Visualize um resumo rápido do volume de contratos ativos, aguardando assinatura (DocuSign) ou pendentes de renovação."
+				},
+				{
+					icon: List$1,
+					title: "Trilha de Auditoria",
+					content: "Acompanhe as ações recentes dos usuários, como aprovações, edições e uploads para as bibliotecas do SharePoint integradas."
+				}
+			]
+		};
+		if (path.match(/^\/properties\/[^/]+\/dossier$/)) return {
+			title: "Dossiê Digital do Imóvel",
+			description: "Central consolidada de todas as informações e documentos do imóvel.",
+			sections: [
+				{
+					icon: FolderSync,
+					title: "Pastas e SharePoint (GED)",
+					content: "Na aba \"Cofre de Documentos (GED)\", navegue pelos arquivos físicos sincronizados com o Microsoft 365, organizados por categorias e setores."
+				},
+				{
+					icon: BellRing,
+					title: "Alertas de Vencimento",
+					content: "O sistema extrai as datas de validade dos metadados. Um aviso no topo alertará sobre documentos \"Expirados\" ou \"Vencendo em breve\"."
+				},
+				{
+					icon: Wrench$1,
+					title: "Relatórios de Manutenção",
+					content: "Histórico completo de chamados de reparo gerados por vistorias de entrada ou acionamentos manuais, incluindo fotos e laudos."
+				}
+			]
+		};
+		return {
+			title: "Ajuda Contextual",
+			description: "Você está em uma tela genérica do sistema.",
+			sections: [{
+				icon: Info,
+				title: "Navegação Padrão",
+				content: "Navegue para o Painel Inicial ou abra o Dossiê de um imóvel para visualizar instruções detalhadas e manuais específicos dessas rotas."
+			}]
+		};
+	}, [location.pathname]);
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Sheet, {
+		"data-uid": "src/components/ContextualHelp.tsx:103:5",
+		"data-prohibitions": "[editContent]",
+		open: isOpen,
+		onOpenChange: helpStore.setOpen,
+		children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(SheetContent, {
+			"data-uid": "src/components/ContextualHelp.tsx:104:7",
+			"data-prohibitions": "[editContent]",
+			className: "w-[400px] sm:w-[540px] flex flex-col gap-6",
+			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(SheetHeader, {
+				"data-uid": "src/components/ContextualHelp.tsx:105:9",
+				"data-prohibitions": "[editContent]",
+				className: "text-left",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					"data-uid": "src/components/ContextualHelp.tsx:106:11",
+					"data-prohibitions": "[editContent]",
+					className: "flex items-center gap-2 mb-1",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CircleQuestionMark, {
+						"data-uid": "src/components/ContextualHelp.tsx:107:13",
+						"data-prohibitions": "[editContent]",
+						className: "h-5 w-5 text-primary"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SheetTitle, {
+						"data-uid": "src/components/ContextualHelp.tsx:108:13",
+						"data-prohibitions": "[editContent]",
+						children: helpContent.title
+					})]
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SheetDescription, {
+					"data-uid": "src/components/ContextualHelp.tsx:110:11",
+					"data-prohibitions": "[editContent]",
+					children: helpContent.description
+				})]
+			}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				"data-uid": "src/components/ContextualHelp.tsx:113:9",
+				"data-prohibitions": "[editContent]",
+				className: "flex-1 overflow-y-auto pr-2 -mr-2",
+				children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+					"data-uid": "src/components/ContextualHelp.tsx:114:11",
+					"data-prohibitions": "[editContent]",
+					className: "space-y-6",
+					children: helpContent.sections.map((section, idx) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						"data-uid": "src/components/ContextualHelp.tsx:116:15",
+						"data-prohibitions": "[editContent]",
+						className: "flex gap-4",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							"data-uid": "src/components/ContextualHelp.tsx:117:17",
+							"data-prohibitions": "[]",
+							className: "bg-primary/10 p-3 rounded-lg shrink-0 h-fit",
+							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(section.icon, {
+								"data-uid": "src/components/ContextualHelp.tsx:118:19",
+								"data-prohibitions": "[editContent]",
+								className: "h-5 w-5 text-primary"
+							})
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							"data-uid": "src/components/ContextualHelp.tsx:120:17",
+							"data-prohibitions": "[editContent]",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h4", {
+								"data-uid": "src/components/ContextualHelp.tsx:121:19",
+								"data-prohibitions": "[editContent]",
+								className: "font-semibold text-foreground mb-1",
+								children: section.title
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								"data-uid": "src/components/ContextualHelp.tsx:122:19",
+								"data-prohibitions": "[editContent]",
+								className: "text-sm text-muted-foreground leading-relaxed",
+								children: section.content
+							})]
+						})]
+					}, idx))
+				})
+			})]
+		})
+	});
+}
+//#endregion
 //#region src/components/Layout.tsx
 function Layout() {
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SidebarProvider, {
-		"data-uid": "src/components/Layout.tsx:9:5",
+		"data-uid": "src/components/Layout.tsx:10:5",
 		"data-prohibitions": "[]",
 		children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-			"data-uid": "src/components/Layout.tsx:10:7",
+			"data-uid": "src/components/Layout.tsx:11:7",
 			"data-prohibitions": "[]",
 			className: "flex min-h-screen w-full bg-muted/30",
 			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(AppSidebar, {
-				"data-uid": "src/components/Layout.tsx:11:9",
+				"data-uid": "src/components/Layout.tsx:12:9",
 				"data-prohibitions": "[editContent]"
 			}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				"data-uid": "src/components/Layout.tsx:12:9",
+				"data-uid": "src/components/Layout.tsx:13:9",
 				"data-prohibitions": "[]",
 				className: "flex flex-col flex-1 w-full min-w-0",
 				children: [
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(AppHeader, {
-						"data-uid": "src/components/Layout.tsx:13:11",
+						"data-uid": "src/components/Layout.tsx:14:11",
 						"data-prohibitions": "[editContent]"
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("main", {
-						"data-uid": "src/components/Layout.tsx:14:11",
+						"data-uid": "src/components/Layout.tsx:15:11",
 						"data-prohibitions": "[]",
 						className: "flex-1 overflow-y-auto p-4 md:p-6 animate-fade-in",
 						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Outlet, {
-							"data-uid": "src/components/Layout.tsx:15:13",
+							"data-uid": "src/components/Layout.tsx:16:13",
 							"data-prohibitions": "[editContent]"
 						})
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(GlobalFAB, {
-						"data-uid": "src/components/Layout.tsx:17:11",
+						"data-uid": "src/components/Layout.tsx:18:11",
+						"data-prohibitions": "[editContent]"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ContextualHelp, {
+						"data-uid": "src/components/Layout.tsx:19:11",
 						"data-prohibitions": "[editContent]"
 					})
 				]
@@ -68857,4 +69082,4 @@ var App = () => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(BrowserRouter, {
 }));
 //#endregion
 
-//# sourceMappingURL=index-DYtT8Tiz.js.map
+//# sourceMappingURL=index-goa04K5X.js.map
