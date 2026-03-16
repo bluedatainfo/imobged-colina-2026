@@ -1129,16 +1129,12 @@ section[aria-label='Notifications alt+T'] {
   height: 1px;
 }
 
+.h-\[200px\]{
+  height: 200px;
+}
+
 .h-\[250px\]{
   height: 250px;
-}
-
-.h-\[260px\]{
-  height: 260px;
-}
-
-.h-\[300px\]{
-  height: 300px;
 }
 
 .h-\[400px\]{
@@ -1335,6 +1331,10 @@ section[aria-label='Notifications alt+T'] {
 
 .w-\[100px\]{
   width: 100px;
+}
+
+.w-\[140px\]{
+  width: 140px;
 }
 
 .w-\[1px\]{
@@ -4837,6 +4837,13 @@ section[aria-label='Notifications alt+T'] {
 
   .xl\:pl-4{
     padding-left: 1rem;
+  }
+}
+
+@media print{
+
+  .print\:block{
+    display: block;
   }
 }
 

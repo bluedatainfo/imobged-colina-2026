@@ -20097,6 +20097,28 @@ var SquareCheckBig = createLucideIcon("square-check-big", [["path", {
 	d: "m9 11 3 3L22 4",
 	key: "1pflzl"
 }]]);
+var Table$1 = createLucideIcon("table", [
+	["path", {
+		d: "M12 3v18",
+		key: "108xh3"
+	}],
+	["rect", {
+		width: "18",
+		height: "18",
+		x: "3",
+		y: "3",
+		rx: "2",
+		key: "afitv7"
+	}],
+	["path", {
+		d: "M3 9h18",
+		key: "1pudct"
+	}],
+	["path", {
+		d: "M3 15h18",
+		key: "5xshup"
+	}]
+]);
 var Tag = createLucideIcon("tag", [["path", {
 	d: "M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z",
 	key: "vktsd0"
@@ -65965,390 +65987,636 @@ function KeysControl() {
 //#region src/components/MaintenanceAnalytics.tsx
 function MaintenanceAnalytics() {
 	const { maintenanceTickets, properties } = useMainStore();
-	const { kpis, damagesByItem, damagesByType, damagesByRegion } = (0, import_react.useMemo)(() => {
-		const activeCalls = maintenanceTickets.filter((t) => t.status !== "Concluído").length;
-		const completedCalls = maintenanceTickets.filter((t) => t.status === "Concluído").length;
-		const itemCounts = maintenanceTickets.reduce((acc, t) => {
-			acc[t.item] = (acc[t.item] || 0) + 1;
-			return acc;
-		}, {});
-		const mostCommonDamage = Object.keys(itemCounts).length > 0 ? Object.entries(itemCounts).sort((a, b) => b[1] - a[1])[0][0] : "N/A";
-		const byItem = Object.entries(itemCounts).map(([name, value], i) => ({
-			name,
-			value,
-			fill: `hsl(var(--chart-${i % 5 + 1}))`
-		}));
-		const typeCounts = {};
-		const regionCounts = {};
-		maintenanceTickets.forEach((t) => {
-			const prop = properties.find((p) => p.id === t.propertyId);
-			if (prop) {
-				typeCounts[prop.type] = (typeCounts[prop.type] || 0) + 1;
-				const regionMatch = prop.address.match(/(?:Rua|Av\.|Rodovia)\s+([^,]+)/);
-				const region = regionMatch ? regionMatch[1].split(" ")[0] : "Outros";
-				regionCounts[region] = (regionCounts[region] || 0) + 1;
+	const { user } = useAuth();
+	const canExport = user?.role === "Admin" || user?.role === "Gerente";
+	const [dateRange, setDateRange] = (0, import_react.useState)("all");
+	const [regionFilter, setRegionFilter] = (0, import_react.useState)("all");
+	const [statusFilter, setStatusFilter] = (0, import_react.useState)("all");
+	const getRegion = (address) => address?.match(/(?:Rua|Av\.|Rodovia)\s+([^,]+)/)?.[1].split(" ")[0] || "Outros";
+	const regions = (0, import_react.useMemo)(() => Array.from(new Set(properties.map((p) => getRegion(p.address)))), [properties]);
+	const filtered = (0, import_react.useMemo)(() => maintenanceTickets.filter((t) => {
+		if (dateRange !== "all" && new Date(t.createdAt) < /* @__PURE__ */ new Date(Date.now() - parseInt(dateRange) * 864e5)) return false;
+		if (statusFilter !== "all" && t.status !== statusFilter) return false;
+		if (regionFilter !== "all" && getRegion(properties.find((p) => p.id === t.propertyId)?.address) !== regionFilter) return false;
+		return true;
+	}), [
+		maintenanceTickets,
+		properties,
+		dateRange,
+		statusFilter,
+		regionFilter
+	]);
+	const { active, mostCommon, avg, byItem, byType, byRegion } = (0, import_react.useMemo)(() => {
+		const active = filtered.filter((t) => t.status !== "Concluído").length;
+		const itemCounts = filtered.reduce((acc, t) => ({
+			...acc,
+			[t.item]: (acc[t.item] || 0) + 1
+		}), {});
+		const mostCommon = Object.keys(itemCounts).sort((a, b) => itemCounts[b] - itemCounts[a])[0] || "N/A";
+		const types = {};
+		const regs = {};
+		filtered.forEach((t) => {
+			const p = properties.find((x) => x.id === t.propertyId);
+			if (p) {
+				types[p.type] = (types[p.type] || 0) + 1;
+				const r = getRegion(p.address);
+				regs[r] = (regs[r] || 0) + 1;
 			}
 		});
-		const byType = Object.entries(typeCounts).map(([name, value], i) => ({
-			name,
-			value,
-			fill: `hsl(var(--chart-${i === 0 ? 2 : 4}))`
-		}));
-		const byRegion = Object.entries(regionCounts).map(([name, value], i) => ({
-			name,
-			value,
-			fill: `hsl(var(--chart-${i % 3 + 1}))`
-		}));
 		return {
-			kpis: {
-				activeCalls,
-				mostCommonDamage,
-				avgRepairs: Math.max(1, Math.round(completedCalls / 3))
-			},
-			damagesByItem: byItem,
-			damagesByType: byType,
-			damagesByRegion: byRegion
+			active,
+			mostCommon,
+			avg: Math.max(1, Math.round(filtered.filter((t) => t.status === "Concluído").length / 3)),
+			byItem: Object.entries(itemCounts).map(([name, value], i) => ({
+				name,
+				value,
+				fill: `hsl(var(--chart-${i % 5 + 1}))`
+			})),
+			byType: Object.entries(types).map(([name, value], i) => ({
+				name,
+				value,
+				fill: `hsl(var(--chart-${i === 0 ? 2 : 4}))`
+			})),
+			byRegion: Object.entries(regs).map(([name, value], i) => ({
+				name,
+				value,
+				fill: `hsl(var(--chart-${i % 3 + 1}))`
+			}))
 		};
-	}, [maintenanceTickets, properties]);
+	}, [filtered, properties]);
+	const exportCSV = () => {
+		const headers = [
+			"Call ID",
+			"Property Name",
+			"Region",
+			"Damage Category",
+			"Status",
+			"Creation Date"
+		];
+		const rows = filtered.map((t) => {
+			const p = properties.find((x) => x.id === t.propertyId);
+			return [
+				t.id,
+				`"${p?.title || "N/A"}"`,
+				`"${getRegion(p?.address)}"`,
+				`"${t.item}"`,
+				`"${t.status}"`,
+				new Date(t.createdAt).toLocaleDateString("pt-BR")
+			].join(",");
+		});
+		const blob = new Blob(["﻿" + [headers.join(","), ...rows].join("\n")], { type: "text/csv;charset=utf-8;" });
+		const link = document.createElement("a");
+		link.href = URL.createObjectURL(blob);
+		link.download = `manutencao_export_${(/* @__PURE__ */ new Date()).toISOString().split("T")[0]}.csv`;
+		link.click();
+	};
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-		"data-uid": "src/components/MaintenanceAnalytics.tsx:72:5",
+		"data-uid": "src/components/MaintenanceAnalytics.tsx:137:5",
 		"data-prohibitions": "[editContent]",
 		className: "space-y-6 animate-fade-in-up",
-		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-			"data-uid": "src/components/MaintenanceAnalytics.tsx:73:7",
-			"data-prohibitions": "[editContent]",
-			className: "grid gap-4 md:grid-cols-3",
-			children: [
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Card, {
-					"data-uid": "src/components/MaintenanceAnalytics.tsx:74:9",
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("style", {
+				"data-uid": "src/components/MaintenanceAnalytics.tsx:138:7",
+				"data-prohibitions": "[editContent]",
+				children: `@media print { body * { visibility: hidden; } #print-area, #print-area * { visibility: visible; } #print-area { position: absolute; left: 0; top: 0; width: 100%; } .no-print { display: none !important; } }`
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				"data-uid": "src/components/MaintenanceAnalytics.tsx:140:7",
+				"data-prohibitions": "[editContent]",
+				className: "flex flex-col sm:flex-row justify-between gap-4 bg-muted/30 p-4 rounded-lg border no-print",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					"data-uid": "src/components/MaintenanceAnalytics.tsx:141:9",
 					"data-prohibitions": "[editContent]",
-					children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardContent, {
-						"data-uid": "src/components/MaintenanceAnalytics.tsx:75:11",
-						"data-prohibitions": "[editContent]",
-						className: "p-6 flex items-center gap-4",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							"data-uid": "src/components/MaintenanceAnalytics.tsx:76:13",
+					className: "flex flex-wrap gap-2",
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Select, {
+							"data-uid": "src/components/MaintenanceAnalytics.tsx:142:11",
 							"data-prohibitions": "[]",
-							className: "bg-amber-100 p-3 rounded-full",
-							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TriangleAlert, {
-								"data-uid": "src/components/MaintenanceAnalytics.tsx:77:15",
-								"data-prohibitions": "[editContent]",
-								className: "h-6 w-6 text-amber-600"
-							})
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							"data-uid": "src/components/MaintenanceAnalytics.tsx:79:13",
-							"data-prohibitions": "[editContent]",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-								"data-uid": "src/components/MaintenanceAnalytics.tsx:80:15",
+							value: dateRange,
+							onValueChange: setDateRange,
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectTrigger, {
+								"data-uid": "src/components/MaintenanceAnalytics.tsx:143:13",
 								"data-prohibitions": "[]",
-								className: "text-sm font-medium text-muted-foreground",
-								children: "Total de Chamados Ativos"
-							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-								"data-uid": "src/components/MaintenanceAnalytics.tsx:81:15",
-								"data-prohibitions": "[editContent]",
-								className: "text-3xl font-bold",
-								children: kpis.activeCalls
-							})]
-						})]
-					})
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Card, {
-					"data-uid": "src/components/MaintenanceAnalytics.tsx:85:9",
-					"data-prohibitions": "[editContent]",
-					children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardContent, {
-						"data-uid": "src/components/MaintenanceAnalytics.tsx:86:11",
-						"data-prohibitions": "[editContent]",
-						className: "p-6 flex items-center gap-4",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							"data-uid": "src/components/MaintenanceAnalytics.tsx:87:13",
-							"data-prohibitions": "[]",
-							className: "bg-destructive/10 p-3 rounded-full",
-							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Activity, {
-								"data-uid": "src/components/MaintenanceAnalytics.tsx:88:15",
-								"data-prohibitions": "[editContent]",
-								className: "h-6 w-6 text-destructive"
-							})
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							"data-uid": "src/components/MaintenanceAnalytics.tsx:90:13",
-							"data-prohibitions": "[editContent]",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-								"data-uid": "src/components/MaintenanceAnalytics.tsx:91:15",
+								className: "w-[140px] bg-background",
+								children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectValue, {
+									"data-uid": "src/components/MaintenanceAnalytics.tsx:144:15",
+									"data-prohibitions": "[editContent]",
+									placeholder: "Período"
+								})
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(SelectContent, {
+								"data-uid": "src/components/MaintenanceAnalytics.tsx:146:13",
 								"data-prohibitions": "[]",
-								className: "text-sm font-medium text-muted-foreground",
-								children: "Danos mais Comuns"
-							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-								"data-uid": "src/components/MaintenanceAnalytics.tsx:92:15",
-								"data-prohibitions": "[editContent]",
-								className: "text-2xl font-bold",
-								children: kpis.mostCommonDamage
-							})]
-						})]
-					})
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Card, {
-					"data-uid": "src/components/MaintenanceAnalytics.tsx:96:9",
-					"data-prohibitions": "[editContent]",
-					children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardContent, {
-						"data-uid": "src/components/MaintenanceAnalytics.tsx:97:11",
-						"data-prohibitions": "[editContent]",
-						className: "p-6 flex items-center gap-4",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							"data-uid": "src/components/MaintenanceAnalytics.tsx:98:13",
-							"data-prohibitions": "[]",
-							className: "bg-primary/10 p-3 rounded-full",
-							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Wrench, {
-								"data-uid": "src/components/MaintenanceAnalytics.tsx:99:15",
-								"data-prohibitions": "[editContent]",
-								className: "h-6 w-6 text-primary"
-							})
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							"data-uid": "src/components/MaintenanceAnalytics.tsx:101:13",
-							"data-prohibitions": "[editContent]",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-								"data-uid": "src/components/MaintenanceAnalytics.tsx:102:15",
-								"data-prohibitions": "[]",
-								className: "text-sm font-medium text-muted-foreground",
-								children: "Média de Reparos por Mês"
-							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-								"data-uid": "src/components/MaintenanceAnalytics.tsx:103:15",
-								"data-prohibitions": "[editContent]",
-								className: "text-3xl font-bold",
-								children: kpis.avgRepairs
-							})]
-						})]
-					})
-				})
-			]
-		}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-			"data-uid": "src/components/MaintenanceAnalytics.tsx:109:7",
-			"data-prohibitions": "[editContent]",
-			className: "grid gap-6 md:grid-cols-2 lg:grid-cols-3",
-			children: [
-				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
-					"data-uid": "src/components/MaintenanceAnalytics.tsx:110:9",
-					"data-prohibitions": "[]",
-					className: "lg:col-span-2",
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardHeader, {
-						"data-uid": "src/components/MaintenanceAnalytics.tsx:111:11",
-						"data-prohibitions": "[]",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardTitle, {
-							"data-uid": "src/components/MaintenanceAnalytics.tsx:112:13",
-							"data-prohibitions": "[]",
-							children: "Danos Mais Frequentes"
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardDescription, {
-							"data-uid": "src/components/MaintenanceAnalytics.tsx:113:13",
-							"data-prohibitions": "[]",
-							children: "Distribuição de chamados abertos por categoria de dano"
-						})]
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardContent, {
-						"data-uid": "src/components/MaintenanceAnalytics.tsx:117:11",
-						"data-prohibitions": "[]",
-						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChartContainer, {
-							"data-uid": "src/components/MaintenanceAnalytics.tsx:118:13",
-							"data-prohibitions": "[]",
-							config: {},
-							className: "h-[300px] w-full",
-							children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(BarChart, {
-								"data-uid": "src/components/MaintenanceAnalytics.tsx:119:15",
-								"data-prohibitions": "[]",
-								data: damagesByItem,
-								margin: {
-									top: 20,
-									right: 0,
-									left: -20,
-									bottom: 0
-								},
 								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CartesianGrid, {
-										"data-uid": "src/components/MaintenanceAnalytics.tsx:120:17",
-										"data-prohibitions": "[editContent]",
-										vertical: false,
-										strokeDasharray: "3 3"
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectItem, {
+										"data-uid": "src/components/MaintenanceAnalytics.tsx:147:15",
+										"data-prohibitions": "[]",
+										value: "all",
+										children: "Todo o Período"
 									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(XAxis, {
-										"data-uid": "src/components/MaintenanceAnalytics.tsx:121:17",
-										"data-prohibitions": "[editContent]",
-										dataKey: "name",
-										tickLine: false,
-										axisLine: false,
-										tickMargin: 10
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectItem, {
+										"data-uid": "src/components/MaintenanceAnalytics.tsx:148:15",
+										"data-prohibitions": "[]",
+										value: "30",
+										children: "Últimos 30 Dias"
 									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(YAxis, {
-										"data-uid": "src/components/MaintenanceAnalytics.tsx:122:17",
-										"data-prohibitions": "[editContent]",
-										tickLine: false,
-										axisLine: false,
-										tickMargin: 10
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChartTooltip, {
-										"data-uid": "src/components/MaintenanceAnalytics.tsx:123:17",
-										"data-prohibitions": "[editContent]",
-										cursor: false,
-										content: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChartTooltipContent, {
-											"data-uid": "src/components/MaintenanceAnalytics.tsx:123:55",
-											"data-prohibitions": "[editContent]",
-											hideLabel: true
-										})
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Bar, {
-										"data-uid": "src/components/MaintenanceAnalytics.tsx:124:17",
-										"data-prohibitions": "[editContent]",
-										dataKey: "value",
-										radius: [
-											4,
-											4,
-											0,
-											0
-										]
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectItem, {
+										"data-uid": "src/components/MaintenanceAnalytics.tsx:149:15",
+										"data-prohibitions": "[]",
+										value: "60",
+										children: "Últimos 60 Dias"
 									})
 								]
-							})
-						})
-					})]
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
-					"data-uid": "src/components/MaintenanceAnalytics.tsx:130:9",
-					"data-prohibitions": "[editContent]",
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardHeader, {
-						"data-uid": "src/components/MaintenanceAnalytics.tsx:131:11",
-						"data-prohibitions": "[]",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardTitle, {
-							"data-uid": "src/components/MaintenanceAnalytics.tsx:132:13",
+							})]
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Select, {
+							"data-uid": "src/components/MaintenanceAnalytics.tsx:152:11",
 							"data-prohibitions": "[]",
-							children: "Por Tipo de Imóvel"
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardDescription, {
-							"data-uid": "src/components/MaintenanceAnalytics.tsx:133:13",
-							"data-prohibitions": "[]",
-							children: "Comercial vs Residencial"
-						})]
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardContent, {
-						"data-uid": "src/components/MaintenanceAnalytics.tsx:135:11",
-						"data-prohibitions": "[editContent]",
-						className: "flex justify-center",
-						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChartContainer, {
-							"data-uid": "src/components/MaintenanceAnalytics.tsx:136:13",
-							"data-prohibitions": "[editContent]",
-							config: {},
-							className: "aspect-square h-[260px]",
-							children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(PieChart, {
-								"data-uid": "src/components/MaintenanceAnalytics.tsx:137:15",
-								"data-prohibitions": "[editContent]",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChartTooltip, {
-									"data-uid": "src/components/MaintenanceAnalytics.tsx:138:17",
+							value: statusFilter,
+							onValueChange: setStatusFilter,
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectTrigger, {
+								"data-uid": "src/components/MaintenanceAnalytics.tsx:153:13",
+								"data-prohibitions": "[]",
+								className: "w-[140px] bg-background",
+								children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectValue, {
+									"data-uid": "src/components/MaintenanceAnalytics.tsx:154:15",
 									"data-prohibitions": "[editContent]",
-									cursor: false,
-									content: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChartTooltipContent, {
-										"data-uid": "src/components/MaintenanceAnalytics.tsx:138:55",
-										"data-prohibitions": "[editContent]",
-										hideLabel: true
+									placeholder: "Status"
+								})
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(SelectContent, {
+								"data-uid": "src/components/MaintenanceAnalytics.tsx:156:13",
+								"data-prohibitions": "[]",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectItem, {
+										"data-uid": "src/components/MaintenanceAnalytics.tsx:157:15",
+										"data-prohibitions": "[]",
+										value: "all",
+										children: "Todos os Status"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectItem, {
+										"data-uid": "src/components/MaintenanceAnalytics.tsx:158:15",
+										"data-prohibitions": "[]",
+										value: "Pendente",
+										children: "Pendente"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectItem, {
+										"data-uid": "src/components/MaintenanceAnalytics.tsx:159:15",
+										"data-prohibitions": "[]",
+										value: "Em Andamento",
+										children: "Em Andamento"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectItem, {
+										"data-uid": "src/components/MaintenanceAnalytics.tsx:160:15",
+										"data-prohibitions": "[]",
+										value: "Concluído",
+										children: "Concluído"
 									})
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Pie, {
-									"data-uid": "src/components/MaintenanceAnalytics.tsx:139:17",
+								]
+							})]
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Select, {
+							"data-uid": "src/components/MaintenanceAnalytics.tsx:163:11",
+							"data-prohibitions": "[editContent]",
+							value: regionFilter,
+							onValueChange: setRegionFilter,
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectTrigger, {
+								"data-uid": "src/components/MaintenanceAnalytics.tsx:164:13",
+								"data-prohibitions": "[]",
+								className: "w-[140px] bg-background",
+								children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectValue, {
+									"data-uid": "src/components/MaintenanceAnalytics.tsx:165:15",
 									"data-prohibitions": "[editContent]",
-									data: damagesByType,
-									dataKey: "value",
-									nameKey: "name",
-									innerRadius: 60,
-									outerRadius: 80,
-									strokeWidth: 2,
-									stroke: "hsl(var(--background))",
-									children: damagesByType.map((entry, index) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Cell, {
-										"data-uid": "src/components/MaintenanceAnalytics.tsx:149:21",
+									placeholder: "Região"
+								})
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(SelectContent, {
+								"data-uid": "src/components/MaintenanceAnalytics.tsx:167:13",
+								"data-prohibitions": "[editContent]",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectItem, {
+									"data-uid": "src/components/MaintenanceAnalytics.tsx:168:15",
+									"data-prohibitions": "[]",
+									value: "all",
+									children: "Todas Regiões"
+								}), regions.map((r) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SelectItem, {
+									"data-uid": "src/components/MaintenanceAnalytics.tsx:170:17",
+									"data-prohibitions": "[editContent]",
+									value: r,
+									children: r
+								}, r))]
+							})]
+						})
+					]
+				}), canExport && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DropdownMenu, {
+					"data-uid": "src/components/MaintenanceAnalytics.tsx:178:11",
+					"data-prohibitions": "[]",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(DropdownMenuTrigger, {
+						"data-uid": "src/components/MaintenanceAnalytics.tsx:179:13",
+						"data-prohibitions": "[]",
+						asChild: true,
+						children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Button, {
+							"data-uid": "src/components/MaintenanceAnalytics.tsx:180:15",
+							"data-prohibitions": "[]",
+							variant: "outline",
+							className: "bg-background",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Download, {
+								"data-uid": "src/components/MaintenanceAnalytics.tsx:181:17",
+								"data-prohibitions": "[editContent]",
+								className: "mr-2 h-4 w-4"
+							}), " Exportar"]
+						})
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DropdownMenuContent, {
+						"data-uid": "src/components/MaintenanceAnalytics.tsx:184:13",
+						"data-prohibitions": "[]",
+						align: "end",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DropdownMenuItem, {
+							"data-uid": "src/components/MaintenanceAnalytics.tsx:185:15",
+							"data-prohibitions": "[]",
+							onClick: () => window.print(),
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(FileText, {
+								"data-uid": "src/components/MaintenanceAnalytics.tsx:186:17",
+								"data-prohibitions": "[editContent]",
+								className: "mr-2 h-4 w-4"
+							}), " Relatório PDF"]
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(DropdownMenuItem, {
+							"data-uid": "src/components/MaintenanceAnalytics.tsx:188:15",
+							"data-prohibitions": "[]",
+							onClick: exportCSV,
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Table$1, {
+								"data-uid": "src/components/MaintenanceAnalytics.tsx:189:17",
+								"data-prohibitions": "[editContent]",
+								className: "mr-2 h-4 w-4"
+							}), " Planilha (CSV)"]
+						})]
+					})]
+				})]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				"data-uid": "src/components/MaintenanceAnalytics.tsx:196:7",
+				"data-prohibitions": "[editContent]",
+				id: "print-area",
+				className: "space-y-6 bg-background",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						"data-uid": "src/components/MaintenanceAnalytics.tsx:197:9",
+						"data-prohibitions": "[editContent]",
+						className: "hidden print:block mb-6 pb-4 border-b",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", {
+								"data-uid": "src/components/MaintenanceAnalytics.tsx:198:11",
+								"data-prohibitions": "[]",
+								className: "text-3xl font-bold tracking-tight",
+								children: "ImobGED"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+								"data-uid": "src/components/MaintenanceAnalytics.tsx:199:11",
+								"data-prohibitions": "[]",
+								className: "text-xl text-muted-foreground mt-1",
+								children: "Relatório de BI de Manutenção"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								"data-uid": "src/components/MaintenanceAnalytics.tsx:200:11",
+								"data-prohibitions": "[editContent]",
+								className: "text-sm text-muted-foreground mt-4",
+								children: [
+									"Gerado em: ",
+									(/* @__PURE__ */ new Date()).toLocaleDateString("pt-BR"),
+									" | Filtros:",
+									" ",
+									dateRange === "all" ? "Todo período" : `${dateRange} dias`,
+									" - ",
+									statusFilter,
+									" -",
+									" ",
+									regionFilter
+								]
+							})
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						"data-uid": "src/components/MaintenanceAnalytics.tsx:207:9",
+						"data-prohibitions": "[editContent]",
+						className: "grid gap-4 md:grid-cols-3",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Card, {
+								"data-uid": "src/components/MaintenanceAnalytics.tsx:208:11",
+								"data-prohibitions": "[editContent]",
+								children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardContent, {
+									"data-uid": "src/components/MaintenanceAnalytics.tsx:209:13",
+									"data-prohibitions": "[editContent]",
+									className: "p-6 flex items-center gap-4",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+										"data-uid": "src/components/MaintenanceAnalytics.tsx:210:15",
+										"data-prohibitions": "[]",
+										className: "bg-amber-100 p-3 rounded-full",
+										children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TriangleAlert, {
+											"data-uid": "src/components/MaintenanceAnalytics.tsx:211:17",
+											"data-prohibitions": "[editContent]",
+											className: "h-6 w-6 text-amber-600"
+										})
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										"data-uid": "src/components/MaintenanceAnalytics.tsx:213:15",
 										"data-prohibitions": "[editContent]",
-										fill: entry.fill
-									}, `cell-${index}`))
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											"data-uid": "src/components/MaintenanceAnalytics.tsx:214:17",
+											"data-prohibitions": "[]",
+											className: "text-sm font-medium text-muted-foreground",
+											children: "Chamados Ativos"
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											"data-uid": "src/components/MaintenanceAnalytics.tsx:215:17",
+											"data-prohibitions": "[editContent]",
+											className: "text-3xl font-bold",
+											children: active
+										})]
+									})]
+								})
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Card, {
+								"data-uid": "src/components/MaintenanceAnalytics.tsx:219:11",
+								"data-prohibitions": "[editContent]",
+								children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardContent, {
+									"data-uid": "src/components/MaintenanceAnalytics.tsx:220:13",
+									"data-prohibitions": "[editContent]",
+									className: "p-6 flex items-center gap-4",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+										"data-uid": "src/components/MaintenanceAnalytics.tsx:221:15",
+										"data-prohibitions": "[]",
+										className: "bg-destructive/10 p-3 rounded-full",
+										children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Activity, {
+											"data-uid": "src/components/MaintenanceAnalytics.tsx:222:17",
+											"data-prohibitions": "[editContent]",
+											className: "h-6 w-6 text-destructive"
+										})
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										"data-uid": "src/components/MaintenanceAnalytics.tsx:224:15",
+										"data-prohibitions": "[editContent]",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											"data-uid": "src/components/MaintenanceAnalytics.tsx:225:17",
+											"data-prohibitions": "[]",
+											className: "text-sm font-medium text-muted-foreground",
+											children: "Danos mais Comuns"
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											"data-uid": "src/components/MaintenanceAnalytics.tsx:226:17",
+											"data-prohibitions": "[editContent]",
+											className: "text-2xl font-bold",
+											children: mostCommon
+										})]
+									})]
+								})
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Card, {
+								"data-uid": "src/components/MaintenanceAnalytics.tsx:230:11",
+								"data-prohibitions": "[editContent]",
+								children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardContent, {
+									"data-uid": "src/components/MaintenanceAnalytics.tsx:231:13",
+									"data-prohibitions": "[editContent]",
+									className: "p-6 flex items-center gap-4",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+										"data-uid": "src/components/MaintenanceAnalytics.tsx:232:15",
+										"data-prohibitions": "[]",
+										className: "bg-primary/10 p-3 rounded-full",
+										children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Wrench, {
+											"data-uid": "src/components/MaintenanceAnalytics.tsx:233:17",
+											"data-prohibitions": "[editContent]",
+											className: "h-6 w-6 text-primary"
+										})
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										"data-uid": "src/components/MaintenanceAnalytics.tsx:235:15",
+										"data-prohibitions": "[editContent]",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											"data-uid": "src/components/MaintenanceAnalytics.tsx:236:17",
+											"data-prohibitions": "[]",
+											className: "text-sm font-medium text-muted-foreground",
+											children: "Média Mensal"
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											"data-uid": "src/components/MaintenanceAnalytics.tsx:237:17",
+											"data-prohibitions": "[editContent]",
+											className: "text-3xl font-bold",
+											children: avg
+										})]
+									})]
+								})
+							})
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						"data-uid": "src/components/MaintenanceAnalytics.tsx:243:9",
+						"data-prohibitions": "[editContent]",
+						className: "grid gap-6 md:grid-cols-2 lg:grid-cols-3",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
+								"data-uid": "src/components/MaintenanceAnalytics.tsx:244:11",
+								"data-prohibitions": "[]",
+								className: "lg:col-span-2",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardHeader, {
+									"data-uid": "src/components/MaintenanceAnalytics.tsx:245:13",
+									"data-prohibitions": "[]",
+									children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardTitle, {
+										"data-uid": "src/components/MaintenanceAnalytics.tsx:246:15",
+										"data-prohibitions": "[]",
+										children: "Danos Frequentes"
+									})
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardContent, {
+									"data-uid": "src/components/MaintenanceAnalytics.tsx:248:13",
+									"data-prohibitions": "[]",
+									children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChartContainer, {
+										"data-uid": "src/components/MaintenanceAnalytics.tsx:249:15",
+										"data-prohibitions": "[]",
+										config: {},
+										className: "h-[250px] w-full",
+										children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(BarChart, {
+											"data-uid": "src/components/MaintenanceAnalytics.tsx:250:17",
+											"data-prohibitions": "[]",
+											data: byItem,
+											margin: {
+												top: 20,
+												right: 0,
+												left: -20,
+												bottom: 0
+											},
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CartesianGrid, {
+													"data-uid": "src/components/MaintenanceAnalytics.tsx:251:19",
+													"data-prohibitions": "[editContent]",
+													vertical: false,
+													strokeDasharray: "3 3"
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)(XAxis, {
+													"data-uid": "src/components/MaintenanceAnalytics.tsx:252:19",
+													"data-prohibitions": "[editContent]",
+													dataKey: "name",
+													tickLine: false,
+													axisLine: false,
+													tickMargin: 10
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)(YAxis, {
+													"data-uid": "src/components/MaintenanceAnalytics.tsx:253:19",
+													"data-prohibitions": "[editContent]",
+													tickLine: false,
+													axisLine: false,
+													tickMargin: 10
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChartTooltip, {
+													"data-uid": "src/components/MaintenanceAnalytics.tsx:254:19",
+													"data-prohibitions": "[editContent]",
+													cursor: false,
+													content: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChartTooltipContent, {
+														"data-uid": "src/components/MaintenanceAnalytics.tsx:254:57",
+														"data-prohibitions": "[editContent]",
+														hideLabel: true
+													})
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Bar, {
+													"data-uid": "src/components/MaintenanceAnalytics.tsx:255:19",
+													"data-prohibitions": "[editContent]",
+													dataKey: "value",
+													radius: [
+														4,
+														4,
+														0,
+														0
+													]
+												})
+											]
+										})
+									})
+								})]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
+								"data-uid": "src/components/MaintenanceAnalytics.tsx:260:11",
+								"data-prohibitions": "[editContent]",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardHeader, {
+									"data-uid": "src/components/MaintenanceAnalytics.tsx:261:13",
+									"data-prohibitions": "[]",
+									children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardTitle, {
+										"data-uid": "src/components/MaintenanceAnalytics.tsx:262:15",
+										"data-prohibitions": "[]",
+										children: "Por Tipo"
+									})
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardContent, {
+									"data-uid": "src/components/MaintenanceAnalytics.tsx:264:13",
+									"data-prohibitions": "[editContent]",
+									className: "flex justify-center",
+									children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChartContainer, {
+										"data-uid": "src/components/MaintenanceAnalytics.tsx:265:15",
+										"data-prohibitions": "[editContent]",
+										config: {},
+										className: "aspect-square h-[250px]",
+										children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(PieChart, {
+											"data-uid": "src/components/MaintenanceAnalytics.tsx:266:17",
+											"data-prohibitions": "[editContent]",
+											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChartTooltip, {
+												"data-uid": "src/components/MaintenanceAnalytics.tsx:267:19",
+												"data-prohibitions": "[editContent]",
+												cursor: false,
+												content: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChartTooltipContent, {
+													"data-uid": "src/components/MaintenanceAnalytics.tsx:267:57",
+													"data-prohibitions": "[editContent]",
+													hideLabel: true
+												})
+											}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Pie, {
+												"data-uid": "src/components/MaintenanceAnalytics.tsx:268:19",
+												"data-prohibitions": "[editContent]",
+												data: byType,
+												dataKey: "value",
+												nameKey: "name",
+												innerRadius: 60,
+												outerRadius: 80,
+												strokeWidth: 2,
+												stroke: "hsl(var(--background))",
+												children: byType.map((e, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Cell, {
+													"data-uid": "src/components/MaintenanceAnalytics.tsx:278:23",
+													"data-prohibitions": "[editContent]",
+													fill: e.fill
+												}, i))
+											})]
+										})
+									})
+								})]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
+								"data-uid": "src/components/MaintenanceAnalytics.tsx:285:11",
+								"data-prohibitions": "[]",
+								className: "lg:col-span-3",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardHeader, {
+									"data-uid": "src/components/MaintenanceAnalytics.tsx:286:13",
+									"data-prohibitions": "[]",
+									children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardTitle, {
+										"data-uid": "src/components/MaintenanceAnalytics.tsx:287:15",
+										"data-prohibitions": "[]",
+										children: "Por Região"
+									})
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardContent, {
+									"data-uid": "src/components/MaintenanceAnalytics.tsx:289:13",
+									"data-prohibitions": "[]",
+									children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChartContainer, {
+										"data-uid": "src/components/MaintenanceAnalytics.tsx:290:15",
+										"data-prohibitions": "[]",
+										config: {},
+										className: "h-[200px] w-full",
+										children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(BarChart, {
+											"data-uid": "src/components/MaintenanceAnalytics.tsx:291:17",
+											"data-prohibitions": "[]",
+											data: byRegion,
+											layout: "vertical",
+											margin: {
+												top: 0,
+												right: 0,
+												left: 20,
+												bottom: 0
+											},
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CartesianGrid, {
+													"data-uid": "src/components/MaintenanceAnalytics.tsx:296:19",
+													"data-prohibitions": "[editContent]",
+													horizontal: false,
+													strokeDasharray: "3 3"
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)(XAxis, {
+													"data-uid": "src/components/MaintenanceAnalytics.tsx:297:19",
+													"data-prohibitions": "[editContent]",
+													type: "number",
+													tickLine: false,
+													axisLine: false
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)(YAxis, {
+													"data-uid": "src/components/MaintenanceAnalytics.tsx:298:19",
+													"data-prohibitions": "[editContent]",
+													type: "category",
+													dataKey: "name",
+													tickLine: false,
+													axisLine: false,
+													tickMargin: 10
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChartTooltip, {
+													"data-uid": "src/components/MaintenanceAnalytics.tsx:305:19",
+													"data-prohibitions": "[editContent]",
+													cursor: false,
+													content: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChartTooltipContent, {
+														"data-uid": "src/components/MaintenanceAnalytics.tsx:305:57",
+														"data-prohibitions": "[editContent]",
+														hideLabel: true
+													})
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Bar, {
+													"data-uid": "src/components/MaintenanceAnalytics.tsx:306:19",
+													"data-prohibitions": "[editContent]",
+													dataKey: "value",
+													radius: [
+														0,
+														4,
+														4,
+														0
+													],
+													barSize: 32
+												})
+											]
+										})
+									})
 								})]
 							})
-						})
-					})]
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Card, {
-					"data-uid": "src/components/MaintenanceAnalytics.tsx:157:9",
-					"data-prohibitions": "[]",
-					className: "lg:col-span-3",
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(CardHeader, {
-						"data-uid": "src/components/MaintenanceAnalytics.tsx:158:11",
-						"data-prohibitions": "[]",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardTitle, {
-							"data-uid": "src/components/MaintenanceAnalytics.tsx:159:13",
-							"data-prohibitions": "[]",
-							children: "Ocorrências por Região"
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardDescription, {
-							"data-uid": "src/components/MaintenanceAnalytics.tsx:160:13",
-							"data-prohibitions": "[]",
-							children: "Acompanhamento de chamados extraídos dos endereços dos imóveis"
-						})]
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CardContent, {
-						"data-uid": "src/components/MaintenanceAnalytics.tsx:164:11",
-						"data-prohibitions": "[]",
-						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChartContainer, {
-							"data-uid": "src/components/MaintenanceAnalytics.tsx:165:13",
-							"data-prohibitions": "[]",
-							config: {},
-							className: "h-[250px] w-full",
-							children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(BarChart, {
-								"data-uid": "src/components/MaintenanceAnalytics.tsx:166:15",
-								"data-prohibitions": "[]",
-								data: damagesByRegion,
-								layout: "vertical",
-								margin: {
-									top: 0,
-									right: 0,
-									left: 20,
-									bottom: 0
-								},
-								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CartesianGrid, {
-										"data-uid": "src/components/MaintenanceAnalytics.tsx:171:17",
-										"data-prohibitions": "[editContent]",
-										horizontal: false,
-										strokeDasharray: "3 3"
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(XAxis, {
-										"data-uid": "src/components/MaintenanceAnalytics.tsx:172:17",
-										"data-prohibitions": "[editContent]",
-										type: "number",
-										tickLine: false,
-										axisLine: false
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(YAxis, {
-										"data-uid": "src/components/MaintenanceAnalytics.tsx:173:17",
-										"data-prohibitions": "[editContent]",
-										type: "category",
-										dataKey: "name",
-										tickLine: false,
-										axisLine: false,
-										tickMargin: 10
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChartTooltip, {
-										"data-uid": "src/components/MaintenanceAnalytics.tsx:180:17",
-										"data-prohibitions": "[editContent]",
-										cursor: false,
-										content: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChartTooltipContent, {
-											"data-uid": "src/components/MaintenanceAnalytics.tsx:180:55",
-											"data-prohibitions": "[editContent]",
-											hideLabel: true
-										})
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Bar, {
-										"data-uid": "src/components/MaintenanceAnalytics.tsx:181:17",
-										"data-prohibitions": "[editContent]",
-										dataKey: "value",
-										radius: [
-											0,
-											4,
-											4,
-											0
-										],
-										barSize: 32
-									})
-								]
-							})
-						})
-					})]
-				})
-			]
-		})]
+						]
+					})
+				]
+			})
+		]
 	});
 }
 //#endregion
@@ -67292,4 +67560,4 @@ var App = () => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(BrowserRouter, {
 }));
 //#endregion
 
-//# sourceMappingURL=index-yxjew1lj.js.map
+//# sourceMappingURL=index-CKn0Wvan.js.map
