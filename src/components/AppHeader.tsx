@@ -1,4 +1,4 @@
-import { Bell, Search, LogOut, UserSwitch } from 'lucide-react'
+import { Bell, Search, LogOut, Users } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -63,7 +63,7 @@ export function AppHeader() {
 
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger>
-                  <UserSwitch className="mr-2 h-4 w-4" />
+                  <Users className="mr-2 h-4 w-4" />
                   <span>Mudar Usuário (Demo)</span>
                 </DropdownMenuSubTrigger>
                 <DropdownMenuSubContent>
