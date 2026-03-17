@@ -78,6 +78,47 @@ export const usersStore = {
       listeners = listeners.filter((fn) => fn !== l)
     }
   },
+  syncUsers: async (fetchedUsers: SystemUser[]) => {
+    const updatedUsers = [...state.users]
+    const dbPayload: any[] = []
+
+    for (const user of fetchedUsers) {
+      const existingIndex = updatedUsers.findIndex(
+        (u) => u.email.toLowerCase() === user.email.toLowerCase(),
+      )
+
+      if (existingIndex >= 0) {
+        updatedUsers[existingIndex] = {
+          ...updatedUsers[existingIndex],
+          name: user.name,
+          avatar: user.avatar || updatedUsers[existingIndex].avatar,
+        }
+        dbPayload.push({
+          id: updatedUsers[existingIndex].id,
+          name: updatedUsers[existingIndex].name,
+          email: updatedUsers[existingIndex].email,
+          role: updatedUsers[existingIndex].role,
+          avatar: updatedUsers[existingIndex].avatar,
+        })
+      } else {
+        updatedUsers.push(user)
+        dbPayload.push({
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          avatar: user.avatar,
+        })
+      }
+    }
+
+    state = { ...state, users: updatedUsers }
+    emit()
+
+    if (dbPayload.length > 0) {
+      await supabase.from('app_users').upsert(dbPayload)
+    }
+  },
   updateUserRole: (id: string, role: Role) => {
     state = {
       ...state,

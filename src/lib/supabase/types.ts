@@ -550,6 +550,8 @@ export const Constants = {
 //     USING: true
 //     WITH CHECK: true
 // Table: app_settings
+//   Policy "anon_select_app_settings" (SELECT, PERMISSIVE) roles={anon}
+//     USING: true
 //   Policy "authenticated_all_app_settings" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
 //     WITH CHECK: true
