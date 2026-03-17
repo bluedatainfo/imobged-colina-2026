@@ -1,165 +1,86 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import {
-  Building2,
-  MapPin,
-  FolderOpen,
-  AlertCircle,
-  Clock,
-  Plus,
-  FolderArchive,
-} from 'lucide-react'
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import { Link } from 'react-router-dom'
+import { Building, MapPin, Plus, Search, ArrowRight } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import useMainStore, { Property } from '@/stores/main'
-import { PropertyDetailSheet } from '@/components/PropertyDetailSheet'
-import { NewPropertyDialog } from '@/components/NewPropertyDialog'
-import { useAuth } from '@/contexts/AuthContext'
+import { Badge } from '@/components/ui/badge'
+import useMainStore from '@/stores/main'
 
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'Análise Gerencial':
-      return 'bg-amber-100 text-amber-800 border-amber-200'
-    case 'Vistoria':
-      return 'bg-blue-100 text-blue-800 border-blue-200'
-    case 'Confecção de Contrato':
-      return 'bg-purple-100 text-purple-800 border-purple-200'
-    case 'Assinatura':
-      return 'bg-emerald-100 text-emerald-800 border-emerald-200'
-    case 'Pendente/Rascunho':
-      return 'bg-gray-100 text-gray-800 border-gray-200'
-    default:
-      return 'bg-secondary text-secondary-foreground'
-  }
-}
+export default function Properties() {
+  const { properties } = useMainStore()
+  const [search, setSearch] = useState('')
 
-const Properties = () => {
-  const navigate = useNavigate()
-  const store = useMainStore()
-  const { user } = useAuth()
-  const [selectedProperty, setSelectedProperty] = useState<Property | null>(null)
-  const [newPropertyOpen, setNewPropertyOpen] = useState(false)
-
-  const pendingAnalyses = store.properties.filter((p) => p.status === 'Análise Gerencial').length
-  const pendingInspections = store.properties.filter((p) => p.status === 'Vistoria').length
-  const canViewDossier = ['Admin', 'Diretor'].includes(user?.role || '')
+  const filtered = properties.filter(
+    (p) =>
+      p.title.toLowerCase().includes(search.toLowerCase()) ||
+      p.address.toLowerCase().includes(search.toLowerCase()),
+  )
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Gestão de Imóveis e Captação</h1>
-          <p className="text-muted-foreground">
-            Acompanhe as captações, workflow de locação e acesse a trilha de auditoria completa no
-            SharePoint.
-          </p>
+          <h1 className="text-3xl font-bold tracking-tight">Gestão de Imóveis</h1>
+          <p className="text-muted-foreground">Catálogo e status do portfólio da imobiliária.</p>
         </div>
-        <Button onClick={() => setNewPropertyOpen(true)} className="gap-2">
+        <Button className="gap-2">
           <Plus className="w-4 h-4" /> Nova Captação
         </Button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3 mb-6">
-        <Card className="bg-amber-50/50 border-amber-100 shadow-sm">
-          <CardContent className="p-5 flex items-center gap-4">
-            <div className="bg-amber-100 p-3 rounded-full shrink-0">
-              <Clock className="h-6 w-6 text-amber-600" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-amber-800">Aguardando Gerente</p>
-              <p className="text-2xl font-bold text-amber-900 mt-1">{pendingAnalyses} Análises</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-blue-50/50 border-blue-100 shadow-sm">
-          <CardContent className="p-5 flex items-center gap-4">
-            <div className="bg-blue-100 p-3 rounded-full shrink-0">
-              <AlertCircle className="h-6 w-6 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-blue-800">Vistorias Pendentes</p>
-              <p className="text-2xl font-bold text-blue-900 mt-1">{pendingInspections} Imóvel</p>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="flex items-center gap-2 max-w-md">
+        <Search className="w-4 h-4 text-muted-foreground absolute ml-3" />
+        <Input
+          placeholder="Buscar imóvel por nome ou endereço..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-9"
+        />
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {store.properties.map((property) => (
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {filtered.map((property) => (
           <Card
             key={property.id}
-            className="overflow-hidden flex flex-col transition-all hover:shadow-md group"
+            className="overflow-hidden flex flex-col transition-shadow hover:shadow-md"
           >
-            <div className="aspect-video w-full overflow-hidden relative">
+            <div className="aspect-video w-full bg-muted relative">
               <img
                 src={property.image}
                 alt={property.title}
-                className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                className="w-full h-full object-cover"
               />
               <div className="absolute top-2 right-2">
-                <Badge className={`shadow-sm border ${getStatusColor(property.status)}`}>
+                <Badge variant="secondary" className="shadow-sm backdrop-blur-md bg-background/80">
                   {property.status}
                 </Badge>
               </div>
-              {property.rentValue && (
-                <div className="absolute bottom-2 left-2 bg-black/70 text-white px-2 py-1 rounded text-xs font-semibold backdrop-blur-sm">
-                  R$ {property.rentValue.toLocaleString('pt-BR')}
-                </div>
-              )}
             </div>
-            <CardHeader className="pb-2">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-                <Building2 className="h-4 w-4" />
-                <span>
-                  ID: {property.id} • {property.type}
-                </span>
-              </div>
-              <CardTitle className="text-xl line-clamp-1">{property.title}</CardTitle>
-            </CardHeader>
-            <CardContent className="flex-1">
-              <div className="flex items-start gap-2 text-muted-foreground text-sm">
-                <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
+            <CardContent className="p-4 flex flex-col flex-1">
+              <h3 className="font-semibold text-lg line-clamp-1 mb-1">{property.title}</h3>
+              <div className="flex items-start gap-1.5 text-sm text-muted-foreground mb-4">
+                <MapPin className="w-4 h-4 shrink-0 mt-0.5" />
                 <span className="line-clamp-2">{property.address}</span>
               </div>
-            </CardContent>
-            <CardFooter className="pt-4 border-t bg-muted/10 flex-col gap-2">
-              <Button
-                variant="ghost"
-                className="w-full justify-between"
-                onClick={() => setSelectedProperty(property)}
-              >
-                <span className="flex items-center gap-2">
-                  <FolderOpen className="h-4 w-4 text-primary" /> SharePoint Site / Auditoria
-                </span>
-                <span className="text-muted-foreground group-hover:translate-x-1 transition-transform">
-                  →
-                </span>
-              </Button>
-
-              {canViewDossier && (
-                <Button
-                  variant="secondary"
-                  className="w-full justify-between bg-primary/5 hover:bg-primary/10 border border-primary/20"
-                  onClick={() => navigate(`/properties/${property.id}/dossier`)}
-                >
-                  <span className="flex items-center gap-2 text-primary font-medium">
-                    <FolderArchive className="h-4 w-4" /> Dossiê Digital do Imóvel
-                  </span>
-                  <span className="text-primary group-hover:translate-x-1 transition-transform">
-                    →
-                  </span>
+              <div className="mt-auto pt-4 border-t flex items-center justify-between">
+                <span className="text-xs font-medium text-muted-foreground">ID: {property.id}</span>
+                <Button variant="ghost" size="sm" asChild className="gap-1 text-primary">
+                  <Link to={`/properties/${property.id}/dossier`}>
+                    Ver Dossiê <ArrowRight className="w-4 h-4" />
+                  </Link>
                 </Button>
-              )}
-            </CardFooter>
+              </div>
+            </CardContent>
           </Card>
         ))}
+        {filtered.length === 0 && (
+          <div className="col-span-full py-12 text-center text-muted-foreground">
+            <Building className="w-12 h-12 mx-auto mb-3 opacity-20" />
+            <p>Nenhum imóvel encontrado.</p>
+          </div>
+        )}
       </div>
-
-      <PropertyDetailSheet property={selectedProperty} onClose={() => setSelectedProperty(null)} />
-      <NewPropertyDialog open={newPropertyOpen} onClose={() => setNewPropertyOpen(false)} />
     </div>
   )
 }
-
-export default Properties

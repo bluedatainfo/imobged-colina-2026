@@ -350,9 +350,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut()
   }
 
-  const switchUser = (id: string) => {
-    setCurrentUserId(id)
-    sessionStorage.setItem('app_user_id', id)
+  const switchUser = async (id: string) => {
+    const targetUser = usersStore.getState().users.find((u) => u.id === id)
+    if (targetUser) {
+      await supabase.from('app_audit_logs').insert({
+        id: `LOG-${Math.random().toString(36).substring(2, 9)}`,
+        action: 'Account Switch',
+        user_name: user?.name || 'Sistema',
+        user_email: targetUser.email,
+        details: `Tentativa de alternar para a conta de ${targetUser.email}. Redirecionado para M365 Auth.`,
+        timestamp: new Date().toISOString(),
+      })
+    }
+    sessionStorage.removeItem('m365_token')
+    sessionStorage.removeItem('pkce_code_verifier')
+    sessionStorage.removeItem('app_user_id')
+    setCurrentUserId(null)
+    await supabase.auth.signOut()
+    window.location.href = '/login'
   }
 
   return (

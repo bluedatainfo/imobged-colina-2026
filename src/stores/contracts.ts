@@ -147,6 +147,20 @@ export const contractsStore = {
     }
     emit()
     supabase.from('contracts').update({ status, updated_at: updatedStr }).eq('id', id).then()
+
+    if (status === 'Ativo') {
+      const contract = state.contracts.find((c) => c.id === id)
+      import('@/lib/m365').then(({ m365Service }) => {
+        if (contract) {
+          m365Service.saveToLibrary(
+            'Contratos Ativos',
+            contract.documentName,
+            'File Data',
+            'locacao',
+          )
+        }
+      })
+    }
   },
   updateDocuSignStatus: (id: string, docusignStatus: DocuSignStatus) => {
     const updatedStr = new Date().toISOString()

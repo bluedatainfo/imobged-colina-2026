@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   Camera,
   WifiOff,
@@ -8,6 +9,7 @@ import {
   CheckCircle,
   UploadCloud,
   Loader2,
+  LayoutDashboard,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -23,6 +25,15 @@ import {
 } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/hooks/use-toast'
 import useMainStore, { mainStore } from '@/stores/main'
 import { useAuth } from '@/contexts/AuthContext'
@@ -41,6 +52,16 @@ const Inspections = () => {
   const [unsyncedCount, setUnsyncedCount] = useState(0)
 
   const pendingInspections = store.properties.filter((p) => p.status === 'Vistoria')
+  const inProgressInspections = store.properties.filter((p) => p.status === 'Análise Gerencial')
+  const completedInspections = store.properties.filter((p) => store.inspectionsData[p.id])
+
+  const allInspections = [
+    ...pendingInspections.map((p) => ({ ...p, inspStatus: 'Pendente' })),
+    ...inProgressInspections.map((p) => ({ ...p, inspStatus: 'Em Andamento' })),
+    ...completedInspections
+      .filter((p) => p.status !== 'Vistoria' && p.status !== 'Análise Gerencial')
+      .map((p) => ({ ...p, inspStatus: 'Concluída' })),
+  ]
 
   const [inspectingId, setInspectingId] = useState<string | null>(null)
   const [wallCondition, setWallCondition] = useState('')
@@ -204,12 +225,108 @@ const Inspections = () => {
         </Card>
       )}
 
-      <Tabs defaultValue="fila">
+      <Tabs defaultValue="dashboard">
         <TabsList className="mb-4">
+          <TabsTrigger value="dashboard" className="gap-2">
+            <LayoutDashboard className="w-4 h-4" /> Dashboard
+          </TabsTrigger>
           <TabsTrigger value="fila">Fila de Preenchimento</TabsTrigger>
           <TabsTrigger value="mapa">Mapa de Vistorias</TabsTrigger>
           <TabsTrigger value="ocr">Upload & OCR (IA)</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="dashboard">
+          <div className="grid gap-4 md:grid-cols-3 mb-6">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Vistorias Pendentes
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-amber-600">{pendingInspections.length}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Em Andamento
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-blue-600">
+                  {inProgressInspections.length}
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Concluídas
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-emerald-600">
+                  {completedInspections.length}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Histórico e Status de Vistorias</CardTitle>
+              <CardDescription>
+                Visão centralizada de todas as vistorias registradas.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Imóvel</TableHead>
+                    <TableHead>Endereço</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Ação</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {allInspections.map((p, i) => (
+                    <TableRow key={`${p.id}-${i}`}>
+                      <TableCell className="font-medium">{p.title}</TableCell>
+                      <TableCell className="text-muted-foreground">{p.address}</TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            p.inspStatus === 'Concluída'
+                              ? 'default'
+                              : p.inspStatus === 'Em Andamento'
+                                ? 'secondary'
+                                : 'outline'
+                          }
+                        >
+                          {p.inspStatus}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Button variant="link" asChild className="px-0">
+                          <Link to={`/properties/${p.id}/dossier`}>Ver Dossiê</Link>
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {allInspections.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
+                        Nenhuma vistoria encontrada.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         <TabsContent value="fila">
           <Card>

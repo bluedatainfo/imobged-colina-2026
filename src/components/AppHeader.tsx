@@ -91,29 +91,31 @@ export function AppHeader() {
                 </Link>
               </DropdownMenuItem>
 
-              <DropdownMenuSub>
-                <DropdownMenuSubTrigger className="py-2">
-                  <Users className="mr-2 h-4 w-4 text-muted-foreground" />
-                  <span>Alternar Conta (Demo)</span>
-                </DropdownMenuSubTrigger>
-                <DropdownMenuSubContent className="w-56">
-                  {users.map((u) => (
-                    <DropdownMenuItem
-                      key={u.id}
-                      onClick={() => switchUser(u.id)}
-                      className={`justify-between cursor-pointer py-2 ${user?.id === u.id ? 'bg-accent' : ''}`}
-                    >
-                      <div className="flex flex-col">
-                        <span className="font-medium">{u.name}</span>
-                        <span className="text-[10px] text-muted-foreground">{u.email}</span>
-                      </div>
-                      <Badge variant="outline" className="text-[10px] h-5 ml-2 shrink-0">
-                        {u.role}
-                      </Badge>
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuSubContent>
-              </DropdownMenuSub>
+              {user?.role === 'Admin' && (
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger className="py-2">
+                    <Users className="mr-2 h-4 w-4 text-muted-foreground" />
+                    <span>Alternar Conta (Demo)</span>
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="w-56">
+                    {users.map((u) => (
+                      <DropdownMenuItem
+                        key={u.id}
+                        onClick={() => switchUser(u.id)}
+                        className={`justify-between cursor-pointer py-2 ${user?.id === u.id ? 'bg-accent' : ''}`}
+                      >
+                        <div className="flex flex-col">
+                          <span className="font-medium">{u.name}</span>
+                          <span className="text-[10px] text-muted-foreground">{u.email}</span>
+                        </div>
+                        <Badge variant="outline" className="text-[10px] h-5 ml-2 shrink-0">
+                          {u.role}
+                        </Badge>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+              )}
 
               <DropdownMenuSeparator />
               <DropdownMenuItem

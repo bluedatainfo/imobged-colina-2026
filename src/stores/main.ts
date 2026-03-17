@@ -438,6 +438,7 @@ export const mainStore = {
       .then()
   },
   saveInspection: (data: InspectionData) => {
+    const isNew = !state.inspectionsData[data.propertyId]
     state = {
       ...state,
       inspectionsData: { ...state.inspectionsData, [data.propertyId]: data },
@@ -453,6 +454,14 @@ export const mainStore = {
         updated_at: new Date().toISOString(),
       })
       .then()
+
+    const prop = state.properties.find((p) => p.id === data.propertyId)
+    import('@/lib/m365').then(({ m365Service }) => {
+      m365Service.sendTeamsMessage(
+        state.sharepoint.teamsWebhookUrl,
+        `Vistoria ${isNew ? 'Registrada' : 'Concluída'} para o imóvel: ${prop?.title || data.propertyId}. Verifique no sistema: /properties/${data.propertyId}/dossier`,
+      )
+    })
   },
   addMaintenanceTicket: (ticket: Omit<MaintenanceTicket, 'id' | 'createdAt'>) => {
     const newTicket: MaintenanceTicket = {
