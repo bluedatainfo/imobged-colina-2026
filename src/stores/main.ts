@@ -161,6 +161,7 @@ export const initMainStore = async () => {
   const { data: settingsData } = await supabase
     .from('app_settings')
     .select('*')
+    .order('updated_at', { ascending: false })
     .limit(1)
     .maybeSingle()
 
@@ -219,47 +220,6 @@ export const initMainStore = async () => {
           ? { x: Number(p.location_x), y: Number(p.location_y) }
           : undefined,
     }))
-  } else if (sessionStorage.getItem('app_user_id')) {
-    const initialProps: Property[] = [
-      {
-        id: '101',
-        title: 'Apto Centro',
-        address: 'Rua Flores, 123',
-        type: 'Residencial',
-        status: 'Análise Gerencial',
-        image: 'https://img.usecurling.com/p/400/300?q=apartment',
-        tenant: 'João Pedro',
-        rentValue: 2500,
-        location: { x: 30, y: 40 },
-      },
-      {
-        id: '102',
-        title: 'Casa Vila Nova',
-        address: 'Rua das Margaridas, 88',
-        type: 'Residencial',
-        status: 'Vistoria',
-        image: 'https://img.usecurling.com/p/400/300?q=house',
-        tenant: 'Carlos Silva',
-        location: { x: 55, y: 65 },
-        slaStart: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
-      },
-    ]
-    state.properties = initialProps
-    for (const p of initialProps) {
-      await supabase.from('properties').insert({
-        id: p.id,
-        title: p.title,
-        address: p.address,
-        type: p.type,
-        status: p.status,
-        image: p.image,
-        rent_value: p.rentValue,
-        location_x: p.location?.x,
-        location_y: p.location?.y,
-        tenant: p.tenant,
-        sla_start: p.slaStart,
-      })
-    }
   }
 
   const { data: auditLogs } = await supabase
@@ -332,6 +292,7 @@ const syncConfig = async () => {
     },
     role_settings: state.settings as any,
     security_settings: state.security as any,
+    updated_at: new Date().toISOString(),
   }
 
   if (settingsId) {
@@ -355,6 +316,7 @@ export const mainStore = {
       const { data: coreData } = await supabase
         .from('app_settings')
         .select('*')
+        .order('updated_at', { ascending: false })
         .limit(1)
         .maybeSingle()
       if (coreData && (coreData.default_domain || coreData.client_id || coreData.tenant_id)) {
@@ -387,6 +349,10 @@ export const mainStore = {
     state = { ...state, sharepoint: { ...state.sharepoint, ...s } }
     emit()
     syncConfig()
+  },
+  hydrateSharePointSettings: (s: Partial<SharePointSettings>) => {
+    state = { ...state, sharepoint: { ...state.sharepoint, ...s } }
+    emit()
   },
   updateSecuritySettings: (s: Partial<SecuritySettings>) => {
     state = { ...state, security: { ...state.security, ...s } }

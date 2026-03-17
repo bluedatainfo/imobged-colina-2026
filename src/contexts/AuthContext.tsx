@@ -67,42 +67,63 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     if (code) {
-      setIsExchanging(true)
-      window.history.replaceState({}, document.title, window.location.pathname)
+      const processAuth = async () => {
+        setIsExchanging(true)
+        window.history.replaceState({}, document.title, window.location.pathname)
 
-      const { sharepoint } = mainStore.getState()
-      const { clientId, tenantId, primaryDomain } = sharepoint
-      const codeVerifier = sessionStorage.getItem('pkce_code_verifier')
+        let { sharepoint } = mainStore.getState()
+        let { clientId, tenantId, primaryDomain } = sharepoint
+        const codeVerifier = sessionStorage.getItem('pkce_code_verifier')
 
-      if (!clientId || !tenantId || !codeVerifier) {
-        setIsExchanging(false)
-        toast({
-          variant: 'destructive',
-          title: 'Sessão Incompleta ou Expirada',
-          description:
-            'A sessão de login expirou ou as configurações de Client/Tenant ID estão ausentes. Por favor, inicie o login novamente.',
-        })
-        return
-      }
+        if (!clientId || !tenantId) {
+          const { data: dbSettings } = await supabase
+            .from('app_settings')
+            .select('client_id, tenant_id, default_domain')
+            .order('updated_at', { ascending: false })
+            .limit(1)
+            .maybeSingle()
 
-      const redirectUri = window.location.origin + '/login'
-      const tokenParams = new URLSearchParams()
-      tokenParams.append('client_id', clientId)
-      tokenParams.append(
-        'scope',
-        'openid profile email User.Read User.ReadBasic.All Files.ReadWrite.All Sites.Read.All offline_access',
-      )
-      tokenParams.append('code', code)
-      tokenParams.append('redirect_uri', redirectUri)
-      tokenParams.append('grant_type', 'authorization_code')
-      tokenParams.append('code_verifier', codeVerifier)
+          if (dbSettings) {
+            clientId = dbSettings.client_id || clientId
+            tenantId = dbSettings.tenant_id || tenantId
+            primaryDomain = dbSettings.default_domain || primaryDomain
+            mainStore.hydrateSharePointSettings({ clientId, tenantId, primaryDomain })
+          }
+        }
 
-      fetch(`https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: tokenParams.toString(),
-      })
-        .then(async (res) => {
+        if (!clientId || !tenantId || !codeVerifier) {
+          setIsExchanging(false)
+          toast({
+            variant: 'destructive',
+            title: 'Sessão Incompleta ou Expirada',
+            description:
+              'A sessão de login expirou ou as configurações de Client/Tenant ID estão ausentes. Por favor, inicie o login novamente.',
+          })
+          return
+        }
+
+        const redirectUri = window.location.origin + '/login'
+        const tokenParams = new URLSearchParams()
+        tokenParams.append('client_id', clientId)
+        tokenParams.append(
+          'scope',
+          'openid profile email User.Read User.ReadBasic.All Files.ReadWrite.All Sites.Read.All offline_access',
+        )
+        tokenParams.append('code', code)
+        tokenParams.append('redirect_uri', redirectUri)
+        tokenParams.append('grant_type', 'authorization_code')
+        tokenParams.append('code_verifier', codeVerifier)
+
+        try {
+          const res = await fetch(
+            `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: tokenParams.toString(),
+            },
+          )
+
           if (!res.ok) {
             const errData = await res.json().catch(() => null)
             throw new Error(
@@ -111,25 +132,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 'Falha ao obter token de acesso do Microsoft Entra ID.',
             )
           }
-          return res.json()
-        })
-        .then((tokenData) => {
+
+          const tokenData = await res.json()
           const token = tokenData.access_token
           sessionStorage.setItem('m365_token', token)
           sessionStorage.removeItem('pkce_code_verifier')
 
-          return fetch('https://graph.microsoft.com/v1.0/me', {
+          const profileRes = await fetch('https://graph.microsoft.com/v1.0/me', {
             headers: { Authorization: `Bearer ${token}` },
-          }).then(async (res) => {
-            if (!res.ok) {
-              const errData = await res.json().catch(() => null)
-              throw new Error(errData?.error?.message || 'Erro de permissão na Graph API.')
-            }
-            return res.json().then((data) => ({ data, token }))
           })
-        })
-        .then(async ({ data, token }) => {
-          const emailToMatch = (data.mail || data.userPrincipalName || '').toLowerCase()
+
+          if (!profileRes.ok) {
+            const errData = await profileRes.json().catch(() => null)
+            throw new Error(errData?.error?.message || 'Erro de permissão na Graph API.')
+          }
+
+          const profileData = await profileRes.json()
+          const emailToMatch = (
+            profileData.mail ||
+            profileData.userPrincipalName ||
+            ''
+          ).toLowerCase()
 
           if (primaryDomain) {
             const lowerDomain = primaryDomain.toLowerCase()
@@ -158,11 +181,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             emailParts[0].toLowerCase() === 'admin' ||
             emailParts[0].toLowerCase() === 'administrator'
 
-          // M365 authentication succeeded, let's establish Supabase session to enable RLS data persistence
-          await supabase.auth.signInWithPassword({
+          const { error: sysAuthError } = await supabase.auth.signInWithPassword({
             email: 'system@imobiliaria.local',
             password: 'SystemPassword123!',
           })
+
+          if (sysAuthError) {
+            throw new Error('Falha ao inicializar sessão do sistema: ' + sysAuthError.message)
+          }
 
           const currentUsers = usersStore.getState().users
           const demoEmails = [
@@ -174,8 +200,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const isFirstRealUser = realUsers.length === 0
 
           const matched = usersStore.addUser({
-            id: data.id,
-            name: data.displayName || 'M365 User',
+            id: profileData.id,
+            name: profileData.displayName || 'M365 User',
             email: emailToMatch,
             role: isFirstRealUser || isAdminAlias ? 'Admin' : 'Vistoriador',
             avatar: photoUrl,
@@ -193,10 +219,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
           toast({
             title: 'Autenticado com sucesso',
-            description: `Bem-vindo(a), ${data.displayName || matched.name}`,
+            description: `Bem-vindo(a), ${profileData.displayName || matched.name}`,
           })
-        })
-        .catch((e) => {
+        } catch (e: any) {
           sessionStorage.removeItem('m365_token')
           toast({
             variant: 'destructive',
@@ -204,16 +229,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             description:
               e.message || 'Não foi possível completar a autenticação com o Microsoft 365.',
           })
-        })
-        .finally(() => {
+        } finally {
           setIsExchanging(false)
-        })
+        }
+      }
+      processAuth()
     }
   }, [])
 
   const loginM365 = async (email: string, password?: string) => {
-    const { sharepoint } = mainStore.getState()
-    const { clientId, tenantId, primaryDomain } = sharepoint
+    let { clientId, tenantId, primaryDomain } = mainStore.getState().sharepoint
+
+    if (!clientId || !tenantId) {
+      const { data: dbSettings } = await supabase
+        .from('app_settings')
+        .select('client_id, tenant_id, default_domain')
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (dbSettings) {
+        clientId = dbSettings.client_id || clientId
+        tenantId = dbSettings.tenant_id || tenantId
+        primaryDomain = dbSettings.default_domain || primaryDomain
+        mainStore.hydrateSharePointSettings({ clientId, tenantId, primaryDomain })
+      }
+    }
 
     if (clientId && tenantId) {
       const codeVerifier = generateRandomString(64)
@@ -294,7 +335,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               initKeysStore(),
             ]).then(() => resolve())
           })
-          .catch(reject)
+          .catch((e) => {
+            reject(new Error('Falha de sessão interna: ' + e.message))
+          })
       }, 1200)
     })
   }

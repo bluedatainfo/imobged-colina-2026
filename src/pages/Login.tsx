@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import useMainStore, { mainStore } from '@/stores/main'
+import { supabase } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -30,6 +31,7 @@ export default function Login() {
   const [email, setEmail] = useState(
     sharepoint.primaryDomain ? `admin@${sharepoint.primaryDomain}` : '',
   )
+  const [password, setPassword] = useState('')
 
   // Populate email if domain is restored after initial component mount
   useEffect(() => {
@@ -40,15 +42,42 @@ export default function Login() {
 
   const handleNext = async () => {
     if (!email.trim()) return
-    if (sharepoint.clientId && sharepoint.tenantId) {
-      setIsLoading(true)
-      try {
-        await loginM365(email)
-      } catch (err: any) {
-        setIsLoading(false)
+
+    setIsLoading(true)
+
+    let hasM365 = !!(sharepoint.clientId && sharepoint.tenantId)
+
+    try {
+      if (!hasM365) {
+        const { data } = await supabase
+          .from('app_settings')
+          .select('client_id, tenant_id')
+          .order('updated_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+
+        if (data?.client_id && data?.tenant_id) {
+          hasM365 = true
+          mainStore.hydrateSharePointSettings({
+            clientId: data.client_id,
+            tenantId: data.tenant_id,
+          })
+        }
       }
-    } else {
-      setStep(2)
+
+      if (hasM365) {
+        await loginM365(email)
+      } else {
+        setIsLoading(false)
+        setStep(2)
+      }
+    } catch (err: any) {
+      setIsLoading(false)
+      toast({
+        variant: 'destructive',
+        title: 'Acesso Negado',
+        description: err.message || 'Falha ao iniciar autenticação M365.',
+      })
     }
   }
 
@@ -59,7 +88,7 @@ export default function Login() {
       await loginM365(email, password)
       toast({
         title: 'Sessão Iniciada',
-        description: 'Identidade verificada via Microsoft Entra ID.',
+        description: 'Identidade verificada com sucesso.',
       })
       navigate('/')
     } catch (err: any) {
@@ -74,8 +103,6 @@ export default function Login() {
       setIsLoading(false)
     }
   }
-
-  const [password, setPassword] = useState('')
 
   if (isExchanging) {
     return (
