@@ -31,15 +31,15 @@ import { checkAccess } from '@/lib/permissions'
 
 const navigation = [
   { title: 'Painel', url: '/', icon: LayoutDashboard },
-  { title: 'Análise do Gerente', url: '/manager-approval', icon: UserCheck },
-  { title: 'Ciclo de Contratos', url: '/contracts', icon: FileSignature },
-  { title: 'Renovações', url: '/renewals', icon: CalendarClock },
-  { title: 'Controle de Chaves', url: '/keys', icon: KeyRound },
-  { title: 'Manutenção', url: '/maintenance', icon: Wrench },
-  { title: 'Documentos (GED)', url: '/documents', icon: FolderOpen },
+  { title: 'Documentos GED', url: '/documents', icon: FolderOpen },
   { title: 'Alertas GED', url: '/document-alerts', icon: BellRing },
-  { title: 'Imóveis', url: '/properties', icon: Home },
+  { title: 'Análise da Gerencia', url: '/manager-approval', icon: UserCheck },
   { title: 'Vistorias', url: '/inspections', icon: ClipboardCheck },
+  { title: 'Controle de Chaves', url: '/keys', icon: KeyRound },
+  { title: 'Ciclo de Contratos', url: '/contracts', icon: FileSignature },
+  { title: 'Imóveis', url: '/properties', icon: Home },
+  { title: 'Manutenção', url: '/maintenance', icon: Wrench },
+  { title: 'Renovações', url: '/renewals', icon: CalendarClock },
   { title: 'Jurídico', url: '/legal', icon: Scale },
   { title: 'Configurações', url: '/settings', icon: Settings },
 ]
