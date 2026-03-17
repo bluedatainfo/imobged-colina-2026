@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react'
 import { Role } from '@/lib/permissions'
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase/client'
 
 export type SystemUser = {
   id: string
@@ -18,12 +18,17 @@ let state: State = { users: [] }
 let listeners: Array<() => void> = []
 
 export const initUsersStore = async () => {
-  const data = await supabase.get('app_users')
+  const { data } = await supabase.from('app_users').select('*')
 
-  if (Array.isArray(data) && data.length > 0) {
-    state = { users: data }
-  } else {
-    // Seed default demo users to enable easy testing of roles, especially the Corretor constraint
+  if (data && data.length > 0) {
+    state.users = data.map((u) => ({
+      id: u.id,
+      name: u.name || '',
+      email: u.email || '',
+      role: (u.role as Role) || 'Vistoriador',
+      avatar: u.avatar || '',
+    }))
+  } else if (sessionStorage.getItem('app_user_id')) {
     const demoUsers: SystemUser[] = [
       {
         id: 'usr-admin',
@@ -47,9 +52,15 @@ export const initUsersStore = async () => {
         avatar: '',
       },
     ]
-    state = { users: demoUsers }
+    state.users = demoUsers
     for (const u of demoUsers) {
-      await supabase.upsert('app_users', u)
+      await supabase.from('app_users').upsert({
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        role: u.role,
+        avatar: u.avatar,
+      })
     }
   }
   emit()
@@ -73,7 +84,7 @@ export const usersStore = {
       users: state.users.map((u) => (u.id === id ? { ...u, role } : u)),
     }
     emit()
-    supabase.patch('app_users', id, { role })
+    supabase.from('app_users').update({ role }).eq('id', id).then()
   },
   addUser: (user: Omit<SystemUser, 'id' | 'avatar'> & { id?: string; avatar?: string }) => {
     const newUser: SystemUser = {
@@ -95,13 +106,29 @@ export const usersStore = {
       }
       state = { ...state, users: updatedUsers }
       emit()
-      supabase.patch('app_users', updatedUsers[existingIndex].id, updatedUsers[existingIndex])
+      supabase
+        .from('app_users')
+        .update({
+          name: updatedUsers[existingIndex].name,
+          avatar: updatedUsers[existingIndex].avatar,
+        })
+        .eq('id', updatedUsers[existingIndex].id)
+        .then()
       return updatedUsers[existingIndex]
     }
 
     state = { ...state, users: [...state.users, newUser] }
     emit()
-    supabase.upsert('app_users', newUser)
+    supabase
+      .from('app_users')
+      .insert({
+        id: newUser.id,
+        name: newUser.name,
+        email: newUser.email,
+        role: newUser.role,
+        avatar: newUser.avatar,
+      })
+      .then()
     return newUser
   },
   updateUser: (id: string, data: Partial<SystemUser>) => {
@@ -110,7 +137,7 @@ export const usersStore = {
       users: state.users.map((u) => (u.id === id ? { ...u, ...data } : u)),
     }
     emit()
-    supabase.patch('app_users', id, data)
+    supabase.from('app_users').update(data).eq('id', id).then()
   },
   removeUser: (id: string) => {
     state = {
@@ -118,14 +145,14 @@ export const usersStore = {
       users: state.users.filter((u) => u.id !== id),
     }
     emit()
-    supabase.delete('app_users', id)
+    supabase.from('app_users').delete().eq('id', id).then()
   },
   enforceDomain: (domain: string) => {
     if (!domain) {
       const toRemove = [...state.users]
       state = { ...state, users: [] }
       emit()
-      toRemove.forEach((u) => supabase.delete('app_users', u.id))
+      toRemove.forEach((u) => supabase.from('app_users').delete().eq('id', u.id).then())
     } else {
       const toKeep = state.users.filter((u) =>
         u.email.toLowerCase().endsWith(`@${domain.toLowerCase()}`),
@@ -135,22 +162,8 @@ export const usersStore = {
       )
       state = { ...state, users: toKeep }
       emit()
-      toRemove.forEach((u) => supabase.delete('app_users', u.id))
+      toRemove.forEach((u) => supabase.from('app_users').delete().eq('id', u.id).then())
     }
-  },
-  syncUsers: (fetchedUsers: SystemUser[]) => {
-    const currentUsersMap = new Map(state.users.map((u) => [u.email.toLowerCase(), u]))
-    const mergedUsers = fetchedUsers.map((fu) => {
-      const existing = currentUsersMap.get(fu.email.toLowerCase())
-      if (existing) {
-        return { ...fu, role: existing.role, avatar: existing.avatar || fu.avatar }
-      }
-      return fu
-    })
-
-    state = { ...state, users: mergedUsers }
-    emit()
-    mergedUsers.forEach((u) => supabase.upsert('app_users', u))
   },
 }
 

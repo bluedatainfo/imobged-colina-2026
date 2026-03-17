@@ -1,8 +1,12 @@
 import { createContext, useContext, useState, ReactNode, useEffect } from 'react'
 import useUsersStore, { SystemUser, usersStore } from '@/stores/users'
-import { mainStore } from '@/stores/main'
+import { initMainStore, mainStore } from '@/stores/main'
+import { initContractsStore } from '@/stores/contracts'
+import { initKeysStore } from '@/stores/keys'
+import { initUsersStore } from '@/stores/users'
 import { Role } from '@/lib/permissions'
 import { toast } from '@/hooks/use-toast'
+import { supabase } from '@/lib/supabase/client'
 
 type AuthContextType = {
   user: SystemUser | null
@@ -36,7 +40,9 @@ async function generateCodeChallenge(codeVerifier: string) {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(() =>
+    sessionStorage.getItem('app_user_id'),
+  )
   const [isExchanging, setIsExchanging] = useState(false)
 
   const { users } = useUsersStore()
@@ -99,7 +105,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .then(async (res) => {
           if (!res.ok) {
             const errData = await res.json().catch(() => null)
-            console.error('Token Exchange Error:', errData)
             throw new Error(
               errData?.error_description ||
                 errData?.error ||
@@ -118,7 +123,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }).then(async (res) => {
             if (!res.ok) {
               const errData = await res.json().catch(() => null)
-              console.error('Graph API Error:', errData)
               throw new Error(errData?.error?.message || 'Erro de permissão na Graph API.')
             }
             return res.json().then((data) => ({ data, token }))
@@ -149,6 +153,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             // Ignore photo fetch errors
           }
 
+          const emailParts = emailToMatch.split('@')
+          const isAdminAlias =
+            emailParts[0].toLowerCase() === 'admin' ||
+            emailParts[0].toLowerCase() === 'administrator'
+
+          // M365 authentication succeeded, let's establish Supabase session to enable RLS data persistence
+          await supabase.auth.signInWithPassword({
+            email: 'system@imobiliaria.local',
+            password: 'SystemPassword123!',
+          })
+
           const currentUsers = usersStore.getState().users
           const demoEmails = [
             'admin@imobiliaria.local',
@@ -157,11 +172,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           ]
           const realUsers = currentUsers.filter((u) => !demoEmails.includes(u.email.toLowerCase()))
           const isFirstRealUser = realUsers.length === 0
-
-          const emailParts = emailToMatch.split('@')
-          const isAdminAlias =
-            emailParts[0].toLowerCase() === 'admin' ||
-            emailParts[0].toLowerCase() === 'administrator'
 
           const matched = usersStore.addUser({
             id: data.id,
@@ -172,6 +182,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           })
 
           setCurrentUserId(matched.id)
+          sessionStorage.setItem('app_user_id', matched.id)
+
+          await Promise.all([
+            initMainStore(),
+            initUsersStore(),
+            initContractsStore(),
+            initKeysStore(),
+          ])
 
           toast({
             title: 'Autenticado com sucesso',
@@ -243,35 +261,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const isAdminAlias =
           emailParts[0].toLowerCase() === 'admin' || emailParts[0].toLowerCase() === 'administrator'
 
-        const currentUsers = usersStore.getState().users
-        const demoEmails = [
-          'admin@imobiliaria.local',
-          'corretor@imobiliaria.local',
-          'gerente@imobiliaria.local',
-        ]
-        const realUsers = currentUsers.filter((u) => !demoEmails.includes(u.email.toLowerCase()))
-        const isFirstRealUser = realUsers.length === 0
+        supabase.auth
+          .signInWithPassword({
+            email: 'system@imobiliaria.local',
+            password: 'SystemPassword123!',
+          })
+          .then(() => {
+            const currentUsers = usersStore.getState().users
+            const demoEmails = [
+              'admin@imobiliaria.local',
+              'corretor@imobiliaria.local',
+              'gerente@imobiliaria.local',
+            ]
+            const realUsers = currentUsers.filter(
+              (u) => !demoEmails.includes(u.email.toLowerCase()),
+            )
+            const isFirstRealUser = realUsers.length === 0
 
-        const foundUser = usersStore.addUser({
-          name,
-          email: email.toLowerCase(),
-          role: isAdminAlias || isFirstRealUser ? 'Admin' : ('Vistoriador' as Role),
-        })
+            const foundUser = usersStore.addUser({
+              name,
+              email: email.toLowerCase(),
+              role: isAdminAlias || isFirstRealUser ? 'Admin' : ('Vistoriador' as Role),
+            })
 
-        setCurrentUserId(foundUser.id)
-        resolve()
+            setCurrentUserId(foundUser.id)
+            sessionStorage.setItem('app_user_id', foundUser.id)
+
+            Promise.all([
+              initMainStore(),
+              initUsersStore(),
+              initContractsStore(),
+              initKeysStore(),
+            ]).then(() => resolve())
+          })
+          .catch(reject)
       }, 1200)
     })
   }
 
-  const logout = () => {
+  const logout = async () => {
     sessionStorage.removeItem('m365_token')
     sessionStorage.removeItem('pkce_code_verifier')
+    sessionStorage.removeItem('app_user_id')
     setCurrentUserId(null)
+    await supabase.auth.signOut()
   }
 
   const switchUser = (id: string) => {
     setCurrentUserId(id)
+    sessionStorage.setItem('app_user_id', id)
   }
 
   return (

@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react'
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase/client'
 
 export type AgencyProfile = {
   name: string
@@ -147,128 +147,166 @@ const defaultState: State = {
     allowedIps: '',
     requireManagedDevice: false,
   },
-  properties: [
-    {
-      id: '101',
-      title: 'Apto Centro',
-      address: 'Rua Flores, 123',
-      type: 'Residencial',
-      status: 'Análise Gerencial',
-      image: 'https://img.usecurling.com/p/400/300?q=apartment',
-      tenant: 'João Pedro',
-      rentValue: 2500,
-      location: { x: 30, y: 40 },
-    },
-    {
-      id: '102',
-      title: 'Casa Vila Nova',
-      address: 'Rua das Margaridas, 88',
-      type: 'Residencial',
-      status: 'Vistoria',
-      image: 'https://img.usecurling.com/p/400/300?q=house',
-      tenant: 'Carlos Silva',
-      location: { x: 55, y: 65 },
-      slaStart: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
-    },
-    {
-      id: '103',
-      title: 'Casa Jardim',
-      address: 'Rua dos Ipês, 45',
-      type: 'Residencial',
-      status: 'Confecção de Contrato',
-      image: 'https://img.usecurling.com/p/400/300?q=house+modern',
-      tenant: 'Maria Souza',
-      rentValue: 3200,
-      location: { x: 75, y: 25 },
-    },
-  ],
-  auditLogs: [
-    {
-      id: 'log1',
-      propertyId: '101',
-      action: 'Upload SP (Contrato_Locacao.pdf)',
-      user: 'Admin Sistema',
-      userEmail: 'admin@ismailabdo.onmicrosoft.com',
-      timestamp: new Date().toISOString(),
-      ipAddress: '192.168.0.10',
-    },
-  ],
+  properties: [],
+  auditLogs: [],
   inspectionsData: {},
   maintenanceTickets: [],
 }
 
 let state: State = { ...defaultState }
 let listeners: Array<() => void> = []
+let settingsId: string | null = null
 
 export const initMainStore = async () => {
-  const configs = await supabase.get('app_config')
-  let configData = Array.isArray(configs) ? configs.find((c: any) => c.id === 'default') : null
+  const { data: settingsData } = await supabase
+    .from('app_settings')
+    .select('*')
+    .limit(1)
+    .maybeSingle()
 
-  // Ensure persistent recovery of core settings
-  const coreConfigs = await supabase.get('system_core_config')
-  const coreData = Array.isArray(coreConfigs) ? coreConfigs.find((c: any) => c.id === 'core') : null
-
-  if (!configData) {
-    configData = {
-      id: 'default',
-      agencyProfile: defaultState.agencyProfile,
-      settings: defaultState.settings,
-      sharepoint: defaultState.sharepoint,
-      security: defaultState.security,
+  if (settingsData) {
+    settingsId = settingsData.id
+    const ap = (settingsData.agency_profile as any) || {}
+    state.sharepoint = {
+      primaryDomain: settingsData.default_domain || '',
+      sharepointDomain: ap.sharepointDomain || '',
+      tenantName: ap.tenantName || '',
+      teamsWebhookUrl: ap.teamsWebhookUrl || '',
+      clientId: settingsData.client_id || '',
+      tenantId: settingsData.tenant_id || '',
+      sites: ap.sites || defaultState.sharepoint.sites,
+      libraries: ap.libraries || defaultState.sharepoint.libraries,
+      lists: ap.lists || defaultState.sharepoint.lists,
     }
-    await supabase.upsert('app_config', configData)
+    state.agencyProfile = ap.agencyProfile || defaultState.agencyProfile
+    state.settings = (settingsData.role_settings as any) || defaultState.settings
+    state.security = (settingsData.security_settings as any) || defaultState.security
+  } else {
+    const payload = {
+      default_domain: state.sharepoint.primaryDomain,
+      client_id: state.sharepoint.clientId,
+      tenant_id: state.sharepoint.tenantId,
+      agency_profile: {
+        agencyProfile: state.agencyProfile,
+        sharepointDomain: state.sharepoint.sharepointDomain,
+        tenantName: state.sharepoint.tenantName,
+        teamsWebhookUrl: state.sharepoint.teamsWebhookUrl,
+        sites: state.sharepoint.sites,
+        libraries: state.sharepoint.libraries,
+        lists: state.sharepoint.lists,
+      },
+      role_settings: state.settings as any,
+      security_settings: state.security as any,
+    }
+    const { data } = await supabase.from('app_settings').insert(payload).select('id').single()
+    if (data) settingsId = data.id
   }
 
-  // Force-apply core data to protect against accidental overwrites or empty config objects
-  if (coreData) {
-    const baseSharepoint = configData.sharepoint || defaultState.sharepoint
-    configData.sharepoint = {
-      ...baseSharepoint,
-      primaryDomain: coreData.primaryDomain || baseSharepoint.primaryDomain,
-      clientId: coreData.clientId || baseSharepoint.clientId,
-      tenantId: coreData.tenantId || baseSharepoint.tenantId,
+  const { data: properties } = await supabase.from('properties').select('*')
+  if (properties && properties.length > 0) {
+    state.properties = properties.map((p) => ({
+      id: p.id,
+      title: p.title,
+      address: p.address,
+      type: p.type,
+      status: p.status as PropertyStatus,
+      image: p.image || '',
+      slaStart: p.sla_start || undefined,
+      tenant: p.tenant || undefined,
+      rentValue: p.rent_value ? Number(p.rent_value) : undefined,
+      location:
+        p.location_x && p.location_y
+          ? { x: Number(p.location_x), y: Number(p.location_y) }
+          : undefined,
+    }))
+  } else if (sessionStorage.getItem('app_user_id')) {
+    const initialProps: Property[] = [
+      {
+        id: '101',
+        title: 'Apto Centro',
+        address: 'Rua Flores, 123',
+        type: 'Residencial',
+        status: 'Análise Gerencial',
+        image: 'https://img.usecurling.com/p/400/300?q=apartment',
+        tenant: 'João Pedro',
+        rentValue: 2500,
+        location: { x: 30, y: 40 },
+      },
+      {
+        id: '102',
+        title: 'Casa Vila Nova',
+        address: 'Rua das Margaridas, 88',
+        type: 'Residencial',
+        status: 'Vistoria',
+        image: 'https://img.usecurling.com/p/400/300?q=house',
+        tenant: 'Carlos Silva',
+        location: { x: 55, y: 65 },
+        slaStart: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
+      },
+    ]
+    state.properties = initialProps
+    for (const p of initialProps) {
+      await supabase.from('properties').insert({
+        id: p.id,
+        title: p.title,
+        address: p.address,
+        type: p.type,
+        status: p.status,
+        image: p.image,
+        rent_value: p.rentValue,
+        location_x: p.location?.x,
+        location_y: p.location?.y,
+        tenant: p.tenant,
+        sla_start: p.slaStart,
+      })
     }
   }
 
-  const properties = await supabase.get('app_properties')
-  const auditLogs = await supabase.get('app_audit_logs')
-  const inspections = await supabase.get('app_inspections')
-  const maintenanceTickets = await supabase.get('app_maintenance')
+  const { data: auditLogs } = await supabase
+    .from('app_audit_logs')
+    .select('*')
+    .order('timestamp', { ascending: false })
+  if (auditLogs && auditLogs.length > 0) {
+    state.auditLogs = auditLogs.map((a) => ({
+      id: a.id,
+      propertyId: a.property_id || undefined,
+      action: a.action || '',
+      user: a.user_name || '',
+      userEmail: a.user_email || undefined,
+      timestamp: a.timestamp || new Date().toISOString(),
+      details: a.details || undefined,
+      ipAddress: a.ip_address || undefined,
+    }))
+  }
 
-  const inspectionsData = Array.isArray(inspections)
-    ? inspections.reduce((acc: any, val: any) => {
-        acc[val.propertyId] = val
+  const { data: inspections } = await supabase.from('inspections').select('*')
+  if (inspections && inspections.length > 0) {
+    state.inspectionsData = inspections.reduce(
+      (acc, val) => {
+        acc[val.property_id] = {
+          propertyId: val.property_id,
+          wallCondition: val.wall_condition || '',
+          furnitureNotes: val.furniture_notes || '',
+          generalNotes: val.general_notes || '',
+        }
         return acc
-      }, {})
-    : {}
-
-  state = {
-    ...state,
-    agencyProfile: configData.agencyProfile || defaultState.agencyProfile,
-    settings: configData.settings || defaultState.settings,
-    sharepoint: configData.sharepoint || defaultState.sharepoint,
-    security: configData.security || defaultState.security,
-    properties:
-      Array.isArray(properties) && properties.length ? properties : defaultState.properties,
-    auditLogs: Array.isArray(auditLogs) && auditLogs.length ? auditLogs : defaultState.auditLogs,
-    inspectionsData: Object.keys(inspectionsData).length
-      ? inspectionsData
-      : defaultState.inspectionsData,
-    maintenanceTickets:
-      Array.isArray(maintenanceTickets) && maintenanceTickets.length
-        ? maintenanceTickets
-        : defaultState.maintenanceTickets,
+      },
+      {} as Record<string, InspectionData>,
+    )
   }
 
-  if (!Array.isArray(properties) || !properties.length) {
-    for (const p of defaultState.properties) {
-      await supabase.upsert('app_properties', p)
-    }
-  }
-  if (!Array.isArray(auditLogs) || !auditLogs.length) {
-    for (const a of defaultState.auditLogs) {
-      await supabase.upsert('app_audit_logs', a)
-    }
+  const { data: maintenance } = await supabase.from('maintenance').select('*')
+  if (maintenance && maintenance.length > 0) {
+    state.maintenanceTickets = maintenance.map((m) => ({
+      id: m.id,
+      propertyId: m.property_id || '',
+      address: m.address || '',
+      item: m.item || '',
+      notes: m.notes || '',
+      photo: m.photo,
+      status: m.status as MaintenanceStatus,
+      createdAt: m.created_at || new Date().toISOString(),
+    }))
   }
 
   emit()
@@ -278,22 +316,30 @@ const emit = () => {
   listeners.forEach((l) => l())
 }
 
-const syncConfig = () => {
-  supabase.upsert('app_config', {
-    id: 'default',
-    agencyProfile: state.agencyProfile,
-    settings: state.settings,
-    sharepoint: state.sharepoint,
-    security: state.security,
-  })
+const syncConfig = async () => {
+  const payload = {
+    default_domain: state.sharepoint.primaryDomain,
+    client_id: state.sharepoint.clientId,
+    tenant_id: state.sharepoint.tenantId,
+    agency_profile: {
+      agencyProfile: state.agencyProfile,
+      sharepointDomain: state.sharepoint.sharepointDomain,
+      tenantName: state.sharepoint.tenantName,
+      teamsWebhookUrl: state.sharepoint.teamsWebhookUrl,
+      sites: state.sharepoint.sites,
+      libraries: state.sharepoint.libraries,
+      lists: state.sharepoint.lists,
+    },
+    role_settings: state.settings as any,
+    security_settings: state.security as any,
+  }
 
-  // Explicitly persist the core Microsoft 365 configuration fields for durability
-  supabase.upsert('system_core_config', {
-    id: 'core',
-    primaryDomain: state.sharepoint.primaryDomain,
-    clientId: state.sharepoint.clientId,
-    tenantId: state.sharepoint.tenantId,
-  })
+  if (settingsId) {
+    await supabase.from('app_settings').update(payload).eq('id', settingsId)
+  } else {
+    const { data } = await supabase.from('app_settings').insert(payload).select('id').single()
+    if (data) settingsId = data.id
+  }
 }
 
 export const mainStore = {
@@ -306,18 +352,19 @@ export const mainStore = {
   },
   reloadCoreConfig: async () => {
     try {
-      const coreConfigs = await supabase.get('system_core_config')
-      const coreData = Array.isArray(coreConfigs)
-        ? coreConfigs.find((c: any) => c.id === 'core')
-        : null
-      if (coreData && (coreData.primaryDomain || coreData.clientId || coreData.tenantId)) {
+      const { data: coreData } = await supabase
+        .from('app_settings')
+        .select('*')
+        .limit(1)
+        .maybeSingle()
+      if (coreData && (coreData.default_domain || coreData.client_id || coreData.tenant_id)) {
         state = {
           ...state,
           sharepoint: {
             ...state.sharepoint,
-            primaryDomain: coreData.primaryDomain || state.sharepoint.primaryDomain,
-            clientId: coreData.clientId || state.sharepoint.clientId,
-            tenantId: coreData.tenantId || state.sharepoint.tenantId,
+            primaryDomain: coreData.default_domain || state.sharepoint.primaryDomain,
+            clientId: coreData.client_id || state.sharepoint.clientId,
+            tenantId: coreData.tenant_id || state.sharepoint.tenantId,
           },
         }
         emit()
@@ -346,15 +393,33 @@ export const mainStore = {
     emit()
     syncConfig()
   },
-  addAuditLog: (log: Omit<AuditLog, 'id' | 'timestamp'>) => {
-    const newLog = {
-      ...log,
-      id: Math.random().toString(36).substring(2, 9),
-      timestamp: new Date().toISOString(),
+  addProperty: (p: Omit<Property, 'id' | 'status' | 'image'>) => {
+    const newProperty: Property = {
+      ...p,
+      id: `PROP-${Math.floor(Math.random() * 1000)
+        .toString()
+        .padStart(3, '0')}`,
+      status: 'Pendente/Rascunho',
+      image: 'https://img.usecurling.com/p/400/300?q=house',
     }
-    state = { ...state, auditLogs: [newLog, ...state.auditLogs] }
+    state = { ...state, properties: [newProperty, ...state.properties] }
     emit()
-    supabase.upsert('app_audit_logs', newLog)
+    supabase
+      .from('properties')
+      .insert({
+        id: newProperty.id,
+        title: newProperty.title,
+        address: newProperty.address,
+        type: newProperty.type,
+        status: newProperty.status,
+        image: newProperty.image,
+        rent_value: newProperty.rentValue,
+        location_x: newProperty.location?.x,
+        location_y: newProperty.location?.y,
+        tenant: newProperty.tenant,
+        sla_start: newProperty.slaStart,
+      })
+      .then()
   },
   updatePropertyStatus: (id: string, status: PropertyStatus) => {
     state = {
@@ -362,7 +427,29 @@ export const mainStore = {
       properties: state.properties.map((p) => (p.id === id ? { ...p, status } : p)),
     }
     emit()
-    supabase.patch('app_properties', id, { status })
+    supabase.from('properties').update({ status }).eq('id', id).then()
+  },
+  addAuditLog: (log: Omit<AuditLog, 'id' | 'timestamp'>) => {
+    const newLog = {
+      ...log,
+      id: `LOG-${Math.random().toString(36).substring(2, 9)}`,
+      timestamp: new Date().toISOString(),
+    }
+    state = { ...state, auditLogs: [newLog, ...state.auditLogs] }
+    emit()
+    supabase
+      .from('app_audit_logs')
+      .insert({
+        id: newLog.id,
+        property_id: newLog.propertyId,
+        action: newLog.action,
+        user_name: newLog.user,
+        user_email: newLog.userEmail,
+        timestamp: newLog.timestamp,
+        details: newLog.details,
+        ip_address: newLog.ipAddress,
+      })
+      .then()
   },
   saveInspection: (data: InspectionData) => {
     state = {
@@ -370,7 +457,40 @@ export const mainStore = {
       inspectionsData: { ...state.inspectionsData, [data.propertyId]: data },
     }
     emit()
-    supabase.upsert('app_inspections', data, 'propertyId')
+    supabase
+      .from('inspections')
+      .upsert({
+        property_id: data.propertyId,
+        wall_condition: data.wallCondition,
+        furniture_notes: data.furnitureNotes,
+        general_notes: data.generalNotes,
+        updated_at: new Date().toISOString(),
+      })
+      .then()
+  },
+  addMaintenanceTicket: (ticket: Omit<MaintenanceTicket, 'id' | 'createdAt'>) => {
+    const newTicket: MaintenanceTicket = {
+      ...ticket,
+      id: `TKT-${Math.floor(Math.random() * 1000)
+        .toString()
+        .padStart(3, '0')}`,
+      createdAt: new Date().toISOString(),
+    }
+    state = { ...state, maintenanceTickets: [newTicket, ...state.maintenanceTickets] }
+    emit()
+    supabase
+      .from('maintenance')
+      .insert({
+        id: newTicket.id,
+        property_id: newTicket.propertyId,
+        address: newTicket.address,
+        item: newTicket.item,
+        notes: newTicket.notes,
+        photo: newTicket.photo,
+        status: newTicket.status,
+        created_at: newTicket.createdAt,
+      })
+      .then()
   },
   updateMaintenanceStatus: (id: string, status: MaintenanceStatus) => {
     state = {
@@ -378,7 +498,7 @@ export const mainStore = {
       maintenanceTickets: state.maintenanceTickets.map((t) => (t.id === id ? { ...t, status } : t)),
     }
     emit()
-    supabase.patch('app_maintenance', id, { status })
+    supabase.from('maintenance').update({ status }).eq('id', id).then()
   },
 }
 

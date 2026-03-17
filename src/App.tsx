@@ -9,6 +9,9 @@ import { checkAccess } from './lib/permissions'
 import { Loader2 } from 'lucide-react'
 import { initMainStore } from './stores/main'
 import { initUsersStore } from './stores/users'
+import { initContractsStore } from './stores/contracts'
+import { initKeysStore } from './stores/keys'
+import { supabase } from './lib/supabase/client'
 
 // Code splitting routes to prevent out-of-memory errors during build chunking
 const Index = lazy(() => import('./pages/Index'))
@@ -88,9 +91,17 @@ const App = () => {
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
-    Promise.all([initMainStore(), initUsersStore()]).then(() => {
+    const initialize = async () => {
+      if (sessionStorage.getItem('app_user_id')) {
+        await supabase.auth.signInWithPassword({
+          email: 'system@imobiliaria.local',
+          password: 'SystemPassword123!',
+        })
+      }
+      await Promise.all([initMainStore(), initUsersStore(), initContractsStore(), initKeysStore()])
       setReady(true)
-    })
+    }
+    initialize()
   }, [])
 
   if (!ready) {
