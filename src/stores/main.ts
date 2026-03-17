@@ -183,24 +183,28 @@ export const initMainStore = async () => {
     state.settings = (settingsData.role_settings as any) || defaultState.settings
     state.security = (settingsData.security_settings as any) || defaultState.security
   } else {
-    const payload = {
-      default_domain: state.sharepoint.primaryDomain,
-      client_id: state.sharepoint.clientId,
-      tenant_id: state.sharepoint.tenantId,
-      agency_profile: {
-        agencyProfile: state.agencyProfile,
-        sharepointDomain: state.sharepoint.sharepointDomain,
-        tenantName: state.sharepoint.tenantName,
-        teamsWebhookUrl: state.sharepoint.teamsWebhookUrl,
-        sites: state.sharepoint.sites,
-        libraries: state.sharepoint.libraries,
-        lists: state.sharepoint.lists,
-      },
-      role_settings: state.settings as any,
-      security_settings: state.security as any,
+    // Only attempt to insert if we have an active session to satisfy RLS
+    const { data: sessionData } = await supabase.auth.getSession()
+    if (sessionData?.session?.user) {
+      const payload = {
+        default_domain: state.sharepoint.primaryDomain,
+        client_id: state.sharepoint.clientId,
+        tenant_id: state.sharepoint.tenantId,
+        agency_profile: {
+          agencyProfile: state.agencyProfile,
+          sharepointDomain: state.sharepoint.sharepointDomain,
+          tenantName: state.sharepoint.tenantName,
+          teamsWebhookUrl: state.sharepoint.teamsWebhookUrl,
+          sites: state.sharepoint.sites,
+          libraries: state.sharepoint.libraries,
+          lists: state.sharepoint.lists,
+        },
+        role_settings: state.settings as any,
+        security_settings: state.security as any,
+      }
+      const { data } = await supabase.from('app_settings').insert(payload).select('id').single()
+      if (data) settingsId = data.id
     }
-    const { data } = await supabase.from('app_settings').insert(payload).select('id').single()
-    if (data) settingsId = data.id
   }
 
   const { data: properties } = await supabase.from('properties').select('*')
@@ -277,6 +281,9 @@ const emit = () => {
 }
 
 const syncConfig = async () => {
+  const { data: sessionData } = await supabase.auth.getSession()
+  if (!sessionData?.session?.user) return // prevent anon updates
+
   const payload = {
     default_domain: state.sharepoint.primaryDomain,
     client_id: state.sharepoint.clientId,
@@ -298,8 +305,21 @@ const syncConfig = async () => {
   if (settingsId) {
     await supabase.from('app_settings').update(payload).eq('id', settingsId)
   } else {
-    const { data } = await supabase.from('app_settings').insert(payload).select('id').single()
-    if (data) settingsId = data.id
+    // Attempt to select the most recent row to ensure upsert-like behavior
+    const { data: existing } = await supabase
+      .from('app_settings')
+      .select('id')
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (existing) {
+      settingsId = existing.id
+      await supabase.from('app_settings').update(payload).eq('id', settingsId)
+    } else {
+      const { data } = await supabase.from('app_settings').insert(payload).select('id').single()
+      if (data) settingsId = data.id
+    }
   }
 }
 
