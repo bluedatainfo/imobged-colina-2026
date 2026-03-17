@@ -204,6 +204,10 @@ export const initMainStore = async () => {
   const configs = await supabase.get('app_config')
   let configData = Array.isArray(configs) ? configs.find((c: any) => c.id === 'default') : null
 
+  // Ensure persistent recovery of core settings
+  const coreConfigs = await supabase.get('system_core_config')
+  const coreData = Array.isArray(coreConfigs) ? coreConfigs.find((c: any) => c.id === 'core') : null
+
   if (!configData) {
     configData = {
       id: 'default',
@@ -213,6 +217,17 @@ export const initMainStore = async () => {
       security: defaultState.security,
     }
     await supabase.upsert('app_config', configData)
+  }
+
+  // Force-apply core data to protect against accidental overwrites or empty config objects
+  if (coreData) {
+    const baseSharepoint = configData.sharepoint || defaultState.sharepoint
+    configData.sharepoint = {
+      ...baseSharepoint,
+      primaryDomain: coreData.primaryDomain || baseSharepoint.primaryDomain,
+      clientId: coreData.clientId || baseSharepoint.clientId,
+      tenantId: coreData.tenantId || baseSharepoint.tenantId,
+    }
   }
 
   const properties = await supabase.get('app_properties')
@@ -271,6 +286,14 @@ const syncConfig = () => {
     sharepoint: state.sharepoint,
     security: state.security,
   })
+
+  // Explicitly persist the core Microsoft 365 configuration fields for durability
+  supabase.upsert('system_core_config', {
+    id: 'core',
+    primaryDomain: state.sharepoint.primaryDomain,
+    clientId: state.sharepoint.clientId,
+    tenantId: state.sharepoint.tenantId,
+  })
 }
 
 export const mainStore = {
@@ -279,6 +302,28 @@ export const mainStore = {
     listeners.push(l)
     return () => {
       listeners = listeners.filter((fn) => fn !== l)
+    }
+  },
+  reloadCoreConfig: async () => {
+    try {
+      const coreConfigs = await supabase.get('system_core_config')
+      const coreData = Array.isArray(coreConfigs)
+        ? coreConfigs.find((c: any) => c.id === 'core')
+        : null
+      if (coreData && (coreData.primaryDomain || coreData.clientId || coreData.tenantId)) {
+        state = {
+          ...state,
+          sharepoint: {
+            ...state.sharepoint,
+            primaryDomain: coreData.primaryDomain || state.sharepoint.primaryDomain,
+            clientId: coreData.clientId || state.sharepoint.clientId,
+            tenantId: coreData.tenantId || state.sharepoint.tenantId,
+          },
+        }
+        emit()
+      }
+    } catch (e) {
+      console.error('Failed to reload core config', e)
     }
   },
   updateAgencyProfile: (s: Partial<AgencyProfile>) => {

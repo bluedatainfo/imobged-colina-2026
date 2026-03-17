@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
-import useMainStore from '@/stores/main'
+import useMainStore, { mainStore } from '@/stores/main'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -20,12 +20,23 @@ export default function Login() {
     }
   }, [user, navigate])
 
+  // Explicitly fetch the most durable configuration when opening the login screen
+  useEffect(() => {
+    mainStore.reloadCoreConfig()
+  }, [])
+
   const [isLoading, setIsLoading] = useState(false)
   const [step, setStep] = useState<1 | 2>(1)
   const [email, setEmail] = useState(
     sharepoint.primaryDomain ? `admin@${sharepoint.primaryDomain}` : '',
   )
-  const [password, setPassword] = useState('')
+
+  // Populate email if domain is restored after initial component mount
+  useEffect(() => {
+    if (!email && sharepoint.primaryDomain) {
+      setEmail(`admin@${sharepoint.primaryDomain}`)
+    }
+  }, [sharepoint.primaryDomain, email])
 
   const handleNext = async () => {
     if (!email.trim()) return
@@ -63,6 +74,8 @@ export default function Login() {
       setIsLoading(false)
     }
   }
+
+  const [password, setPassword] = useState('')
 
   if (isExchanging) {
     return (
