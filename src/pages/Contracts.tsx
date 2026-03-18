@@ -10,6 +10,7 @@ import {
   PenTool,
   ShieldCheck,
   MessageCircle,
+  UploadCloud,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import {
@@ -30,6 +31,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import useContractsStore, {
   ContractStatus,
   LeaseContract,
@@ -40,6 +42,7 @@ import { m365Service } from '@/lib/m365'
 import { ContractWizard } from '@/components/ContractWizard'
 import { DocumentViewer } from '@/components/DocumentViewer'
 import { DocuSignDialog } from '@/components/DocuSignDialog'
+import { GedUpload } from '@/components/GedUpload'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/hooks/use-toast'
 
@@ -82,6 +85,7 @@ export default function Contracts() {
   const [wizardOpen, setWizardOpen] = useState(false)
   const [viewDoc, setViewDoc] = useState<string | null>(null)
   const [docusignContract, setDocusignContract] = useState<LeaseContract | null>(null)
+  const [uploadContract, setUploadContract] = useState<LeaseContract | null>(null)
 
   const handleStatusChange = (contract: LeaseContract, newStatus: ContractStatus) => {
     contractsStore.updateStatus(contract.id, newStatus)
@@ -233,6 +237,10 @@ export default function Contracts() {
                             <Eye className="w-4 h-4 mr-2" /> Pré-visualizar (Nativo)
                           </DropdownMenuItem>
 
+                          <DropdownMenuItem onClick={() => setUploadContract(contract)}>
+                            <UploadCloud className="w-4 h-4 mr-2" /> Upload Anexo (GED)
+                          </DropdownMenuItem>
+
                           {needsApproval && canApprove && (
                             <DropdownMenuItem
                               onClick={() => handleApproveCritical(contract)}
@@ -297,6 +305,25 @@ export default function Contracts() {
       <ContractWizard open={wizardOpen} onClose={() => setWizardOpen(false)} />
       <DocumentViewer open={!!viewDoc} onClose={() => setViewDoc(null)} docName={viewDoc} />
       <DocuSignDialog contract={docusignContract} onClose={() => setDocusignContract(null)} />
+
+      <Dialog open={!!uploadContract} onOpenChange={(val) => !val && setUploadContract(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Upload de Documento Estruturado</DialogTitle>
+          </DialogHeader>
+          {uploadContract && (
+            <div className="py-4">
+              <GedUpload
+                preselectedPropertyId={uploadContract.propertyId}
+                preselectedType={
+                  uploadContract.status === 'Ativo' ? 'active_contract' : 'closed_contract'
+                }
+                onSuccess={() => setUploadContract(null)}
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

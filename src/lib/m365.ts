@@ -1,5 +1,6 @@
 import { toast } from '@/hooks/use-toast'
 import { mainStore } from '@/stores/main'
+import { supabase } from '@/lib/supabase/client'
 
 export const getGraphToken = () => sessionStorage.getItem('m365_token')
 
@@ -70,7 +71,6 @@ export const m365Service = {
       return
     }
 
-    // Graph API request placeholder for list sync
     toast({
       title: `Sincronização Online`,
       description: `Dados enviados em tempo real para a lista ${listName}.`,
@@ -89,5 +89,80 @@ export const m365Service = {
       title: `Sincronização Condicional Ativa [Domínio SP: ${sharepointDomain || 'N/A'}]`,
       description: `Arquivo ${fileName} movido automaticamente para a biblioteca "${targetLibrary}".`,
     })
+  },
+  uploadStructuredDocument: async (
+    file: File | Blob,
+    fileName: string,
+    documentType: string,
+    propertyId: string,
+    propertyTitle: string,
+    userName: string,
+  ) => {
+    const { data: config, error } = await supabase
+      .from('sharepoint_configs')
+      .select('*')
+      .eq('document_type', documentType)
+      .maybeSingle()
+
+    if (error || !config) {
+      throw new Error(`Configuração de mapeamento não encontrada para o tipo: ${documentType}`)
+    }
+
+    const date = new Date()
+    const year = date.getFullYear().toString()
+    const month = (date.getMonth() + 1).toString().padStart(2, '0')
+    const sanitizedTitle = propertyTitle.replace(/[^a-zA-Z0-9 -]/g, '').trim()
+
+    const folderParts = [config.base_path, year, month, sanitizedTitle, documentType].filter(
+      Boolean,
+    )
+    const folderPath = folderParts.join('/')
+    const fullPath = `${folderPath}/${fileName}`
+
+    const token = getGraphToken()
+    const { sharepointDomain, clientId, tenantId } = mainStore.getState().sharepoint
+
+    try {
+      if (!token || !clientId || !tenantId) {
+        toast({
+          title: `Upload GED Simulado: ${config.site_name}`,
+          description: `[${documentType}] Salvo em: /${config.library_name}/${fullPath}`,
+        })
+      } else {
+        const hostname = sharepointDomain
+        const url = `https://graph.microsoft.com/v1.0/sites/${hostname}:/sites/${config.site_name}:/drive/root:/${config.library_name}/${fullPath}:/content`
+
+        const res = await fetch(url, {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': file instanceof File ? file.type : 'application/octet-stream',
+          },
+          body: file,
+        })
+
+        if (!res.ok) {
+          throw new Error(
+            'Erro de permissão no SharePoint. Verifique o acesso do seu usuário M365.',
+          )
+        }
+      }
+
+      mainStore.addAuditLog({
+        propertyId,
+        action: 'SHAREPOINT_UPLOAD',
+        user: userName,
+        details: `Arquivo ${fileName} salvo em ${config.site_name}/${config.library_name}/${folderPath}`,
+      })
+
+      return { success: true, path: fullPath }
+    } catch (e: any) {
+      const msg =
+        e.message.includes('M365') || e.message.includes('permissão')
+          ? 'Erro de permissão no SharePoint. Verifique o acesso do seu usuário M365.'
+          : e.message
+      toast({ variant: 'destructive', title: 'Falha no Upload GED', description: msg })
+      throw new Error(msg)
+    }
   },
 }

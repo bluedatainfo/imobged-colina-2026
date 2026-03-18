@@ -23,7 +23,7 @@ import useMainStore from '@/stores/main'
 interface Props {
   open: boolean
   onClose: () => void
-  onConfirm: (data: any, propertyId: string) => void
+  onConfirm: (data: any, propertyId: string, inspectionType: string) => void
   initialData?: any
 }
 
@@ -31,6 +31,7 @@ export function InspectionOCRDialog({ open, onClose, onConfirm, initialData }: P
   const { properties } = useMainStore()
   const [formData, setFormData] = useState(initialData || {})
   const [propertyId, setPropertyId] = useState<string>('')
+  const [inspectionType, setInspectionType] = useState('entry_inspection')
 
   useEffect(() => {
     if (initialData) {
@@ -72,6 +73,18 @@ export function InspectionOCRDialog({ open, onClose, onConfirm, initialData }: P
             </Select>
           </div>
           <div className="grid gap-2">
+            <Label>Tipo de Vistoria</Label>
+            <Select value={inspectionType} onValueChange={setInspectionType}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="entry_inspection">Vistoria de Entrada</SelectItem>
+                <SelectItem value="exit_inspection">Vistoria de Saída</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-2">
             <Label>Endereço Extraído</Label>
             <Input
               value={formData.address || ''}
@@ -104,7 +117,10 @@ export function InspectionOCRDialog({ open, onClose, onConfirm, initialData }: P
           <Button variant="outline" onClick={onClose}>
             Descartar
           </Button>
-          <Button onClick={() => onConfirm(formData, propertyId)} disabled={!propertyId}>
+          <Button
+            onClick={() => onConfirm(formData, propertyId, inspectionType)}
+            disabled={!propertyId}
+          >
             Salvar Vistoria
           </Button>
         </DialogFooter>

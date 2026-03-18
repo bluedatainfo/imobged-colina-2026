@@ -22,6 +22,13 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
   Accordion,
   AccordionContent,
   AccordionItem,
@@ -34,7 +41,7 @@ import { InspectionMap } from './InspectionMap'
 
 interface Props {
   pendingInspections: Property[]
-  onComplete: (propertyId: string, notes: string) => void
+  onComplete: (propertyId: string, notes: string, type: string) => void
 }
 
 type Category = 'Paredes' | 'Pisos' | 'Elétrica' | 'Hidráulica' | 'Móveis'
@@ -54,10 +61,11 @@ export function MobileInspectionView({ pendingInspections, onComplete }: Props) 
   const { toast } = useToast()
   const [isOffline, setIsOffline] = useState(!navigator.onLine)
 
-  const [step, setStep] = useState<1 | 2 | 3>(1) // 1: Select, 2: Inspect, 3: Processing
+  const [step, setStep] = useState<1 | 2 | 3>(1)
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list')
   const [search, setSearch] = useState('')
   const [propertyId, setPropertyId] = useState<string>('')
+  const [inspectionType, setInspectionType] = useState('entry_inspection')
   const [checklist, setChecklist] = useState<Record<Category, CategoryData>>({
     Paredes: { status: '', notes: '', photos: [] },
     Pisos: { status: '', notes: '', photos: [] },
@@ -141,9 +149,8 @@ export function MobileInspectionView({ pendingInspections, onComplete }: Props) 
       }
     })
 
-    // Simulate OCR and Sync
     setTimeout(() => {
-      onComplete(propertyId, JSON.stringify(checklist))
+      onComplete(propertyId, JSON.stringify(checklist), inspectionType)
 
       if (hasAlerts) {
         toast({
@@ -153,7 +160,6 @@ export function MobileInspectionView({ pendingInspections, onComplete }: Props) 
         })
       }
 
-      // Reset after complete
       setPropertyId('')
       setChecklist({
         Paredes: { status: '', notes: '', photos: [] },
@@ -319,6 +325,21 @@ export function MobileInspectionView({ pendingInspections, onComplete }: Props) 
               </CardContent>
             </Card>
 
+            <div className="bg-background border rounded-xl shadow-sm p-4 mb-4">
+              <Label className="text-sm text-muted-foreground uppercase tracking-wider mb-2 block">
+                Tipo de Vistoria
+              </Label>
+              <Select value={inspectionType} onValueChange={setInspectionType}>
+                <SelectTrigger className="h-12 text-base">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="entry_inspection">Vistoria de Entrada</SelectItem>
+                  <SelectItem value="exit_inspection">Vistoria de Saída</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <h4 className="font-semibold text-foreground px-1 pt-2">Checklist Interativo</h4>
 
             <Accordion type="single" collapsible className="space-y-3" defaultValue="Paredes">
@@ -441,7 +462,8 @@ export function MobileInspectionView({ pendingInspections, onComplete }: Props) 
             <div>
               <h2 className="text-xl font-bold mb-2">Processando Vistoria</h2>
               <p className="text-muted-foreground text-sm max-w-[250px] mx-auto">
-                O motor OCR está analisando as imagens e sincronizando com o SharePoint...
+                O motor OCR está analisando as imagens e sincronizando com a estrutura no
+                SharePoint...
               </p>
             </div>
             <div className="flex items-center gap-2 text-xs font-medium text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full mt-4">

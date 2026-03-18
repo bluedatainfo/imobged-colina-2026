@@ -24,6 +24,13 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Table,
@@ -66,21 +73,26 @@ const Inspections = () => {
   const [inspectingId, setInspectingId] = useState<string | null>(null)
   const [wallCondition, setWallCondition] = useState('')
   const [furnitureNotes, setFurnitureNotes] = useState('')
+  const [inspectionType, setInspectionType] = useState('entry_inspection')
 
   const [ocrLoading, setOcrLoading] = useState(false)
   const [ocrData, setOcrData] = useState<any>(null)
 
-  const processInspection = (propertyId: string, notes: string) => {
+  const processInspection = async (
+    propertyId: string,
+    notes: string,
+    type: string = 'entry_inspection',
+  ) => {
     let parsedNotes: any = null
     try {
       parsedNotes = JSON.parse(notes)
     } catch (e) {
-      // Not JSON, handle as regular text
+      // Not JSON
     }
 
     const finalWallCondition = parsedNotes
       ? `[${parsedNotes['Paredes']?.status || 'N/A'}] ${parsedNotes['Paredes']?.notes || ''}`
-      : 'Extraído via Mobile'
+      : 'Extraído via Mobile/OCR'
 
     const finalFurnitureNotes = parsedNotes
       ? `[${parsedNotes['Móveis']?.status || 'N/A'}] ${parsedNotes['Móveis']?.notes || ''}`
@@ -90,25 +102,32 @@ const Inspections = () => {
       propertyId,
       wallCondition: finalWallCondition,
       furnitureNotes: finalFurnitureNotes,
-      generalNotes: notes, // Store raw JSON string in general for later potential use
+      generalNotes: notes,
     })
 
     mainStore.updatePropertyStatus(propertyId, 'Confecção de Contrato')
-    mainStore.addAuditLog({
-      propertyId,
-      action: 'Vistoria Mobile/OCR Concluída',
-      user: user?.name || 'Sistema',
-      details:
-        'Upload sincronizado com a biblioteca "Gestão de Locação". Dados processados via OCR.',
-    })
-    m365Service.saveToLibrary('Gestão de Locação', `Vistoria_${propertyId}_Mobile.pdf`)
+
+    const p = store.properties.find((prop) => prop.id === propertyId)
+    const blob = new Blob([notes], { type: 'text/plain' })
+    try {
+      await m365Service.uploadStructuredDocument(
+        blob,
+        `Laudo_${type}_${propertyId}.txt`,
+        type,
+        propertyId,
+        p?.title || propertyId,
+        user?.name || 'Sistema',
+      )
+    } catch (e) {
+      console.error('Falha no upload estruturado da vistoria', e)
+    }
   }
 
-  const handleMobileComplete = (propertyId: string, notes: string) => {
-    processInspection(propertyId, notes)
+  const handleMobileComplete = (propertyId: string, notes: string, type: string) => {
+    processInspection(propertyId, notes, type)
     toast({
       title: 'Vistoria Sincronizada',
-      description: 'Documento salvo no SharePoint da Gestão de Locação. Dados OCR processados.',
+      description: 'Documento processado e salvo na estrutura do SharePoint correspondente.',
     })
   }
 
@@ -123,27 +142,22 @@ const Inspections = () => {
       setInspectingId(id)
       setWallCondition('')
       setFurnitureNotes('')
+      setInspectionType('entry_inspection')
     }
   }
 
   const handleCompleteInspection = () => {
     if (!inspectingId) return
     const data = { propertyId: inspectingId, wallCondition, furnitureNotes }
-    mainStore.saveInspection(data)
-    mainStore.updatePropertyStatus(inspectingId, 'Confecção de Contrato')
-    mainStore.addAuditLog({
-      propertyId: inspectingId,
-      action: 'Vistoria Estruturada Concluída',
-      user: user?.name || 'Sistema',
-      details: 'Checklist mapeado preenchido.',
-    })
+
+    processInspection(inspectingId, JSON.stringify(data), inspectionType)
 
     m365Service.syncToList('Vistorias Realizadas', JSON.stringify(data))
 
     setInspectingId(null)
     toast({
       title: 'Vistoria Concluída',
-      description: 'Dados estruturados enviados para a etapa de Confecção de Contrato.',
+      description: 'Dados estruturados enviados e laudo gerado no SharePoint.',
     })
   }
 
@@ -160,12 +174,12 @@ const Inspections = () => {
     }, 2000)
   }
 
-  const handleOcrConfirm = (data: any, propertyId: string) => {
+  const handleOcrConfirm = (data: any, propertyId: string, type: string) => {
     setOcrData(null)
-    processInspection(propertyId, data.generalNotes)
+    processInspection(propertyId, JSON.stringify(data), type)
     toast({
       title: 'OCR Processado com Sucesso',
-      description: 'Dados salvos via IA.',
+      description: 'Dados extraídos e enviados para a pasta da Vistoria.',
     })
   }
 
@@ -408,6 +422,18 @@ const Inspections = () => {
             <DialogTitle>Checklist Inteligente de Vistoria</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label>Tipo de Vistoria</Label>
+              <Select value={inspectionType} onValueChange={setInspectionType}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="entry_inspection">Entrada</SelectItem>
+                  <SelectItem value="exit_inspection">Saída</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div className="grid gap-2">
               <Label>Condição das Paredes e Pintura</Label>
               <Input value={wallCondition} onChange={(e) => setWallCondition(e.target.value)} />

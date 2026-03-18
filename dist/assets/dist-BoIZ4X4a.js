@@ -1,0 +1,1 @@
+import{i as e,t}from"./react-CYzKIDNi.js";var n=e(t(),1),r=globalThis?.document?n.useLayoutEffect:()=>{};export{r as t};

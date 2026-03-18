@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { UploadCloud, File, Search, FolderSync, Loader2, Eye, Building2 } from 'lucide-react'
-import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardDescription, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Table,
@@ -23,6 +23,7 @@ import {
 import { ScannerPanel } from '@/components/ScannerPanel'
 import { OCRReviewDialog } from '@/components/OCRReviewDialog'
 import { DocumentViewer } from '@/components/DocumentViewer'
+import { GedUpload } from '@/components/GedUpload'
 import { mockDocuments } from '@/lib/data'
 import { useToast } from '@/hooks/use-toast'
 import useMainStore, { mainStore, SiteKey } from '@/stores/main'
@@ -141,7 +142,7 @@ const Documents = () => {
             value="scan"
             className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary py-3"
           >
-            <UploadCloud className="w-4 h-4 mr-2" /> Digitalização & OCR
+            <UploadCloud className="w-4 h-4 mr-2" /> Digitalização & Upload
           </TabsTrigger>
         </TabsList>
 
@@ -190,24 +191,19 @@ const Documents = () => {
         <TabsContent value="scan" className="flex-1">
           <div className="grid md:grid-cols-2 gap-6 h-full min-h-[400px]">
             <ScannerPanel onScan={handleFileUpload} />
-            <Card
-              className="border-dashed border-2 flex flex-col items-center justify-center p-10 cursor-pointer hover:bg-muted/50 transition-colors"
-              onClick={handleFileUpload}
-            >
-              <CardHeader className="text-center">
-                <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-                  {ocrLoading ? (
-                    <Loader2 className="h-8 w-8 animate-spin" />
-                  ) : (
-                    <UploadCloud className="h-8 w-8 text-primary" />
-                  )}
+            <Card className="border-primary/20 shadow-sm flex flex-col h-full">
+              <CardHeader className="bg-muted/50 border-b pb-4">
+                <div className="flex items-center gap-2">
+                  <UploadCloud className="h-5 w-5 text-primary" />
+                  <CardTitle className="text-lg">Upload Estruturado</CardTitle>
                 </div>
-                <CardTitle>{ocrLoading ? 'Processando...' : 'Upload Manual'}</CardTitle>
                 <CardDescription>
-                  Arraste arquivos para extração OCR e envio direto para{' '}
-                  <strong>{siteNames[selectedSite]}</strong>.
+                  Envie arquivos diretamente para a estrutura taxônomica no SharePoint.
                 </CardDescription>
               </CardHeader>
+              <CardContent className="pt-6 flex-1 flex flex-col">
+                <GedUpload />
+              </CardContent>
             </Card>
           </div>
         </TabsContent>

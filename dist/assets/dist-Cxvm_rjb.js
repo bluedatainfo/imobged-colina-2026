@@ -1,0 +1,1 @@
+import{i as e,t}from"./react-CYzKIDNi.js";var n=e(t(),1);function r(e){let t=n.useRef(e);return n.useEffect(()=>{t.current=e}),n.useMemo(()=>(...e)=>t.current?.(...e),[])}export{r as t};

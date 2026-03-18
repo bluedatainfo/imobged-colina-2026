@@ -8,6 +8,7 @@ const SharePointSettings = lazy(() => import('@/components/settings/SharePointSe
 const AgencySettings = lazy(() => import('@/components/settings/AgencySettings'))
 const PermissionsSettings = lazy(() => import('@/components/settings/PermissionsSettings'))
 const SecuritySettings = lazy(() => import('@/components/settings/SecuritySettings'))
+const SharePointMapping = lazy(() => import('@/components/settings/SharePointMapping'))
 
 const SettingsFallback = () => (
   <div className="flex h-32 w-full items-center justify-center">
@@ -30,6 +31,7 @@ const Settings = () => {
           <TabsTrigger value="permissions">Permissões de Acesso</TabsTrigger>
           <TabsTrigger value="security">Segurança & Auditoria</TabsTrigger>
           <TabsTrigger value="sharepoint">Integração SharePoint</TabsTrigger>
+          <TabsTrigger value="ged-mapping">Mapeamento GED</TabsTrigger>
           <TabsTrigger value="agency">Dados da Imobiliária</TabsTrigger>
           <TabsTrigger value="general">Geral & SLA</TabsTrigger>
         </TabsList>
@@ -42,6 +44,9 @@ const Settings = () => {
           </TabsContent>
           <TabsContent value="sharepoint">
             <SharePointSettings />
+          </TabsContent>
+          <TabsContent value="ged-mapping">
+            <SharePointMapping />
           </TabsContent>
           <TabsContent value="agency">
             <AgencySettings />

@@ -468,7 +468,7 @@ export const Constants = {
 //   id: text (not null)
 //   name: text (nullable)
 //   email: text (nullable)
-//   role: text (nullable)
+//   role: text (nullable, default: 'Vistoriador'::text)
 //   avatar: text (nullable)
 // Table: contracts
 //   id: text (not null)
