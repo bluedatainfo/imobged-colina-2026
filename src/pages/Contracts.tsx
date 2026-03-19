@@ -316,7 +316,7 @@ export default function Contracts() {
               <GedUpload
                 preselectedPropertyId={uploadContract.propertyId}
                 preselectedType={
-                  uploadContract.status === 'Ativo' ? 'active_contract' : 'closed_contract'
+                  uploadContract.status === 'Ativo' ? 'CONTRACT_ACTIVE' : 'CONTRACT_TERMINATED'
                 }
                 onSuccess={() => setUploadContract(null)}
               />

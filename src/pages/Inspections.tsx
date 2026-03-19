@@ -73,7 +73,7 @@ const Inspections = () => {
   const [inspectingId, setInspectingId] = useState<string | null>(null)
   const [wallCondition, setWallCondition] = useState('')
   const [furnitureNotes, setFurnitureNotes] = useState('')
-  const [inspectionType, setInspectionType] = useState('entry_inspection')
+  const [inspectionType, setInspectionType] = useState('INSPECTION_MOVE_IN')
 
   const [ocrLoading, setOcrLoading] = useState(false)
   const [ocrData, setOcrData] = useState<any>(null)
@@ -81,7 +81,7 @@ const Inspections = () => {
   const processInspection = async (
     propertyId: string,
     notes: string,
-    type: string = 'entry_inspection',
+    type: string = 'INSPECTION_MOVE_IN',
   ) => {
     let parsedNotes: any = null
     try {
@@ -142,7 +142,7 @@ const Inspections = () => {
       setInspectingId(id)
       setWallCondition('')
       setFurnitureNotes('')
-      setInspectionType('entry_inspection')
+      setInspectionType('INSPECTION_MOVE_IN')
     }
   }
 
@@ -429,8 +429,8 @@ const Inspections = () => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="entry_inspection">Entrada</SelectItem>
-                  <SelectItem value="exit_inspection">Saída</SelectItem>
+                  <SelectItem value="INSPECTION_MOVE_IN">Entrada</SelectItem>
+                  <SelectItem value="INSPECTION_MOVE_OUT">Saída</SelectItem>
                 </SelectContent>
               </Select>
             </div>

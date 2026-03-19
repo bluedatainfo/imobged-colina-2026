@@ -23,12 +23,12 @@ type SharepointConfig = {
 }
 
 const docTypeLabels: Record<string, string> = {
-  active_contract: 'Contrato Ativo',
-  closed_contract: 'Contrato Encerrado',
-  entry_inspection: 'Vistoria de Entrada',
-  exit_inspection: 'Vistoria de Saída',
-  owner_doc: 'Doc Proprietário',
-  tenant_doc: 'Doc Inquilino',
+  CONTRACT_ACTIVE: 'Contrato Ativo',
+  CONTRACT_TERMINATED: 'Contrato Encerrado',
+  INSPECTION_MOVE_IN: 'Vistoria de Entrada',
+  INSPECTION_MOVE_OUT: 'Vistoria de Saída',
+  OWNER_DOCUMENT: 'Doc Proprietário',
+  TENANT_DOCUMENT: 'Doc Inquilino',
 }
 
 export default function SharePointMapping() {
@@ -83,7 +83,7 @@ export default function SharePointMapping() {
         </CardTitle>
         <CardDescription>
           Configure o Site, Biblioteca e Caminho Base (Base Path) para cada tipo de documento. O
-          sistema criará as pastas [Ano]/[Mês]/[Imóvel] automaticamente na nuvem M365.
+          sistema criará as pastas [Ano]/[Mês]/[Imóvel]/[Categoria] automaticamente na nuvem M365.
         </CardDescription>
       </CardHeader>
       <CardContent>

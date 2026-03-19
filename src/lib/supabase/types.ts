@@ -299,6 +299,36 @@ export type Database = {
         }
         Relationships: []
       }
+      sharepoint_configs: {
+        Row: {
+          base_path: string
+          created_at: string
+          document_type: string
+          id: string
+          library_name: string
+          site_name: string
+          updated_at: string
+        }
+        Insert: {
+          base_path: string
+          created_at?: string
+          document_type: string
+          id?: string
+          library_name: string
+          site_name: string
+          updated_at?: string
+        }
+        Update: {
+          base_path?: string
+          created_at?: string
+          document_type?: string
+          id?: string
+          library_name?: string
+          site_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -524,6 +554,14 @@ export const Constants = {
 //   location_y: numeric (nullable)
 //   created_at: timestamp with time zone (nullable, default: now())
 //   updated_at: timestamp with time zone (nullable, default: now())
+// Table: sharepoint_configs
+//   id: uuid (not null, default: gen_random_uuid())
+//   document_type: text (not null)
+//   site_name: text (not null)
+//   library_name: text (not null)
+//   base_path: text (not null)
+//   created_at: timestamp with time zone (not null, default: now())
+//   updated_at: timestamp with time zone (not null, default: now())
 
 // --- CONSTRAINTS ---
 // Table: app_audit_logs
@@ -543,6 +581,9 @@ export const Constants = {
 //   PRIMARY KEY maintenance_pkey: PRIMARY KEY (id)
 // Table: properties
 //   PRIMARY KEY properties_pkey: PRIMARY KEY (id)
+// Table: sharepoint_configs
+//   UNIQUE sharepoint_configs_document_type_key: UNIQUE (document_type)
+//   PRIMARY KEY sharepoint_configs_pkey: PRIMARY KEY (id)
 
 // --- ROW LEVEL SECURITY POLICIES ---
 // Table: app_audit_logs
@@ -579,3 +620,11 @@ export const Constants = {
 //   Policy "authenticated_all_properties" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
 //     WITH CHECK: true
+// Table: sharepoint_configs
+//   Policy "authenticated_all_sharepoint_configs" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
+
+// --- INDEXES ---
+// Table: sharepoint_configs
+//   CREATE UNIQUE INDEX sharepoint_configs_document_type_key ON public.sharepoint_configs USING btree (document_type)

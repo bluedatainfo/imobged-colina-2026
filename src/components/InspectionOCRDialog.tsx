@@ -31,7 +31,7 @@ export function InspectionOCRDialog({ open, onClose, onConfirm, initialData }: P
   const { properties } = useMainStore()
   const [formData, setFormData] = useState(initialData || {})
   const [propertyId, setPropertyId] = useState<string>('')
-  const [inspectionType, setInspectionType] = useState('entry_inspection')
+  const [inspectionType, setInspectionType] = useState('INSPECTION_MOVE_IN')
 
   useEffect(() => {
     if (initialData) {
@@ -79,8 +79,8 @@ export function InspectionOCRDialog({ open, onClose, onConfirm, initialData }: P
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="entry_inspection">Vistoria de Entrada</SelectItem>
-                <SelectItem value="exit_inspection">Vistoria de Saída</SelectItem>
+                <SelectItem value="INSPECTION_MOVE_IN">Vistoria de Entrada</SelectItem>
+                <SelectItem value="INSPECTION_MOVE_OUT">Vistoria de Saída</SelectItem>
               </SelectContent>
             </Select>
           </div>

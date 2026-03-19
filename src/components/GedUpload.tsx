@@ -22,12 +22,12 @@ interface GedUploadProps {
 }
 
 const DOCUMENT_TYPES = [
-  { id: 'owner_doc', label: 'Documento de Proprietário' },
-  { id: 'tenant_doc', label: 'Documento de Inquilino' },
-  { id: 'active_contract', label: 'Contrato Ativo' },
-  { id: 'closed_contract', label: 'Contrato Encerrado' },
-  { id: 'entry_inspection', label: 'Vistoria de Entrada' },
-  { id: 'exit_inspection', label: 'Vistoria de Saída' },
+  { id: 'OWNER_DOCUMENT', label: 'Documento de Proprietário' },
+  { id: 'TENANT_DOCUMENT', label: 'Documento de Inquilino' },
+  { id: 'CONTRACT_ACTIVE', label: 'Contrato Ativo' },
+  { id: 'CONTRACT_TERMINATED', label: 'Contrato Encerrado' },
+  { id: 'INSPECTION_MOVE_IN', label: 'Vistoria de Entrada' },
+  { id: 'INSPECTION_MOVE_OUT', label: 'Vistoria de Saída' },
 ]
 
 export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }: GedUploadProps) {

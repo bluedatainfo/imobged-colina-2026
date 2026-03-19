@@ -105,19 +105,36 @@ export const m365Service = {
       .maybeSingle()
 
     if (error || !config) {
-      throw new Error(`Configuração de mapeamento não encontrada para o tipo: ${documentType}`)
+      throw new Error('SharePoint configuration missing for this document category.')
     }
 
+    const docTypeLabels: Record<string, string> = {
+      CONTRACT_ACTIVE: 'Contrato Ativo',
+      CONTRACT_TERMINATED: 'Contrato Encerrado',
+      INSPECTION_MOVE_IN: 'Vistoria de Entrada',
+      INSPECTION_MOVE_OUT: 'Vistoria de Saída',
+      OWNER_DOCUMENT: 'Doc Proprietário',
+      TENANT_DOCUMENT: 'Doc Inquilino',
+    }
+
+    const categoryName = docTypeLabels[documentType] || documentType
     const date = new Date()
     const year = date.getFullYear().toString()
     const month = (date.getMonth() + 1).toString().padStart(2, '0')
     const sanitizedTitle = propertyTitle.replace(/[^a-zA-Z0-9 -]/g, '').trim()
 
-    const folderParts = [config.base_path, year, month, sanitizedTitle, documentType].filter(
+    const folderParts = [config.base_path, year, month, sanitizedTitle, categoryName].filter(
       Boolean,
     )
     const folderPath = folderParts.join('/')
-    const fullPath = `${folderPath}/${fileName}`
+
+    // Ensure uniqueness
+    const extIndex = fileName.lastIndexOf('.')
+    const nameWithoutExt = extIndex !== -1 ? fileName.substring(0, extIndex) : fileName
+    const ext = extIndex !== -1 ? fileName.substring(extIndex) : ''
+    const uniqueFileName = `${nameWithoutExt}_${date.getTime()}${ext}`
+
+    const fullPath = `${folderPath}/${uniqueFileName}`
 
     const token = getGraphToken()
     const { sharepointDomain, clientId, tenantId } = mainStore.getState().sharepoint
@@ -126,7 +143,7 @@ export const m365Service = {
       if (!token || !clientId || !tenantId) {
         toast({
           title: `Upload GED Simulado: ${config.site_name}`,
-          description: `[${documentType}] Salvo em: /${config.library_name}/${fullPath}`,
+          description: `[${categoryName}] Salvo em: /${config.library_name}/${fullPath}`,
         })
       } else {
         const hostname = sharepointDomain
@@ -152,7 +169,7 @@ export const m365Service = {
         propertyId,
         action: 'SHAREPOINT_UPLOAD',
         user: userName,
-        details: `Arquivo ${fileName} salvo em ${config.site_name}/${config.library_name}/${folderPath}`,
+        details: `Arquivo ${uniqueFileName} salvo em ${config.site_name}/${config.library_name}/${folderPath}`,
       })
 
       return { success: true, path: fullPath }
