@@ -251,6 +251,39 @@ export type Database = {
         }
         Relationships: []
       }
+      owners: {
+        Row: {
+          code: string
+          cpf: string | null
+          created_at: string
+          full_address: string | null
+          full_name: string
+          id: string
+          rg: string | null
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          cpf?: string | null
+          created_at?: string
+          full_address?: string | null
+          full_name: string
+          id?: string
+          rg?: string | null
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          cpf?: string | null
+          created_at?: string
+          full_address?: string | null
+          full_name?: string
+          id?: string
+          rg?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       properties: {
         Row: {
           address: string
@@ -325,6 +358,39 @@ export type Database = {
           id?: string
           library_name?: string
           site_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      tenants: {
+        Row: {
+          code: string
+          cpf: string | null
+          created_at: string
+          full_address: string | null
+          full_name: string
+          id: string
+          rg: string | null
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          cpf?: string | null
+          created_at?: string
+          full_address?: string | null
+          full_name: string
+          id?: string
+          rg?: string | null
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          cpf?: string | null
+          created_at?: string
+          full_address?: string | null
+          full_name?: string
+          id?: string
+          rg?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -540,6 +606,15 @@ export const Constants = {
 //   status: text (nullable)
 //   created_at: timestamp with time zone (nullable, default: now())
 //   updated_at: timestamp with time zone (nullable, default: now())
+// Table: owners
+//   id: uuid (not null, default: gen_random_uuid())
+//   code: text (not null)
+//   full_name: text (not null)
+//   cpf: text (nullable)
+//   rg: text (nullable)
+//   full_address: text (nullable)
+//   created_at: timestamp with time zone (not null, default: now())
+//   updated_at: timestamp with time zone (not null, default: now())
 // Table: properties
 //   id: text (not null)
 //   title: text (not null)
@@ -562,6 +637,15 @@ export const Constants = {
 //   base_path: text (not null)
 //   created_at: timestamp with time zone (not null, default: now())
 //   updated_at: timestamp with time zone (not null, default: now())
+// Table: tenants
+//   id: uuid (not null, default: gen_random_uuid())
+//   code: text (not null)
+//   full_name: text (not null)
+//   cpf: text (nullable)
+//   rg: text (nullable)
+//   full_address: text (nullable)
+//   created_at: timestamp with time zone (not null, default: now())
+//   updated_at: timestamp with time zone (not null, default: now())
 
 // --- CONSTRAINTS ---
 // Table: app_audit_logs
@@ -579,11 +663,17 @@ export const Constants = {
 //   PRIMARY KEY key_control_pkey: PRIMARY KEY (id)
 // Table: maintenance
 //   PRIMARY KEY maintenance_pkey: PRIMARY KEY (id)
+// Table: owners
+//   UNIQUE owners_code_key: UNIQUE (code)
+//   PRIMARY KEY owners_pkey: PRIMARY KEY (id)
 // Table: properties
 //   PRIMARY KEY properties_pkey: PRIMARY KEY (id)
 // Table: sharepoint_configs
 //   UNIQUE sharepoint_configs_document_type_key: UNIQUE (document_type)
 //   PRIMARY KEY sharepoint_configs_pkey: PRIMARY KEY (id)
+// Table: tenants
+//   UNIQUE tenants_code_key: UNIQUE (code)
+//   PRIMARY KEY tenants_pkey: PRIMARY KEY (id)
 
 // --- ROW LEVEL SECURITY POLICIES ---
 // Table: app_audit_logs
@@ -616,6 +706,10 @@ export const Constants = {
 //   Policy "authenticated_all_maintenance" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
 //     WITH CHECK: true
+// Table: owners
+//   Policy "authenticated_all_owners" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 // Table: properties
 //   Policy "authenticated_all_properties" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
@@ -624,7 +718,15 @@ export const Constants = {
 //   Policy "authenticated_all_sharepoint_configs" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
 //     WITH CHECK: true
+// Table: tenants
+//   Policy "authenticated_all_tenants" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 
 // --- INDEXES ---
+// Table: owners
+//   CREATE UNIQUE INDEX owners_code_key ON public.owners USING btree (code)
 // Table: sharepoint_configs
 //   CREATE UNIQUE INDEX sharepoint_configs_document_type_key ON public.sharepoint_configs USING btree (document_type)
+// Table: tenants
+//   CREATE UNIQUE INDEX tenants_code_key ON public.tenants USING btree (code)

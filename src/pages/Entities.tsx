@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { UsersRound, Plus, Pencil, Trash2, Search } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -21,7 +21,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { useToast } from '@/hooks/use-toast'
-import useEntitiesStore, { entitiesStore, EntityModel } from '@/stores/entities'
+import useEntitiesStore, { entitiesStore, EntityModel, initEntitiesStore } from '@/stores/entities'
 
 export default function Entities() {
   const { owners, tenants } = useEntitiesStore()
@@ -31,6 +31,7 @@ export default function Entities() {
   const [search, setSearch] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [isFetching, setIsFetching] = useState(true)
 
   const [formData, setFormData] = useState({
     code: '',
@@ -39,6 +40,11 @@ export default function Entities() {
     rg: '',
     fullAddress: '',
   })
+
+  useEffect(() => {
+    setIsFetching(true)
+    initEntitiesStore().finally(() => setIsFetching(false))
+  }, [])
 
   const currentList = activeTab === 'owners' ? owners : tenants
   const filteredList = currentList.filter(
@@ -190,7 +196,14 @@ export default function Entities() {
                   </TableCell>
                 </TableRow>
               ))}
-              {filteredList.length === 0 && (
+              {filteredList.length === 0 && isFetching && (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    Buscando registros...
+                  </TableCell>
+                </TableRow>
+              )}
+              {filteredList.length === 0 && !isFetching && (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                     Nenhum registro encontrado.

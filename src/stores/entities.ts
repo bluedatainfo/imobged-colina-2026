@@ -26,31 +26,31 @@ export const initEntitiesStore = async () => {
     supabase.from('tenants').select('*').order('created_at', { ascending: false }),
   ])
 
-  if (ownersData) {
-    state.owners = ownersData.map((o) => ({
-      id: o.id,
-      code: o.code,
-      fullName: o.full_name,
-      cpf: o.cpf || '',
-      rg: o.rg || '',
-      fullAddress: o.full_address || '',
-      createdAt: o.created_at,
-      updatedAt: o.updated_at,
-    }))
-  }
+  state.owners = ownersData
+    ? ownersData.map((o) => ({
+        id: o.id,
+        code: o.code,
+        fullName: o.full_name,
+        cpf: o.cpf || '',
+        rg: o.rg || '',
+        fullAddress: o.full_address || '',
+        createdAt: o.created_at,
+        updatedAt: o.updated_at,
+      }))
+    : []
 
-  if (tenantsData) {
-    state.tenants = tenantsData.map((t) => ({
-      id: t.id,
-      code: t.code,
-      fullName: t.full_name,
-      cpf: t.cpf || '',
-      rg: t.rg || '',
-      fullAddress: t.full_address || '',
-      createdAt: t.created_at,
-      updatedAt: t.updated_at,
-    }))
-  }
+  state.tenants = tenantsData
+    ? tenantsData.map((t) => ({
+        id: t.id,
+        code: t.code,
+        fullName: t.full_name,
+        cpf: t.cpf || '',
+        rg: t.rg || '',
+        fullAddress: t.full_address || '',
+        createdAt: t.created_at,
+        updatedAt: t.updated_at,
+      }))
+    : []
 
   emit()
 }
