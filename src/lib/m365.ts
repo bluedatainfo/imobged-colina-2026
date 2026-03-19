@@ -2,7 +2,7 @@ import { toast } from '@/hooks/use-toast'
 import { mainStore } from '@/stores/main'
 import { supabase } from '@/lib/supabase/client'
 
-export const getGraphToken = () => sessionStorage.getItem('m365_token')
+export const getGraphToken = () => localStorage.getItem('m365_token')
 
 export const m365Service = {
   sendEmail: (to: string, subject: string, body?: string) => {
@@ -31,7 +31,30 @@ export const m365Service = {
 
     try {
       const hostname = sharepointDomain
-      const url = `https://graph.microsoft.com/v1.0/sites/${hostname}:/sites/${sitePath}:/drive/root:/${library}/${fileName}:/content`
+
+      // Get Site ID
+      const siteRes = await fetch(
+        `https://graph.microsoft.com/v1.0/sites/${hostname}:/sites/${sitePath}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      )
+      if (!siteRes.ok) throw new Error(`Site "${sitePath}" não encontrado no M365.`)
+      const siteId = (await siteRes.json()).id
+
+      // Get Drive ID
+      const drivesRes = await fetch(`https://graph.microsoft.com/v1.0/sites/${siteId}/drives`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!drivesRes.ok) throw new Error(`Não foi possível listar as bibliotecas de "${sitePath}".`)
+      const drivesData = await drivesRes.json()
+      const drive = drivesData.value.find((d: any) => d.name === library)
+
+      if (!drive) throw new Error(`Biblioteca "${library}" não encontrada no site "${sitePath}".`)
+      const driveId = drive.id
+
+      // Upload with ID-based URL
+      const url = `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/root:/${fileName}:/content`
 
       const res = await fetch(url, {
         method: 'PUT',
@@ -50,11 +73,12 @@ export const m365Service = {
         title: 'SharePoint Online',
         description: `Upload real do arquivo ${fileName} concluído com sucesso.`,
       })
-    } catch (e) {
+    } catch (e: any) {
       toast({
         variant: 'destructive',
         title: 'Erro de Integração (Graph API)',
         description:
+          e.message ||
           'Unable to connect to Microsoft 365. Please verify your Client/Tenant ID and Azure App permissions.',
       })
     }
@@ -147,7 +171,37 @@ export const m365Service = {
         })
       } else {
         const hostname = sharepointDomain
-        const url = `https://graph.microsoft.com/v1.0/sites/${hostname}:/sites/${config.site_name}:/drive/root:/${config.library_name}/${fullPath}:/content`
+
+        // 1. Get Site ID Dynamically
+        const siteRes = await fetch(
+          `https://graph.microsoft.com/v1.0/sites/${hostname}:/sites/${config.site_name}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        )
+        if (!siteRes.ok)
+          throw new Error(
+            `Site M365 "${config.site_name}" não encontrado. Verifique a configuração de mapeamento GED.`,
+          )
+        const siteId = (await siteRes.json()).id
+
+        // 2. Get Drive ID Dynamically
+        const drivesRes = await fetch(`https://graph.microsoft.com/v1.0/sites/${siteId}/drives`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (!drivesRes.ok)
+          throw new Error(`Não foi possível listar as bibliotecas do site "${config.site_name}".`)
+        const drivesData = await drivesRes.json()
+        const drive = drivesData.value.find((d: any) => d.name === config.library_name)
+
+        if (!drive)
+          throw new Error(
+            `Biblioteca "${config.library_name}" não encontrada no site "${config.site_name}".`,
+          )
+        const driveId = drive.id
+
+        // 3. Upload File Using Dynamic IDs
+        const url = `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/root:/${fullPath}:/content`
 
         const res = await fetch(url, {
           method: 'PUT',
@@ -159,9 +213,7 @@ export const m365Service = {
         })
 
         if (!res.ok) {
-          throw new Error(
-            'Erro de permissão no SharePoint. Verifique o acesso do seu usuário M365.',
-          )
+          throw new Error('Erro de permissão no SharePoint ou caminho de upload inválido.')
         }
       }
 
@@ -175,9 +227,7 @@ export const m365Service = {
       return { success: true, path: fullPath }
     } catch (e: any) {
       const msg =
-        e.message.includes('M365') || e.message.includes('permissão')
-          ? 'Erro de permissão no SharePoint. Verifique o acesso do seu usuário M365.'
-          : e.message
+        e.message || 'Erro de permissão no SharePoint. Verifique o acesso do seu usuário M365.'
       toast({ variant: 'destructive', title: 'Falha no Upload GED', description: msg })
       throw new Error(msg)
     }

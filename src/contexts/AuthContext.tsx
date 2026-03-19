@@ -41,7 +41,7 @@ async function generateCodeChallenge(codeVerifier: string) {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [currentUserId, setCurrentUserId] = useState<string | null>(() =>
-    sessionStorage.getItem('app_user_id'),
+    localStorage.getItem('app_user_id'),
   )
   const [isExchanging, setIsExchanging] = useState(false)
 
@@ -73,7 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         let { sharepoint } = mainStore.getState()
         let { clientId, tenantId, primaryDomain } = sharepoint
-        const codeVerifier = sessionStorage.getItem('pkce_code_verifier')
+        const codeVerifier = localStorage.getItem('pkce_code_verifier')
 
         if (!clientId || !tenantId) {
           const { data: dbSettings } = await supabase
@@ -135,8 +135,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
           const tokenData = await res.json()
           const token = tokenData.access_token
-          sessionStorage.setItem('m365_token', token)
-          sessionStorage.removeItem('pkce_code_verifier')
+          localStorage.setItem('m365_token', token)
+          localStorage.removeItem('pkce_code_verifier')
 
           const profileRes = await fetch('https://graph.microsoft.com/v1.0/me', {
             headers: { Authorization: `Bearer ${token}` },
@@ -208,7 +208,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           })
 
           setCurrentUserId(matched.id)
-          sessionStorage.setItem('app_user_id', matched.id)
+          localStorage.setItem('app_user_id', matched.id)
 
           await Promise.all([
             initMainStore(),
@@ -222,7 +222,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             description: `Bem-vindo(a), ${profileData.displayName || matched.name}`,
           })
         } catch (e: any) {
-          sessionStorage.removeItem('m365_token')
+          localStorage.removeItem('m365_token')
           toast({
             variant: 'destructive',
             title: 'Erro de Integração',
@@ -258,7 +258,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (clientId && tenantId) {
       const codeVerifier = generateRandomString(64)
-      sessionStorage.setItem('pkce_code_verifier', codeVerifier)
+      localStorage.setItem('pkce_code_verifier', codeVerifier)
       const codeChallenge = await generateCodeChallenge(codeVerifier)
 
       const redirectUri = encodeURIComponent(window.location.origin + '/login')
@@ -326,7 +326,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             })
 
             setCurrentUserId(foundUser.id)
-            sessionStorage.setItem('app_user_id', foundUser.id)
+            localStorage.setItem('app_user_id', foundUser.id)
 
             Promise.all([
               initMainStore(),
@@ -343,9 +343,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const logout = async () => {
-    sessionStorage.removeItem('m365_token')
-    sessionStorage.removeItem('pkce_code_verifier')
-    sessionStorage.removeItem('app_user_id')
+    localStorage.removeItem('m365_token')
+    localStorage.removeItem('pkce_code_verifier')
+    localStorage.removeItem('app_user_id')
     setCurrentUserId(null)
     await supabase.auth.signOut()
   }
@@ -362,9 +362,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         timestamp: new Date().toISOString(),
       })
     }
-    sessionStorage.removeItem('m365_token')
-    sessionStorage.removeItem('pkce_code_verifier')
-    sessionStorage.removeItem('app_user_id')
+    localStorage.removeItem('m365_token')
+    localStorage.removeItem('pkce_code_verifier')
+    localStorage.removeItem('app_user_id')
     setCurrentUserId(null)
     await supabase.auth.signOut()
     window.location.href = '/login'

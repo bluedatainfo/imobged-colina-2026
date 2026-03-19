@@ -28,7 +28,7 @@ export const initUsersStore = async () => {
       role: (u.role as Role) || 'Vistoriador',
       avatar: u.avatar || '',
     }))
-  } else if (sessionStorage.getItem('app_user_id')) {
+  } else if (localStorage.getItem('app_user_id')) {
     const demoUsers: SystemUser[] = [
       {
         id: 'usr-admin',

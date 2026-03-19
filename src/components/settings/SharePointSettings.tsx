@@ -274,7 +274,9 @@ export default function SharePointSettings() {
     })
 
     if (isAuthChanged) {
-      sessionStorage.clear()
+      localStorage.removeItem('m365_token')
+      localStorage.removeItem('pkce_code_verifier')
+      localStorage.removeItem('app_user_id')
       mainStore.updateSettings({
         managementEmails: '',
         administrativeEmails: '',

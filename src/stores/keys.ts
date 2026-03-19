@@ -34,7 +34,7 @@ export const initKeysStore = async () => {
       type: t.type as KeyTaskType,
       status: t.status as KeyTaskStatus,
     }))
-  } else if (sessionStorage.getItem('app_user_id')) {
+  } else if (localStorage.getItem('app_user_id')) {
     const defaultTasks: KeyTask[] = [
       {
         id: 'KEY-001',

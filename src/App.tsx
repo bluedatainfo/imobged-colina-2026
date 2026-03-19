@@ -92,7 +92,7 @@ const App = () => {
 
   useEffect(() => {
     const initialize = async () => {
-      if (sessionStorage.getItem('app_user_id')) {
+      if (localStorage.getItem('app_user_id')) {
         await supabase.auth.signInWithPassword({
           email: 'system@imobiliaria.local',
           password: 'SystemPassword123!',

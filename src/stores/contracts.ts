@@ -49,10 +49,10 @@ export const initContractsStore = async () => {
       updatedAt: c.updated_at || new Date().toISOString(),
       expirationDate: c.expiration_date || undefined,
       docusignStatus: c.docusign_status as any,
-      isCritical: c.is_critical || false,
+      isCritical: c.isCritical || false,
       managerApproval: c.manager_approval || false,
     }))
-  } else if (sessionStorage.getItem('app_user_id')) {
+  } else if (localStorage.getItem('app_user_id')) {
     const defaultContracts: LeaseContract[] = [
       {
         id: 'CTR-001',
