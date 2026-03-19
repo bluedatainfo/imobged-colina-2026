@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { UploadCloud, Loader2 } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { UploadCloud, Loader2, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -10,8 +10,10 @@ import {
 } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { m365Service } from '@/lib/m365'
 import useMainStore from '@/stores/main'
+import useEntitiesStore from '@/stores/entities'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/hooks/use-toast'
 
@@ -31,14 +33,21 @@ const DOCUMENT_TYPES = [
 ]
 
 export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }: GedUploadProps) {
-  const { properties } = useMainStore()
+  const { properties, settings } = useMainStore()
+  const { owners, tenants } = useEntitiesStore()
   const { user } = useAuth()
   const { toast } = useToast()
 
   const [propertyId, setPropertyId] = useState(preselectedPropertyId || '')
   const [docType, setDocType] = useState(preselectedType || '')
+  const [entityCode, setEntityCode] = useState('')
   const [file, setFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
+
+  const hasSpAccess = useMemo(() => {
+    if (!user) return false
+    return settings.spIntegrationRoles?.includes(user.role) ?? false
+  }, [user, settings.spIntegrationRoles])
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -47,13 +56,20 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
   }
 
   const handleUpload = async () => {
-    if (!file || !propertyId || !docType) return
+    if (!file || !propertyId || !docType || !hasSpAccess) return
 
     const property = properties.find((p) => p.id === propertyId)
     if (!property) return
 
     setUploading(true)
     try {
+      let entityName = ''
+      if (docType === 'OWNER_DOCUMENT') {
+        entityName = owners.find((o) => o.code === entityCode)?.fullName || ''
+      } else if (docType === 'TENANT_DOCUMENT') {
+        entityName = tenants.find((t) => t.code === entityCode)?.fullName || ''
+      }
+
       await m365Service.uploadStructuredDocument(
         file,
         file.name,
@@ -61,6 +77,8 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
         property.id,
         property.title,
         user?.name || 'Sistema',
+        entityCode,
+        entityName,
       )
       toast({
         title: 'Upload Concluído',
@@ -80,9 +98,23 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
 
   return (
     <div className="space-y-4 flex-1 flex flex-col">
+      {!hasSpAccess && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Acesso Negado</AlertTitle>
+          <AlertDescription>
+            Seu perfil ({user?.role}) não possui permissão para realizar uploads no SharePoint.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="grid gap-2">
         <Label>Imóvel Relacionado</Label>
-        <Select value={propertyId} onValueChange={setPropertyId} disabled={!!preselectedPropertyId}>
+        <Select
+          value={propertyId}
+          onValueChange={setPropertyId}
+          disabled={!!preselectedPropertyId || !hasSpAccess}
+        >
           <SelectTrigger>
             <SelectValue placeholder="Selecione o imóvel..." />
           </SelectTrigger>
@@ -98,7 +130,11 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
 
       <div className="grid gap-2">
         <Label>Categoria do Documento</Label>
-        <Select value={docType} onValueChange={setDocType} disabled={!!preselectedType}>
+        <Select
+          value={docType}
+          onValueChange={setDocType}
+          disabled={!!preselectedType || !hasSpAccess}
+        >
           <SelectTrigger>
             <SelectValue placeholder="Selecione a categoria..." />
           </SelectTrigger>
@@ -112,15 +148,59 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
         </Select>
       </div>
 
+      {docType === 'OWNER_DOCUMENT' && (
+        <div className="grid gap-2 animate-fade-in">
+          <Label>Código do Proprietário</Label>
+          <Select value={entityCode} onValueChange={setEntityCode} disabled={!hasSpAccess}>
+            <SelectTrigger>
+              <SelectValue placeholder="Selecione o proprietário..." />
+            </SelectTrigger>
+            <SelectContent>
+              {owners.map((o) => (
+                <SelectItem key={o.code} value={o.code}>
+                  {o.fullName} ({o.code})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      {docType === 'TENANT_DOCUMENT' && (
+        <div className="grid gap-2 animate-fade-in">
+          <Label>Código do Inquilino</Label>
+          <Select value={entityCode} onValueChange={setEntityCode} disabled={!hasSpAccess}>
+            <SelectTrigger>
+              <SelectValue placeholder="Selecione o inquilino..." />
+            </SelectTrigger>
+            <SelectContent>
+              {tenants.map((t) => (
+                <SelectItem key={t.code} value={t.code}>
+                  {t.fullName} ({t.code})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
       <div className="grid gap-2">
         <Label>Arquivo Selecionado</Label>
-        <Input id="file-upload" type="file" onChange={handleFileChange} />
+        <Input id="file-upload" type="file" onChange={handleFileChange} disabled={!hasSpAccess} />
       </div>
 
       <Button
         className="w-full mt-auto gap-2"
         onClick={handleUpload}
-        disabled={!file || !propertyId || !docType || uploading}
+        disabled={
+          !file ||
+          !propertyId ||
+          !docType ||
+          uploading ||
+          !hasSpAccess ||
+          (docType === 'OWNER_DOCUMENT' && !entityCode) ||
+          (docType === 'TENANT_DOCUMENT' && !entityCode)
+        }
       >
         {uploading ? (
           <Loader2 className="h-4 w-4 animate-spin" />

@@ -11,6 +11,7 @@ import { initMainStore } from './stores/main'
 import { initUsersStore } from './stores/users'
 import { initContractsStore } from './stores/contracts'
 import { initKeysStore } from './stores/keys'
+import { initEntitiesStore } from './stores/entities'
 import { supabase } from './lib/supabase/client'
 
 // Code splitting routes to prevent out-of-memory errors during build chunking
@@ -29,6 +30,8 @@ const Login = lazy(() => import('./pages/Login'))
 const Renewals = lazy(() => import('./pages/Renewals'))
 const KeysControl = lazy(() => import('./pages/KeysControl'))
 const Maintenance = lazy(() => import('./pages/Maintenance'))
+const Entities = lazy(() => import('./pages/Entities'))
+const SyncMonitor = lazy(() => import('./pages/SyncMonitor'))
 const AccessDenied = lazy(() => import('./pages/AccessDenied'))
 const Portal = lazy(() => import('./pages/Portal'))
 const Profile = lazy(() => import('./pages/Profile'))
@@ -79,6 +82,8 @@ const AppRoutes = () => (
         <Route path="/renewals" element={<Renewals />} />
         <Route path="/keys" element={<KeysControl />} />
         <Route path="/maintenance" element={<Maintenance />} />
+        <Route path="/entities" element={<Entities />} />
+        <Route path="/sync-monitor" element={<SyncMonitor />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/access-denied" element={<AccessDenied />} />
       </Route>
@@ -98,7 +103,13 @@ const App = () => {
           password: 'SystemPassword123!',
         })
       }
-      await Promise.all([initMainStore(), initUsersStore(), initContractsStore(), initKeysStore()])
+      await Promise.all([
+        initMainStore(),
+        initUsersStore(),
+        initContractsStore(),
+        initKeysStore(),
+        initEntitiesStore(),
+      ])
       setReady(true)
     }
     initialize()

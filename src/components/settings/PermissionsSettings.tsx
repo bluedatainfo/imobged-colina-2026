@@ -10,6 +10,7 @@ import {
   RefreshCw,
   Loader2,
   User,
+  CloudUpload,
 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -39,9 +40,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Checkbox } from '@/components/ui/checkbox'
 import { useToast } from '@/hooks/use-toast'
 import useUsersStore, { SystemUser, usersStore } from '@/stores/users'
-import useMainStore from '@/stores/main'
+import useMainStore, { mainStore } from '@/stores/main'
 import { Role } from '@/lib/permissions'
 
 const availableRoles: Role[] = [
@@ -59,6 +61,7 @@ export default function PermissionsSettings() {
   const { users } = useUsersStore()
   const store = useMainStore()
   const { primaryDomain, clientId, tenantId } = store.sharepoint
+  const { settings } = store
   const { toast } = useToast()
 
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -112,6 +115,23 @@ export default function PermissionsSettings() {
       toast({ title: 'Usuário Adicionado', description: 'Novo acesso concedido à organização.' })
     }
     setDialogOpen(false)
+  }
+
+  const toggleSpIntegrationRole = (role: Role, checked: boolean) => {
+    const currentRoles = settings.spIntegrationRoles || []
+    let newRoles = [...currentRoles]
+
+    if (checked) {
+      if (!newRoles.includes(role)) newRoles.push(role)
+    } else {
+      newRoles = newRoles.filter((r) => r !== role)
+    }
+
+    mainStore.updateSettings({ spIntegrationRoles: newRoles })
+    toast({
+      title: 'Permissões de Integração Atualizadas',
+      description: `O acesso do perfil ${role} ao SharePoint foi modificado.`,
+    })
   }
 
   const handleSyncM365 = async () => {
@@ -326,6 +346,42 @@ export default function PermissionsSettings() {
               )}
             </TableBody>
           </Table>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CloudUpload className="w-5 h-5 text-primary" /> Permissões de Integração SharePoint
+          </CardTitle>
+          <CardDescription>
+            Defina quais perfis podem realizar uploads e sincronizar dados com o ambiente M365.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            {availableRoles.map((role) => {
+              const isChecked = settings.spIntegrationRoles?.includes(role) ?? false
+              return (
+                <div
+                  key={role}
+                  className="flex items-center space-x-2 border p-3 rounded-lg bg-card"
+                >
+                  <Checkbox
+                    id={`sp-role-${role}`}
+                    checked={isChecked}
+                    onCheckedChange={(c) => toggleSpIntegrationRole(role, c as boolean)}
+                  />
+                  <Label
+                    htmlFor={`sp-role-${role}`}
+                    className="text-sm font-medium leading-none cursor-pointer"
+                  >
+                    {role}
+                  </Label>
+                </div>
+              )
+            })}
+          </div>
         </CardContent>
       </Card>
 

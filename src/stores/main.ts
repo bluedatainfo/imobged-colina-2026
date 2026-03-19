@@ -14,6 +14,7 @@ export type RoleSettings = {
   administrativeEmails: string
   operationalEmails: string
   slaHours: number
+  spIntegrationRoles?: string[]
 }
 
 export type SiteKey = 'locacao' | 'captacao' | 'vendas' | 'juridico' | 'financeiro'
@@ -118,6 +119,16 @@ const defaultState: State = {
     administrativeEmails: 'admin@ismailabdo.onmicrosoft.com',
     operationalEmails: 'operacao@ismailabdo.onmicrosoft.com',
     slaHours: 24,
+    spIntegrationRoles: [
+      'Admin',
+      'Diretor',
+      'Gerente',
+      'Vistoriador',
+      'Jurídico',
+      'Financeiro',
+      'Gestor de Contrato',
+      'Corretor',
+    ],
   },
   sharepoint: {
     primaryDomain: 'ismailabdo.onmicrosoft.com',
@@ -180,7 +191,7 @@ export const initMainStore = async () => {
       lists: ap.lists || defaultState.sharepoint.lists,
     }
     state.agencyProfile = ap.agencyProfile || defaultState.agencyProfile
-    state.settings = (settingsData.role_settings as any) || defaultState.settings
+    state.settings = { ...defaultState.settings, ...(settingsData.role_settings as any) }
     state.security = (settingsData.security_settings as any) || defaultState.security
   } else {
     // Only attempt to insert if we have an active session to satisfy RLS
@@ -282,7 +293,7 @@ const emit = () => {
 
 const syncConfig = async () => {
   const { data: sessionData } = await supabase.auth.getSession()
-  if (!sessionData?.session?.user) return // prevent anon updates
+  if (!sessionData?.session?.user) return
 
   const payload = {
     default_domain: state.sharepoint.primaryDomain,
@@ -305,7 +316,6 @@ const syncConfig = async () => {
   if (settingsId) {
     await supabase.from('app_settings').update(payload).eq('id', settingsId)
   } else {
-    // Attempt to select the most recent row to ensure upsert-like behavior
     const { data: existing } = await supabase
       .from('app_settings')
       .select('id')

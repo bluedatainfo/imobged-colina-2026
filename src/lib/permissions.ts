@@ -47,6 +47,8 @@ export const ROUTE_ACCESS: Record<string, Role[]> = {
   '/maintenance': ['Admin', 'Diretor', 'Gerente', 'Financeiro'],
   '/settings': ['Admin', 'Diretor'],
   '/properties/dossier': ['Admin', 'Diretor', 'Corretor'],
+  '/entities': ['Admin', 'Diretor', 'Gerente', 'Gestor de Contrato', 'Financeiro'],
+  '/sync-monitor': ['Admin', 'Diretor', 'Gerente'],
   '/profile': [
     'Admin',
     'Diretor',

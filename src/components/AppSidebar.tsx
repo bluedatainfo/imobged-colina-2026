@@ -13,6 +13,8 @@ import {
   KeyRound,
   Wrench,
   BellRing,
+  UsersRound,
+  Activity,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -31,8 +33,10 @@ import { checkAccess } from '@/lib/permissions'
 
 const navigation = [
   { title: 'Painel', url: '/', icon: LayoutDashboard },
+  { title: 'Entidades (Prop. / Inq.)', url: '/entities', icon: UsersRound },
   { title: 'Documentos GED', url: '/documents', icon: FolderOpen },
   { title: 'Alertas GED', url: '/document-alerts', icon: BellRing },
+  { title: 'Monitor de Sincronização', url: '/sync-monitor', icon: Activity },
   { title: 'Análise da Gerencia', url: '/manager-approval', icon: UserCheck },
   { title: 'Vistorias', url: '/inspections', icon: ClipboardCheck },
   { title: 'Controle de Chaves', url: '/keys', icon: KeyRound },

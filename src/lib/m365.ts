@@ -121,6 +121,8 @@ export const m365Service = {
     propertyId: string,
     propertyTitle: string,
     userName: string,
+    entityCode?: string,
+    entityName?: string,
   ) => {
     const { data: config, error } = await supabase
       .from('sharepoint_configs')
@@ -132,25 +134,18 @@ export const m365Service = {
       throw new Error('SharePoint configuration missing for this document category.')
     }
 
-    const docTypeLabels: Record<string, string> = {
-      CONTRACT_ACTIVE: 'Contrato Ativo',
-      CONTRACT_TERMINATED: 'Contrato Encerrado',
-      INSPECTION_MOVE_IN: 'Vistoria de Entrada',
-      INSPECTION_MOVE_OUT: 'Vistoria de Saída',
-      OWNER_DOCUMENT: 'Doc Proprietário',
-      TENANT_DOCUMENT: 'Doc Inquilino',
-    }
-
-    const categoryName = docTypeLabels[documentType] || documentType
+    const isEntityDoc = ['OWNER_DOCUMENT', 'TENANT_DOCUMENT'].includes(documentType)
     const date = new Date()
     const year = date.getFullYear().toString()
     const month = (date.getMonth() + 1).toString().padStart(2, '0')
     const sanitizedTitle = propertyTitle.replace(/[^a-zA-Z0-9 -]/g, '').trim()
 
-    const folderParts = [config.base_path, year, month, sanitizedTitle, categoryName].filter(
-      Boolean,
-    )
-    const folderPath = folderParts.join('/')
+    let folderPath = ''
+    if (isEntityDoc && entityCode) {
+      folderPath = [config.base_path, entityCode].filter(Boolean).join('/')
+    } else {
+      folderPath = [config.base_path, year, month, sanitizedTitle].filter(Boolean).join('/')
+    }
 
     // Ensure uniqueness
     const extIndex = fileName.lastIndexOf('.')
@@ -167,7 +162,13 @@ export const m365Service = {
       if (!token || !clientId || !tenantId) {
         toast({
           title: `Upload GED Simulado: ${config.site_name}`,
-          description: `[${categoryName}] Salvo em: /${config.library_name}/${fullPath}`,
+          description: `Salvo em: /${config.library_name}/${fullPath}`,
+        })
+        mainStore.addAuditLog({
+          propertyId,
+          action: 'SHAREPOINT_UPLOAD',
+          user: userName,
+          details: `[Mock] Arquivo ${uniqueFileName} salvo em ${config.site_name}/${config.library_name}/${folderPath}`,
         })
       } else {
         const hostname = sharepointDomain
@@ -215,19 +216,54 @@ export const m365Service = {
         if (!res.ok) {
           throw new Error('Erro de permissão no SharePoint ou caminho de upload inválido.')
         }
-      }
 
-      mainStore.addAuditLog({
-        propertyId,
-        action: 'SHAREPOINT_UPLOAD',
-        user: userName,
-        details: `Arquivo ${uniqueFileName} salvo em ${config.site_name}/${config.library_name}/${folderPath}`,
-      })
+        const uploadedItem = await res.json()
+
+        // 4. Update Metadata if it's an entity doc
+        if (isEntityDoc && entityCode) {
+          try {
+            await fetch(
+              `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${uploadedItem.id}/listItem/fields`,
+              {
+                method: 'PATCH',
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  IdentificationCode: entityCode,
+                  EntityName: entityName || '',
+                }),
+              },
+            )
+          } catch (metaErr) {
+            console.warn(
+              'Failed to update SharePoint metadata. Make sure the columns exist in the library.',
+              metaErr,
+            )
+          }
+        }
+
+        mainStore.addAuditLog({
+          propertyId,
+          action: 'SHAREPOINT_UPLOAD',
+          user: userName,
+          details: `Arquivo ${uniqueFileName} salvo com sucesso em ${config.site_name}/${config.library_name}/${folderPath}`,
+        })
+      }
 
       return { success: true, path: fullPath }
     } catch (e: any) {
       const msg =
         e.message || 'Erro de permissão no SharePoint. Verifique o acesso do seu usuário M365.'
+
+      mainStore.addAuditLog({
+        propertyId,
+        action: 'SHAREPOINT_UPLOAD_ERROR',
+        user: userName,
+        details: `Erro ao subir ${uniqueFileName}: ${msg}`,
+      })
+
       toast({ variant: 'destructive', title: 'Falha no Upload GED', description: msg })
       throw new Error(msg)
     }
