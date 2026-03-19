@@ -1,11 +1,25 @@
+import { useEffect, useRef } from 'react'
 import { ShieldAlert, ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
+import { toast } from '@/hooks/use-toast'
 
 export default function AccessDenied() {
   const navigate = useNavigate()
   const { user } = useAuth()
+  const shown = useRef(false)
+
+  useEffect(() => {
+    if (!shown.current) {
+      toast({
+        variant: 'destructive',
+        title: 'Acesso Negado',
+        description: 'Você não tem permissão para acessar esta área.',
+      })
+      shown.current = true
+    }
+  }, [])
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4 animate-fade-in-up">

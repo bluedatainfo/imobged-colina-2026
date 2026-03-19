@@ -15,6 +15,7 @@ export type RoleSettings = {
   operationalEmails: string
   slaHours: number
   spIntegrationRoles?: string[]
+  rbac?: Record<string, string[]>
 }
 
 export type SiteKey = 'locacao' | 'captacao' | 'vendas' | 'juridico' | 'financeiro'
@@ -106,6 +107,61 @@ type State = {
   maintenanceTickets: MaintenanceTicket[]
 }
 
+const defaultRbac: Record<string, string[]> = {
+  Admin: ['all'],
+  Diretor: ['all'],
+  Gerente: [
+    '/',
+    '/entities',
+    '/documents',
+    '/document-alerts',
+    '/sync-monitor',
+    '/manager-approval',
+    '/inspections',
+    '/keys',
+    '/contracts',
+    '/properties',
+    '/maintenance',
+    '/renewals',
+    '/legal',
+    '/profile',
+  ],
+  Vistoriador: ['/', '/properties', '/inspections', '/keys', '/profile'],
+  Jurídico: [
+    '/',
+    '/documents',
+    '/document-alerts',
+    '/contracts',
+    '/properties',
+    '/legal',
+    '/profile',
+  ],
+  Financeiro: [
+    '/',
+    '/entities',
+    '/documents',
+    '/document-alerts',
+    '/properties',
+    '/renewals',
+    '/maintenance',
+    '/profile',
+  ],
+  'Gestor de Contrato': [
+    '/',
+    '/manager-approval',
+    '/contracts',
+    '/documents',
+    '/document-alerts',
+    '/properties',
+    '/inspections',
+    '/renewals',
+    '/keys',
+    '/entities',
+    '/profile',
+  ],
+  Corretor: ['/', '/properties', '/profile'],
+}
+
 const defaultState: State = {
   agencyProfile: {
     name: 'Imobiliária Prime',
@@ -129,6 +185,7 @@ const defaultState: State = {
       'Gestor de Contrato',
       'Corretor',
     ],
+    rbac: defaultRbac,
   },
   sharepoint: {
     primaryDomain: 'ismailabdo.onmicrosoft.com',
@@ -191,7 +248,11 @@ export const initMainStore = async () => {
       lists: ap.lists || defaultState.sharepoint.lists,
     }
     state.agencyProfile = ap.agencyProfile || defaultState.agencyProfile
-    state.settings = { ...defaultState.settings, ...(settingsData.role_settings as any) }
+    state.settings = {
+      ...defaultState.settings,
+      ...(settingsData.role_settings as any),
+      rbac: (settingsData.role_settings as any)?.rbac || defaultState.settings.rbac,
+    }
     state.security = (settingsData.security_settings as any) || defaultState.security
   } else {
     // Only attempt to insert if we have an active session to satisfy RLS

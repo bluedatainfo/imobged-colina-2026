@@ -1,3 +1,5 @@
+import { mainStore } from '@/stores/main'
+
 export type Role =
   | 'Admin'
   | 'Diretor'
@@ -8,68 +10,25 @@ export type Role =
   | 'Gestor de Contrato'
   | 'Corretor'
 
-export const ROUTE_ACCESS: Record<string, Role[]> = {
-  '/': [
-    'Admin',
-    'Diretor',
-    'Gerente',
-    'Vistoriador',
-    'Jurídico',
-    'Financeiro',
-    'Gestor de Contrato',
-    'Corretor',
-  ],
-  '/manager-approval': ['Admin', 'Diretor', 'Gerente', 'Gestor de Contrato'],
-  '/contracts': ['Admin', 'Diretor', 'Gerente', 'Jurídico', 'Gestor de Contrato'],
-  '/documents': ['Admin', 'Diretor', 'Gerente', 'Jurídico', 'Financeiro', 'Gestor de Contrato'],
-  '/document-alerts': [
-    'Admin',
-    'Diretor',
-    'Gerente',
-    'Jurídico',
-    'Financeiro',
-    'Gestor de Contrato',
-  ],
-  '/properties': [
-    'Admin',
-    'Diretor',
-    'Gerente',
-    'Vistoriador',
-    'Jurídico',
-    'Financeiro',
-    'Gestor de Contrato',
-    'Corretor',
-  ],
-  '/inspections': ['Admin', 'Diretor', 'Gerente', 'Vistoriador', 'Gestor de Contrato'],
-  '/legal': ['Admin', 'Diretor', 'Gerente', 'Jurídico'],
-  '/renewals': ['Admin', 'Diretor', 'Gerente', 'Financeiro', 'Gestor de Contrato'],
-  '/keys': ['Admin', 'Diretor', 'Gerente', 'Vistoriador', 'Gestor de Contrato'],
-  '/maintenance': ['Admin', 'Diretor', 'Gerente', 'Financeiro'],
-  '/settings': ['Admin', 'Diretor'],
-  '/properties/dossier': ['Admin', 'Diretor', 'Corretor'],
-  '/entities': ['Admin', 'Diretor', 'Gerente', 'Gestor de Contrato', 'Financeiro'],
-  '/sync-monitor': ['Admin', 'Diretor', 'Gerente'],
-  '/profile': [
-    'Admin',
-    'Diretor',
-    'Gerente',
-    'Vistoriador',
-    'Jurídico',
-    'Financeiro',
-    'Gestor de Contrato',
-    'Corretor',
-  ],
-}
-
 export const checkAccess = (path: string, role?: Role) => {
   if (!role) return false
-  const allowed = ROUTE_ACCESS[path]
-  if (allowed) return allowed.includes(role)
+  if (role === 'Admin') return true
 
-  if (path.startsWith('/properties/') && path.endsWith('/dossier')) {
-    const dossierAllowed = ROUTE_ACCESS['/properties/dossier']
-    return dossierAllowed ? dossierAllowed.includes(role) : true
+  const state = mainStore.getState()
+  const rbac = state.settings?.rbac
+
+  if (rbac && rbac[role]) {
+    const allowedPaths = rbac[role]
+    if (allowedPaths.includes('all')) return true
+
+    if (allowedPaths.includes(path)) return true
+
+    if (path.startsWith('/properties/') && allowedPaths.includes('/properties')) {
+      return true
+    }
+
+    return false
   }
 
-  return true
+  return false
 }
