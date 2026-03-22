@@ -6,10 +6,12 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import useMainStore from '@/stores/main'
+import { NewPropertyDialog } from '@/components/NewPropertyDialog'
 
 export default function Properties() {
   const { properties } = useMainStore()
   const [search, setSearch] = useState('')
+  const [isNewOpen, setIsNewOpen] = useState(false)
 
   const filtered = properties.filter(
     (p) =>
@@ -24,7 +26,7 @@ export default function Properties() {
           <h1 className="text-3xl font-bold tracking-tight">Gestão de Imóveis</h1>
           <p className="text-muted-foreground">Catálogo e status do portfólio da imobiliária.</p>
         </div>
-        <Button className="gap-2">
+        <Button onClick={() => setIsNewOpen(true)} className="gap-2">
           <Plus className="w-4 h-4" /> Nova Captação
         </Button>
       </div>
@@ -81,6 +83,8 @@ export default function Properties() {
           </div>
         )}
       </div>
+
+      <NewPropertyDialog open={isNewOpen} onClose={() => setIsNewOpen(false)} />
     </div>
   )
 }

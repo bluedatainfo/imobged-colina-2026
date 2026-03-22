@@ -125,6 +125,7 @@ const defaultRbac: Record<string, string[]> = {
     '/renewals',
     '/legal',
     '/profile',
+    '/templates',
   ],
   Vistoriador: ['/', '/properties', '/inspections', '/keys', '/profile'],
   Jurídico: [
@@ -135,6 +136,7 @@ const defaultRbac: Record<string, string[]> = {
     '/properties',
     '/legal',
     '/profile',
+    '/templates',
   ],
   Financeiro: [
     '/',
@@ -453,9 +455,9 @@ export const mainStore = {
   addProperty: (p: Omit<Property, 'id' | 'status' | 'image'>) => {
     const newProperty: Property = {
       ...p,
-      id: `PROP-${Math.floor(Math.random() * 1000)
+      id: `IMV${Math.floor(Math.random() * 1000000)
         .toString()
-        .padStart(3, '0')}`,
+        .padStart(6, '0')}`,
       status: 'Pendente/Rascunho',
       image: 'https://img.usecurling.com/p/400/300?q=house',
     }

@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { FilePlus, Target, Users } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { FilePlus, Target, Users, ShieldCheck, Home } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -20,45 +20,64 @@ import {
 } from '@/components/ui/select'
 import useMainStore, { mainStore } from '@/stores/main'
 import useContractsStore, { contractsStore } from '@/stores/contracts'
+import useTemplatesStore from '@/stores/templates'
 import { m365Service } from '@/lib/m365'
-
-const TEMPLATES = [
-  'Apartamento Padrão (Caução)',
-  'Apartamento (Seguro Fiança)',
-  'Comercial (Fiador)',
-  'Residencial (Fiador)',
-]
 
 export function ContractWizard({ open, onClose }: { open: boolean; onClose: () => void }) {
   const store = useMainStore()
-  const [template, setTemplate] = useState('')
+  const { templates } = useTemplatesStore()
+
+  const [purpose, setPurpose] = useState('tenant_contract')
   const [propertyId, setPropertyId] = useState('')
+  const [guaranteeType, setGuaranteeType] = useState('N/A')
+  const [templateName, setTemplateName] = useState('')
   const [tenantName, setTenantName] = useState('')
 
+  const selectedProperty = useMemo(() => {
+    return store.properties.find((p) => p.id === propertyId)
+  }, [propertyId, store.properties])
+
+  const filteredTemplates = useMemo(() => {
+    return templates.filter((t) => {
+      if (t.category !== purpose) return false
+
+      if (purpose === 'tenant_contract' && selectedProperty) {
+        // If it's a tenant contract, filter by property type and guarantee type
+        const typeMatches = t.propertyType === 'Todos' || t.propertyType === selectedProperty.type
+        const guaranteeMatches = guaranteeType === 'N/A' || t.guaranteeType === guaranteeType
+        return typeMatches && guaranteeMatches
+      }
+      return true
+    })
+  }, [templates, purpose, selectedProperty, guaranteeType])
+
   const handleCreate = () => {
-    if (!template || !propertyId || !tenantName) return
+    if (!templateName || !propertyId || !tenantName) return
 
     const docName = `Rascunho_${tenantName.replace(/\s+/g, '_')}_${propertyId}.docx`
     contractsStore.addContract({
       propertyId,
       tenantName,
-      template,
+      template: templateName,
       status: 'Rascunho',
       documentName: docName,
     })
 
     m365Service.sendTeamsMessage(
       store.sharepoint.teamsWebhookUrl,
-      `Novo Rascunho Criado: ${template} para o imóvel ID ${propertyId}. Inquilino: ${tenantName}.`,
+      `Novo Rascunho Criado: ${templateName} para o imóvel ID ${propertyId}. Relacionado a: ${tenantName}.`,
     )
     mainStore.addAuditLog({
       propertyId,
       action: 'Minuta Gerada via Wizard (SharePoint Templates)',
       user: 'Equipe de Contratos',
+      details: `Categoria: ${purpose === 'tenant_contract' ? 'Locação' : 'Onboarding Proprietário'}`,
     })
 
-    setTemplate('')
+    setPurpose('tenant_contract')
+    setTemplateName('')
     setPropertyId('')
+    setGuaranteeType('N/A')
     setTenantName('')
     onClose()
   }
@@ -68,10 +87,10 @@ export function ContractWizard({ open, onClose }: { open: boolean; onClose: () =
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <FilePlus className="w-5 h-5 text-primary" /> Novo Contrato (Wizard)
+            <FilePlus className="w-5 h-5 text-primary" /> Novo Contrato Inteligente
           </DialogTitle>
           <DialogDescription>
-            Selecione o modelo hospedado no SharePoint para gerar um rascunho dinâmico (DOCX).
+            O sistema filtrará os modelos de acordo com o imóvel e a finalidade selecionada.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-5 py-4">
@@ -86,32 +105,94 @@ export function ContractWizard({ open, onClose }: { open: boolean; onClose: () =
               <SelectContent>
                 {store.properties.map((p) => (
                   <SelectItem key={p.id} value={p.id}>
-                    ID: {p.id} - {p.title}
+                    ID: {p.id} - {p.title} ({p.type})
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
+
           <div className="grid gap-2">
             <Label className="flex items-center gap-2">
-              <FilePlus className="w-4 h-4 text-muted-foreground" /> Modelo de Documento (Template)
+              <Home className="w-4 h-4 text-muted-foreground" /> Finalidade do Documento
             </Label>
-            <Select value={template} onValueChange={setTemplate}>
+            <Select
+              value={purpose}
+              onValueChange={(v) => {
+                setPurpose(v)
+                setTemplateName('')
+              }}
+            >
               <SelectTrigger>
-                <SelectValue placeholder="Selecione um template da biblioteca..." />
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {TEMPLATES.map((t) => (
-                  <SelectItem key={t} value={t}>
-                    {t}
-                  </SelectItem>
-                ))}
+                <SelectItem value="tenant_contract">Contrato de Locação (Inquilino)</SelectItem>
+                <SelectItem value="owner_onboarding">Documentos Iniciais (Proprietário)</SelectItem>
               </SelectContent>
             </Select>
           </div>
+
+          {purpose === 'tenant_contract' && (
+            <div className="grid gap-2 animate-fade-in">
+              <Label className="flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-muted-foreground" /> Tipo de Garantia
+              </Label>
+              <Select
+                value={guaranteeType}
+                onValueChange={(v) => {
+                  setGuaranteeType(v)
+                  setTemplateName('')
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a garantia..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="N/A">Não se aplica / Todas</SelectItem>
+                  <SelectItem value="Caução">Caução</SelectItem>
+                  <SelectItem value="Fiador">Fiador</SelectItem>
+                  <SelectItem value="Seguro Fiança">Seguro Fiança</SelectItem>
+                  <SelectItem value="Título de Capitalização">Título de Capitalização</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           <div className="grid gap-2">
             <Label className="flex items-center gap-2">
-              <Users className="w-4 h-4 text-muted-foreground" /> Nome do Locatário Principal
+              <FilePlus className="w-4 h-4 text-muted-foreground" /> Modelo de Documento (Sugerido)
+            </Label>
+            <Select value={templateName} onValueChange={setTemplateName} disabled={!propertyId}>
+              <SelectTrigger>
+                <SelectValue
+                  placeholder={
+                    !propertyId
+                      ? 'Selecione o imóvel primeiro'
+                      : 'Selecione um template filtrado...'
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {filteredTemplates.length === 0 ? (
+                  <SelectItem value="_empty" disabled>
+                    Nenhum modelo encontrado para esta combinação
+                  </SelectItem>
+                ) : (
+                  filteredTemplates.map((t) => (
+                    <SelectItem key={t.id} value={t.name}>
+                      {t.name}
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid gap-2">
+            <Label className="flex items-center gap-2">
+              <Users className="w-4 h-4 text-muted-foreground" /> Nome do Responsável
+              (Locatário/Proprietário)
             </Label>
             <Input
               placeholder="Ex: Carlos Eduardo da Silva"
@@ -124,7 +205,7 @@ export function ContractWizard({ open, onClose }: { open: boolean; onClose: () =
           <Button variant="outline" onClick={onClose}>
             Cancelar
           </Button>
-          <Button onClick={handleCreate} disabled={!template || !propertyId || !tenantName}>
+          <Button onClick={handleCreate} disabled={!templateName || !propertyId || !tenantName}>
             Gerar Rascunho
           </Button>
         </DialogFooter>

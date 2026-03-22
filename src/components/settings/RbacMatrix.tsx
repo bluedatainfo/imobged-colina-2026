@@ -23,6 +23,7 @@ const MENU_ITEMS = [
   { path: '/inspections', label: 'Vistorias' },
   { path: '/keys', label: 'Chaves' },
   { path: '/contracts', label: 'Contratos' },
+  { path: '/templates', label: 'Modelos' },
   { path: '/properties', label: 'Imóveis' },
   { path: '/maintenance', label: 'Manutenção' },
   { path: '/renewals', label: 'Renovações' },

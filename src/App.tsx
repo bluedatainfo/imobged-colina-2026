@@ -12,6 +12,7 @@ import { initUsersStore } from './stores/users'
 import { initContractsStore } from './stores/contracts'
 import { initKeysStore } from './stores/keys'
 import { initEntitiesStore } from './stores/entities'
+import { initTemplatesStore } from './stores/templates'
 import { supabase } from './lib/supabase/client'
 
 // Code splitting routes to prevent out-of-memory errors during build chunking
@@ -35,6 +36,7 @@ const SyncMonitor = lazy(() => import('./pages/SyncMonitor'))
 const AccessDenied = lazy(() => import('./pages/AccessDenied'))
 const Portal = lazy(() => import('./pages/Portal'))
 const Profile = lazy(() => import('./pages/Profile'))
+const Templates = lazy(() => import('./pages/Templates'))
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAuth()
@@ -85,6 +87,7 @@ const AppRoutes = () => (
         <Route path="/entities" element={<Entities />} />
         <Route path="/sync-monitor" element={<SyncMonitor />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/templates" element={<Templates />} />
         <Route path="/access-denied" element={<AccessDenied />} />
       </Route>
       <Route path="*" element={<NotFound />} />
@@ -109,6 +112,7 @@ const App = () => {
         initContractsStore(),
         initKeysStore(),
         initEntitiesStore(),
+        initTemplatesStore(),
       ])
       setReady(true)
     }
