@@ -257,7 +257,6 @@ export const initMainStore = async () => {
     }
     state.security = (settingsData.security_settings as any) || defaultState.security
   } else {
-    // Only attempt to insert if we have an active session to satisfy RLS
     const { data: sessionData } = await supabase.auth.getSession()
     if (sessionData?.session?.user) {
       const payload = {
@@ -453,11 +452,18 @@ export const mainStore = {
     syncConfig()
   },
   addProperty: (p: Omit<Property, 'id' | 'status' | 'image'>) => {
+    let max = 0
+    state.properties.forEach((prop) => {
+      if (prop.id.startsWith('IMV')) {
+        const num = parseInt(prop.id.substring(3), 10)
+        if (!isNaN(num) && num > max) max = num
+      }
+    })
+    const newId = `IMV${(max + 1).toString().padStart(6, '0')}`
+
     const newProperty: Property = {
       ...p,
-      id: `IMV${Math.floor(Math.random() * 1000000)
-        .toString()
-        .padStart(6, '0')}`,
+      id: newId,
       status: 'Pendente/Rascunho',
       image: 'https://img.usecurling.com/p/400/300?q=house',
     }

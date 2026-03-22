@@ -144,6 +144,39 @@ export type Database = {
         }
         Relationships: []
       }
+      document_templates: {
+        Row: {
+          category: string
+          content: string | null
+          created_at: string | null
+          guarantee_type: string | null
+          id: string
+          name: string
+          property_type: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          category: string
+          content?: string | null
+          created_at?: string | null
+          guarantee_type?: string | null
+          id?: string
+          name: string
+          property_type?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string
+          content?: string | null
+          created_at?: string | null
+          guarantee_type?: string | null
+          id?: string
+          name?: string
+          property_type?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       inspections: {
         Row: {
           created_at: string | null
@@ -579,6 +612,15 @@ export const Constants = {
 //   manager_approval: boolean (nullable, default: false)
 //   created_at: timestamp with time zone (nullable, default: now())
 //   updated_at: timestamp with time zone (nullable, default: now())
+// Table: document_templates
+//   id: uuid (not null, default: gen_random_uuid())
+//   name: text (not null)
+//   category: text (not null)
+//   property_type: text (nullable, default: 'Todos'::text)
+//   guarantee_type: text (nullable, default: 'N/A'::text)
+//   content: text (nullable)
+//   created_at: timestamp with time zone (nullable, default: now())
+//   updated_at: timestamp with time zone (nullable, default: now())
 // Table: inspections
 //   property_id: text (not null)
 //   wall_condition: text (nullable)
@@ -656,6 +698,8 @@ export const Constants = {
 //   PRIMARY KEY app_users_pkey: PRIMARY KEY (id)
 // Table: contracts
 //   PRIMARY KEY contracts_pkey: PRIMARY KEY (id)
+// Table: document_templates
+//   PRIMARY KEY document_templates_pkey: PRIMARY KEY (id)
 // Table: inspections
 //   PRIMARY KEY inspections_pkey: PRIMARY KEY (property_id)
 //   FOREIGN KEY inspections_property_id_fkey: FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE CASCADE
@@ -692,6 +736,10 @@ export const Constants = {
 //     WITH CHECK: true
 // Table: contracts
 //   Policy "authenticated_all_contracts" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
+// Table: document_templates
+//   Policy "authenticated_all_document_templates" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
 //     WITH CHECK: true
 // Table: inspections
