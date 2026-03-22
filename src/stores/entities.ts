@@ -73,12 +73,15 @@ export const entitiesStore = {
       const { data } = await supabase.from('owners').select('code')
       let max = 0
       data?.forEach((d) => {
-        if (d.code && d.code.startsWith('prop')) {
-          const num = parseInt(d.code.substring(4), 10)
-          if (!isNaN(num) && num > max) max = num
+        if (d.code) {
+          const upperCode = d.code.toUpperCase()
+          if (upperCode.startsWith('PROP')) {
+            const num = parseInt(upperCode.substring(4), 10)
+            if (!isNaN(num) && num > max) max = num
+          }
         }
       })
-      newCode = `prop${(max + 1).toString().padStart(3, '0')}`
+      newCode = `PROP${(max + 1).toString().padStart(6, '0')}`
     }
 
     const { data, error } = await supabase
@@ -144,12 +147,15 @@ export const entitiesStore = {
       const { data } = await supabase.from('tenants').select('code')
       let max = 0
       data?.forEach((d) => {
-        if (d.code && d.code.startsWith('inq')) {
-          const num = parseInt(d.code.substring(3), 10)
-          if (!isNaN(num) && num > max) max = num
+        if (d.code) {
+          const upperCode = d.code.toUpperCase()
+          if (upperCode.startsWith('INQ')) {
+            const num = parseInt(upperCode.substring(3), 10)
+            if (!isNaN(num) && num > max) max = num
+          }
         }
       })
-      newCode = `inq${(max + 1).toString().padStart(3, '0')}`
+      newCode = `INQ${(max + 1).toString().padStart(6, '0')}`
     }
 
     const { data, error } = await supabase
