@@ -65,11 +65,26 @@ export const entitiesStore = {
       listeners = listeners.filter((fn) => fn !== l)
     }
   },
-  addOwner: async (owner: Omit<EntityModel, 'id' | 'createdAt' | 'updatedAt'>) => {
+  addOwner: async (
+    owner: Omit<EntityModel, 'id' | 'createdAt' | 'updatedAt' | 'code'> & { code?: string },
+  ) => {
+    let newCode = owner.code
+    if (!newCode) {
+      const { data } = await supabase.from('owners').select('code')
+      let max = 0
+      data?.forEach((d) => {
+        if (d.code && d.code.startsWith('prop')) {
+          const num = parseInt(d.code.substring(4), 10)
+          if (!isNaN(num) && num > max) max = num
+        }
+      })
+      newCode = `prop${(max + 1).toString().padStart(3, '0')}`
+    }
+
     const { data, error } = await supabase
       .from('owners')
       .insert({
-        code: owner.code,
+        code: newCode,
         full_name: owner.fullName,
         cpf: owner.cpf,
         rg: owner.rg,
@@ -121,11 +136,26 @@ export const entitiesStore = {
     state = { ...state, owners: state.owners.filter((o) => o.id !== id) }
     emit()
   },
-  addTenant: async (tenant: Omit<EntityModel, 'id' | 'createdAt' | 'updatedAt'>) => {
+  addTenant: async (
+    tenant: Omit<EntityModel, 'id' | 'createdAt' | 'updatedAt' | 'code'> & { code?: string },
+  ) => {
+    let newCode = tenant.code
+    if (!newCode) {
+      const { data } = await supabase.from('tenants').select('code')
+      let max = 0
+      data?.forEach((d) => {
+        if (d.code && d.code.startsWith('inq')) {
+          const num = parseInt(d.code.substring(3), 10)
+          if (!isNaN(num) && num > max) max = num
+        }
+      })
+      newCode = `inq${(max + 1).toString().padStart(3, '0')}`
+    }
+
     const { data, error } = await supabase
       .from('tenants')
       .insert({
-        code: tenant.code,
+        code: newCode,
         full_name: tenant.fullName,
         cpf: tenant.cpf,
         rg: tenant.rg,

@@ -34,6 +34,7 @@ import { checkAccess } from '@/lib/permissions'
 const navigation = [
   { title: 'Painel', url: '/', icon: LayoutDashboard },
   { title: 'Entidades (Prop. / Inq.)', url: '/entities', icon: UsersRound },
+  { title: 'Imóveis', url: '/properties', icon: Home },
   { title: 'Documentos GED', url: '/documents', icon: FolderOpen },
   { title: 'Alertas GED', url: '/document-alerts', icon: BellRing },
   { title: 'Monitor de Sincronização', url: '/sync-monitor', icon: Activity },
@@ -41,7 +42,6 @@ const navigation = [
   { title: 'Vistorias', url: '/inspections', icon: ClipboardCheck },
   { title: 'Controle de Chaves', url: '/keys', icon: KeyRound },
   { title: 'Ciclo de Contratos', url: '/contracts', icon: FileSignature },
-  { title: 'Imóveis', url: '/properties', icon: Home },
   { title: 'Manutenção', url: '/maintenance', icon: Wrench },
   { title: 'Renovações', url: '/renewals', icon: CalendarClock },
   { title: 'Jurídico', url: '/legal', icon: Scale },

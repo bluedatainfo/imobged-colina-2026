@@ -85,11 +85,11 @@ export default function Entities() {
   }
 
   const handleSave = async () => {
-    if (!formData.fullName || !formData.code) {
+    if (!formData.fullName) {
       toast({
         variant: 'destructive',
         title: 'Atenção',
-        description: 'Nome e Código são obrigatórios.',
+        description: 'Nome Completo é obrigatório.',
       })
       return
     }
@@ -103,10 +103,11 @@ export default function Entities() {
         }
         toast({ title: 'Atualizado', description: 'Registro atualizado com sucesso.' })
       } else {
+        const payload = { ...formData, code: undefined }
         if (activeTab === 'owners') {
-          await entitiesStore.addOwner(formData)
+          await entitiesStore.addOwner(payload)
         } else {
-          await entitiesStore.addTenant(formData)
+          await entitiesStore.addTenant(payload)
         }
         toast({ title: 'Adicionado', description: 'Novo registro criado.' })
       }
@@ -225,12 +226,11 @@ export default function Entities() {
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label>Código de Identificação Único *</Label>
+              <Label>Código de Identificação Único</Label>
               <Input
-                value={formData.code}
-                onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                placeholder="Ex: PROP-001"
-                className="font-mono"
+                value={editingId ? formData.code : 'Gerado automaticamente'}
+                disabled
+                className="font-mono bg-muted"
               />
             </div>
             <div className="grid gap-2">
