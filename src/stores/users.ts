@@ -162,7 +162,7 @@ export const usersStore = {
     emit()
     supabase
       .from('app_users')
-      .insert({
+      .upsert({
         id: newUser.id,
         name: newUser.name,
         email: newUser.email,
