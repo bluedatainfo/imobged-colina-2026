@@ -36,7 +36,9 @@ export const m365Service = {
       if (spPath.startsWith('http')) {
         try {
           spPath = new URL(spPath).pathname
-        } catch (e) {}
+        } catch (e) {
+          // Ignore URL parsing error, fallback to raw string
+        }
       }
 
       if (!spPath.startsWith('/')) {
@@ -207,7 +209,9 @@ export const m365Service = {
         if (sitePath.startsWith('http')) {
           try {
             sitePath = new URL(sitePath).pathname
-          } catch (e) {}
+          } catch (e) {
+            // Ignore URL parsing error, fallback to raw string
+          }
         }
 
         if (!sitePath.startsWith('/')) {
