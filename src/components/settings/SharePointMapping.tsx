@@ -113,18 +113,21 @@ export default function SharePointMapping() {
                       <Input
                         value={config.site_name}
                         onChange={(e) => handleChange(config.id, 'site_name', e.target.value)}
+                        placeholder="Ex: locacao ou /sites/locacao"
                       />
                     </TableCell>
                     <TableCell>
                       <Input
                         value={config.library_name}
                         onChange={(e) => handleChange(config.id, 'library_name', e.target.value)}
+                        placeholder="Ex: Documentos Compartilhados"
                       />
                     </TableCell>
                     <TableCell>
                       <Input
                         value={config.base_path}
                         onChange={(e) => handleChange(config.id, 'base_path', e.target.value)}
+                        placeholder="Ex: Proprietarios"
                       />
                     </TableCell>
                     <TableCell>

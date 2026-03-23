@@ -32,13 +32,39 @@ export const m365Service = {
     try {
       const hostname = sharepointDomain
 
+      let spPath = sitePath.trim()
+      if (spPath.startsWith('http')) {
+        try {
+          spPath = new URL(spPath).pathname
+        } catch (e) {}
+      }
+
+      if (!spPath.startsWith('/')) {
+        if (!spPath.startsWith('sites/') && !spPath.startsWith('teams/')) {
+          spPath = `/sites/${spPath}`
+        } else {
+          spPath = `/${spPath}`
+        }
+      }
+
       // Get Site ID
-      const siteRes = await fetch(
-        `https://graph.microsoft.com/v1.0/sites/${hostname}:/sites/${sitePath}`,
-        {
+      let siteUrl = `https://graph.microsoft.com/v1.0/sites/${hostname}:${spPath}`
+      let siteRes = await fetch(siteUrl, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+
+      if (siteRes.status === 404 && spPath.startsWith('/sites/')) {
+        const fallbackPath = spPath.replace('/sites/', '/teams/')
+        const fallbackUrl = `https://graph.microsoft.com/v1.0/sites/${hostname}:${fallbackPath}`
+        const fallbackRes = await fetch(fallbackUrl, {
           headers: { Authorization: `Bearer ${token}` },
-        },
-      )
+        })
+        if (fallbackRes.ok) {
+          siteRes = fallbackRes
+          spPath = fallbackPath
+        }
+      }
+
       if (!siteRes.ok) throw new Error(`Site "${sitePath}" não encontrado no M365.`)
       const siteId = (await siteRes.json()).id
 
@@ -48,7 +74,11 @@ export const m365Service = {
       })
       if (!drivesRes.ok) throw new Error(`Não foi possível listar as bibliotecas de "${sitePath}".`)
       const drivesData = await drivesRes.json()
-      const drive = drivesData.value.find((d: any) => d.name === library)
+      const drive = drivesData.value.find(
+        (d: any) =>
+          d.name === library ||
+          (d.name && library && d.name.toLowerCase() === library.toLowerCase()),
+      )
 
       if (!drive) throw new Error(`Biblioteca "${library}" não encontrada no site "${sitePath}".`)
       const driveId = drive.id
@@ -172,17 +202,48 @@ export const m365Service = {
       } else {
         const hostname = sharepointDomain
 
+        let sitePath = config.site_name.trim()
+
+        if (sitePath.startsWith('http')) {
+          try {
+            sitePath = new URL(sitePath).pathname
+          } catch (e) {}
+        }
+
+        if (!sitePath.startsWith('/')) {
+          if (!sitePath.startsWith('sites/') && !sitePath.startsWith('teams/')) {
+            sitePath = `/sites/${sitePath}`
+          } else {
+            sitePath = `/${sitePath}`
+          }
+        }
+
         // 1. Get Site ID Dynamically
-        const siteRes = await fetch(
-          `https://graph.microsoft.com/v1.0/sites/${hostname}:/sites/${config.site_name}`,
-          {
+        let siteUrl = `https://graph.microsoft.com/v1.0/sites/${hostname}:${sitePath}`
+        let siteRes = await fetch(siteUrl, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+
+        if (siteRes.status === 404 && sitePath.startsWith('/sites/')) {
+          const fallbackPath = sitePath.replace('/sites/', '/teams/')
+          const fallbackUrl = `https://graph.microsoft.com/v1.0/sites/${hostname}:${fallbackPath}`
+          const fallbackRes = await fetch(fallbackUrl, {
             headers: { Authorization: `Bearer ${token}` },
-          },
-        )
-        if (!siteRes.ok)
+          })
+          if (fallbackRes.ok) {
+            siteRes = fallbackRes
+            sitePath = fallbackPath
+          }
+        }
+
+        if (!siteRes.ok) {
+          const errorMsg = await siteRes
+            .json()
+            .catch(() => ({ error: { message: siteRes.statusText } }))
           throw new Error(
-            `Site M365 "${config.site_name}" não encontrado. Verifique a configuração de mapeamento GED.`,
+            `Site M365 "${config.site_name}" não encontrado. (Erro: ${errorMsg?.error?.message || siteRes.status}). Verifique o mapeamento GED.`,
           )
+        }
         const siteId = (await siteRes.json()).id
 
         // 2. Get Drive ID Dynamically
@@ -192,7 +253,13 @@ export const m365Service = {
         if (!drivesRes.ok)
           throw new Error(`Não foi possível listar as bibliotecas do site "${config.site_name}".`)
         const drivesData = await drivesRes.json()
-        const drive = drivesData.value.find((d: any) => d.name === config.library_name)
+        const drive = drivesData.value.find(
+          (d: any) =>
+            d.name === config.library_name ||
+            (d.name &&
+              config.library_name &&
+              d.name.toLowerCase() === config.library_name.toLowerCase()),
+        )
 
         if (!drive)
           throw new Error(
