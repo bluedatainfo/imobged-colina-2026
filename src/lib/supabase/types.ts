@@ -325,6 +325,7 @@ export type Database = {
           image: string | null
           location_x: number | null
           location_y: number | null
+          owner_id: string | null
           rent_value: number | null
           sla_start: string | null
           status: string
@@ -340,6 +341,7 @@ export type Database = {
           image?: string | null
           location_x?: number | null
           location_y?: number | null
+          owner_id?: string | null
           rent_value?: number | null
           sla_start?: string | null
           status: string
@@ -355,6 +357,7 @@ export type Database = {
           image?: string | null
           location_x?: number | null
           location_y?: number | null
+          owner_id?: string | null
           rent_value?: number | null
           sla_start?: string | null
           status?: string
@@ -363,7 +366,15 @@ export type Database = {
           type?: string
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: 'properties_owner_id_fkey'
+            columns: ['owner_id']
+            isOneToOne: false
+            referencedRelation: 'owners'
+            referencedColumns: ['id']
+          },
+        ]
       }
       property_documents: {
         Row: {
@@ -715,6 +726,7 @@ export const Constants = {
 //   location_y: numeric (nullable)
 //   created_at: timestamp with time zone (nullable, default: now())
 //   updated_at: timestamp with time zone (nullable, default: now())
+//   owner_id: uuid (nullable)
 // Table: property_documents
 //   id: uuid (not null, default: gen_random_uuid())
 //   property_id: text (not null)
@@ -765,6 +777,7 @@ export const Constants = {
 //   UNIQUE owners_code_key: UNIQUE (code)
 //   PRIMARY KEY owners_pkey: PRIMARY KEY (id)
 // Table: properties
+//   FOREIGN KEY properties_owner_id_fkey: FOREIGN KEY (owner_id) REFERENCES owners(id) ON DELETE SET NULL
 //   PRIMARY KEY properties_pkey: PRIMARY KEY (id)
 // Table: property_documents
 //   PRIMARY KEY property_documents_pkey: PRIMARY KEY (id)
