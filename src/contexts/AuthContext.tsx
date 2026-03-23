@@ -139,6 +139,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const tokenData = await res.json()
           const token = tokenData.access_token
           localStorage.setItem('m365_token', token)
+          if (tokenData.refresh_token) {
+            localStorage.setItem('m365_refresh_token', tokenData.refresh_token)
+          }
           localStorage.removeItem('pkce_code_verifier')
 
           const profileRes = await fetch('https://graph.microsoft.com/v1.0/me', {
@@ -229,6 +232,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           })
         } catch (e: any) {
           localStorage.removeItem('m365_token')
+          localStorage.removeItem('m365_refresh_token')
           toast({
             variant: 'destructive',
             title: 'Erro de Integração',
@@ -353,6 +357,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     localStorage.removeItem('m365_token')
+    localStorage.removeItem('m365_refresh_token')
     localStorage.removeItem('pkce_code_verifier')
     localStorage.removeItem('app_user_id')
     setCurrentUserId(null)
@@ -372,6 +377,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
     }
     localStorage.removeItem('m365_token')
+    localStorage.removeItem('m365_refresh_token')
     localStorage.removeItem('pkce_code_verifier')
     localStorage.removeItem('app_user_id')
     setCurrentUserId(null)

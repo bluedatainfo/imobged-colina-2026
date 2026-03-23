@@ -4,6 +4,67 @@ import { supabase } from '@/lib/supabase/client'
 
 export const getGraphToken = () => localStorage.getItem('m365_token')
 
+const refreshM365Token = async () => {
+  const refreshToken = localStorage.getItem('m365_refresh_token')
+  if (!refreshToken) return null
+
+  const { clientId, tenantId } = mainStore.getState().sharepoint
+  if (!clientId || !tenantId) return null
+
+  try {
+    const tokenParams = new URLSearchParams()
+    tokenParams.append('client_id', clientId)
+    tokenParams.append('refresh_token', refreshToken)
+    tokenParams.append('grant_type', 'refresh_token')
+
+    const res = await fetch(`https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: tokenParams.toString(),
+    })
+
+    if (res.ok) {
+      const data = await res.json()
+      localStorage.setItem('m365_token', data.access_token)
+      if (data.refresh_token) {
+        localStorage.setItem('m365_refresh_token', data.refresh_token)
+      }
+      return data.access_token
+    }
+  } catch (e) {
+    console.error('Failed to refresh token', e)
+  }
+  return null
+}
+
+const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
+  let token = getGraphToken()
+
+  const executeFetch = (currentToken: string | null) => {
+    const headers = new Headers(options.headers || {})
+    if (currentToken) {
+      headers.set('Authorization', `Bearer ${currentToken}`)
+    }
+    return fetch(url, { ...options, headers })
+  }
+
+  let res = await executeFetch(token)
+
+  if (res.status === 401) {
+    const newToken = await refreshM365Token()
+    if (newToken) {
+      res = await executeFetch(newToken)
+    } else {
+      localStorage.removeItem('m365_token')
+      localStorage.removeItem('m365_refresh_token')
+      throw new Error(
+        'Sua sessão M365 expirou e não pôde ser renovada. Por favor, faça login novamente (Logout/Login).',
+      )
+    }
+  }
+  return res
+}
+
 export const m365Service = {
   sendEmail: (to: string, subject: string, body?: string) => {
     const { primaryDomain } = mainStore.getState().sharepoint
@@ -51,16 +112,12 @@ export const m365Service = {
 
       // Get Site ID
       let siteUrl = `https://graph.microsoft.com/v1.0/sites/${hostname}:${spPath}`
-      let siteRes = await fetch(siteUrl, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
+      let siteRes = await fetchWithAuth(siteUrl)
 
       if (siteRes.status === 404 && spPath.startsWith('/sites/')) {
         const fallbackPath = spPath.replace('/sites/', '/teams/')
         const fallbackUrl = `https://graph.microsoft.com/v1.0/sites/${hostname}:${fallbackPath}`
-        const fallbackRes = await fetch(fallbackUrl, {
-          headers: { Authorization: `Bearer ${token}` },
-        })
+        const fallbackRes = await fetchWithAuth(fallbackUrl)
         if (fallbackRes.ok) {
           siteRes = fallbackRes
           spPath = fallbackPath
@@ -71,9 +128,9 @@ export const m365Service = {
       const siteId = (await siteRes.json()).id
 
       // Get Drive ID
-      const drivesRes = await fetch(`https://graph.microsoft.com/v1.0/sites/${siteId}/drives`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
+      const drivesRes = await fetchWithAuth(
+        `https://graph.microsoft.com/v1.0/sites/${siteId}/drives`,
+      )
       if (!drivesRes.ok) throw new Error(`Não foi possível listar as bibliotecas de "${sitePath}".`)
       const drivesData = await drivesRes.json()
       const drive = drivesData.value.find(
@@ -88,10 +145,9 @@ export const m365Service = {
       // Upload with ID-based URL
       const url = `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/root:/${fileName}:/content`
 
-      const res = await fetch(url, {
+      const res = await fetchWithAuth(url, {
         method: 'PUT',
         headers: {
-          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/octet-stream',
         },
         body: fileContent,
@@ -224,16 +280,12 @@ export const m365Service = {
 
         // 1. Get Site ID Dynamically
         let siteUrl = `https://graph.microsoft.com/v1.0/sites/${hostname}:${sitePath}`
-        let siteRes = await fetch(siteUrl, {
-          headers: { Authorization: `Bearer ${token}` },
-        })
+        let siteRes = await fetchWithAuth(siteUrl)
 
         if (siteRes.status === 404 && sitePath.startsWith('/sites/')) {
           const fallbackPath = sitePath.replace('/sites/', '/teams/')
           const fallbackUrl = `https://graph.microsoft.com/v1.0/sites/${hostname}:${fallbackPath}`
-          const fallbackRes = await fetch(fallbackUrl, {
-            headers: { Authorization: `Bearer ${token}` },
-          })
+          const fallbackRes = await fetchWithAuth(fallbackUrl)
           if (fallbackRes.ok) {
             siteRes = fallbackRes
             sitePath = fallbackPath
@@ -251,9 +303,9 @@ export const m365Service = {
         const siteId = (await siteRes.json()).id
 
         // 2. Get Drive ID Dynamically
-        const drivesRes = await fetch(`https://graph.microsoft.com/v1.0/sites/${siteId}/drives`, {
-          headers: { Authorization: `Bearer ${token}` },
-        })
+        const drivesRes = await fetchWithAuth(
+          `https://graph.microsoft.com/v1.0/sites/${siteId}/drives`,
+        )
         if (!drivesRes.ok)
           throw new Error(`Não foi possível listar as bibliotecas do site "${config.site_name}".`)
         const drivesData = await drivesRes.json()
@@ -274,10 +326,9 @@ export const m365Service = {
         // 3. Upload File Using Dynamic IDs
         const url = `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/root:/${fullPath}:/content`
 
-        const res = await fetch(url, {
+        const res = await fetchWithAuth(url, {
           method: 'PUT',
           headers: {
-            Authorization: `Bearer ${token}`,
             'Content-Type': file instanceof File ? file.type : 'application/octet-stream',
           },
           body: file,
@@ -292,12 +343,11 @@ export const m365Service = {
         // 4. Update Metadata if it's an entity doc
         if (isEntityDoc && entityCode) {
           try {
-            await fetch(
+            await fetchWithAuth(
               `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${uploadedItem.id}/listItem/fields`,
               {
                 method: 'PATCH',
                 headers: {
-                  Authorization: `Bearer ${token}`,
                   'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
