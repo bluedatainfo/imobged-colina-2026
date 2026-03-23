@@ -23,6 +23,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { m365Service } from '@/lib/m365'
 import useMainStore from '@/stores/main'
 import useEntitiesStore from '@/stores/entities'
+import { documentsStore } from '@/stores/documents'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
@@ -83,7 +84,7 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
         entityName = tenants.find((t) => t.code === entityCode)?.fullName || ''
       }
 
-      await m365Service.uploadStructuredDocument(
+      const result = await m365Service.uploadStructuredDocument(
         file,
         file.name,
         docType,
@@ -93,6 +94,16 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
         entityCode,
         entityName,
       )
+
+      await documentsStore.addDocument({
+        propertyId: property.id,
+        name: file.name,
+        category: docType,
+        entityCode: entityCode || undefined,
+        entityName: entityName || undefined,
+        filePath: result?.path || undefined,
+      })
+
       toast({
         title: 'Upload Concluído',
         description: 'Documento enviado e classificado com sucesso no SharePoint.',

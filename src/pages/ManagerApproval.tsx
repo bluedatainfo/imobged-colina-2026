@@ -27,6 +27,8 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import useMainStore, { mainStore, isSlaBreached, Property } from '@/stores/main'
+import useDocumentsStore from '@/stores/documents'
+import useContractsStore from '@/stores/contracts'
 import { useAuth } from '@/contexts/AuthContext'
 import { m365Service } from '@/lib/m365'
 import { DocumentViewer } from '@/components/DocumentViewer'
@@ -56,6 +58,8 @@ const ManagerApproval = () => {
   const { toast } = useToast()
   const { user } = useAuth()
   const store = useMainStore()
+  const { documents } = useDocumentsStore()
+  const { contracts } = useContractsStore()
 
   const approvals = store.properties.filter((p) => p.status === 'Análise Gerencial')
 
@@ -64,6 +68,19 @@ const ManagerApproval = () => {
 
   const [rejectId, setRejectId] = useState<string | null>(null)
   const [rejectReason, setRejectReason] = useState('')
+
+  const ownerDocs = selectedHub
+    ? documents.filter((d) => d.propertyId === selectedHub.id && d.category === 'OWNER_DOCUMENT')
+    : []
+  const tenantDocs = selectedHub
+    ? documents.filter((d) => d.propertyId === selectedHub.id && d.category === 'TENANT_DOCUMENT')
+    : []
+  const uploadedContracts = selectedHub
+    ? documents.filter((d) => d.propertyId === selectedHub.id && d.category.startsWith('CONTRACT_'))
+    : []
+  const systemContracts = selectedHub
+    ? contracts.filter((c) => c.propertyId === selectedHub.id && c.status !== 'Rescindido')
+    : []
 
   const handleApprove = (id: string) => {
     mainStore.updatePropertyStatus(id, 'Vistoria')
@@ -150,18 +167,15 @@ const ManagerApproval = () => {
               <CardDescription>Documentos de posse e identificação</CardDescription>
             </CardHeader>
             <CardContent className="p-4 space-y-3">
-              <DocItem
-                name="RG_Proprietario.pdf"
-                onClick={() => setViewingDoc('RG_Proprietario.pdf')}
-              />
-              <DocItem
-                name="Matricula_Imovel.pdf"
-                onClick={() => setViewingDoc('Matricula_Imovel.pdf')}
-              />
-              <DocItem
-                name="Comprovante_Endereco.pdf"
-                onClick={() => setViewingDoc('Comprovante_Endereco.pdf')}
-              />
+              {ownerDocs.length > 0 ? (
+                ownerDocs.map((doc) => (
+                  <DocItem key={doc.id} name={doc.name} onClick={() => setViewingDoc(doc.name)} />
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground italic text-center p-4">
+                  Nenhum documento de proprietário vinculado.
+                </p>
+              )}
             </CardContent>
           </Card>
 
@@ -176,18 +190,15 @@ const ManagerApproval = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-4 space-y-3">
-              <DocItem
-                name="CNH_Inquilino.pdf"
-                onClick={() => setViewingDoc('CNH_Inquilino.pdf')}
-              />
-              <DocItem
-                name="Comprovante_Renda_Mes1.pdf"
-                onClick={() => setViewingDoc('Comprovante_Renda_Mes1.pdf')}
-              />
-              <DocItem
-                name="Certidao_Casamento.pdf"
-                onClick={() => setViewingDoc('Certidao_Casamento.pdf')}
-              />
+              {tenantDocs.length > 0 ? (
+                tenantDocs.map((doc) => (
+                  <DocItem key={doc.id} name={doc.name} onClick={() => setViewingDoc(doc.name)} />
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground italic text-center p-4">
+                  Nenhum documento de inquilino vinculado.
+                </p>
+              )}
             </CardContent>
           </Card>
 
@@ -197,13 +208,27 @@ const ManagerApproval = () => {
               <CardTitle className="flex items-center gap-2 text-lg text-blue-900">
                 <FileSignature className="h-5 w-5 text-blue-600" /> Contrato
               </CardTitle>
-              <CardDescription>Minuta gerada pronta para locação</CardDescription>
+              <CardDescription>Minuta gerada ou contrato importado</CardDescription>
             </CardHeader>
             <CardContent className="p-4 space-y-3">
-              <DocItem
-                name={`Minuta_Contrato_${selectedHub.id}.docx`}
-                onClick={() => setViewingDoc(`Minuta_Contrato_${selectedHub.id}.docx`)}
-              />
+              {systemContracts.length > 0 || uploadedContracts.length > 0 ? (
+                <>
+                  {systemContracts.map((c) => (
+                    <DocItem
+                      key={c.id}
+                      name={c.documentName}
+                      onClick={() => setViewingDoc(c.documentName)}
+                    />
+                  ))}
+                  {uploadedContracts.map((doc) => (
+                    <DocItem key={doc.id} name={doc.name} onClick={() => setViewingDoc(doc.name)} />
+                  ))}
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground italic text-center p-4">
+                  Nenhum contrato vinculado a este imóvel.
+                </p>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -331,7 +356,7 @@ const ManagerApproval = () => {
                   <FolderOpen className="h-4 w-4 mr-2" /> Analisar Dossiê
                 </Button>
                 <p className="text-xs text-center text-muted-foreground px-2">
-                  Acesse para ver os arquivos via SharePoint
+                  Acesse os documentos reais vinculados
                 </p>
               </div>
             </Card>

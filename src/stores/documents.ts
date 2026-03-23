@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react'
+import { supabase } from '@/lib/supabase/client'
 
 export type DocumentStatus = 'Regular' | 'Vencendo em breve' | 'Expirado' | 'Sem Vencimento'
 
@@ -7,6 +8,10 @@ export type PropertyDocument = {
   propertyId: string
   name: string
   category: string
+  entityCode?: string
+  entityName?: string
+  filePath?: string
+  createdAt: string
   uploadDate: string
   expirationDate?: string
 }
@@ -15,82 +20,31 @@ type State = {
   documents: PropertyDocument[]
 }
 
-const today = new Date()
-const addDays = (days: number) =>
-  new Date(today.getTime() + days * 24 * 60 * 60 * 1000).toISOString()
+let state: State = { documents: [] }
+let listeners: Array<() => void> = []
 
-let state: State = {
-  documents: [
-    // Imóvel 101
-    {
-      id: 'd1',
-      propertyId: '101',
-      name: 'Matricula_Atualizada_Imovel.pdf',
-      category: 'Documentos do Proprietário',
-      uploadDate: addDays(-100),
-      expirationDate: addDays(45),
-    },
-    {
-      id: 'd2',
-      propertyId: '101',
-      name: 'RG_CPF_Proprietario.pdf',
-      category: 'Documentos do Proprietário',
-      uploadDate: addDays(-100),
-    },
-    {
-      id: 'd3',
-      propertyId: '101',
-      name: 'CNH_Inquilino_Joao.pdf',
-      category: 'Documentos do Inquilino',
-      uploadDate: addDays(-365),
-      expirationDate: addDays(-5),
-    }, // Expirado
-    {
-      id: 'd4',
-      propertyId: '101',
-      name: 'Apolice_Seguro_Fianca.pdf',
-      category: 'Garantias',
-      uploadDate: addDays(-300),
-      expirationDate: addDays(15),
-    }, // Vencendo em breve
+export const initDocumentsStore = async () => {
+  const { data } = await (supabase as any)
+    .from('property_documents')
+    .select('*')
+    .order('created_at', { ascending: false })
 
-    // Imóvel 103
-    {
-      id: 'd5',
-      propertyId: '103',
-      name: 'Procuracao_Publica.pdf',
-      category: 'Documentos Legais',
-      uploadDate: addDays(-150),
-      expirationDate: addDays(-12),
-    }, // Expirado
-    {
-      id: 'd6',
-      propertyId: '103',
-      name: 'Comprovante_Renda.pdf',
-      category: 'Documentos do Inquilino',
-      uploadDate: addDays(-150),
-    },
-
-    // Imóvel 104
-    {
-      id: 'd7',
-      propertyId: '104',
-      name: 'Alvara_Bombeiros.pdf',
-      category: 'Documentos Comerciais',
-      uploadDate: addDays(-350),
-      expirationDate: addDays(20),
-    }, // Vencendo em breve
-    {
-      id: 'd8',
-      propertyId: '104',
-      name: 'Contrato_Social_Empresa.pdf',
-      category: 'Documentos do Inquilino',
-      uploadDate: addDays(-350),
-    },
-  ],
+  if (data && data.length > 0) {
+    state.documents = data.map((d: any) => ({
+      id: d.id,
+      propertyId: d.property_id,
+      name: d.name,
+      category: d.category,
+      entityCode: d.entity_code || undefined,
+      entityName: d.entity_name || undefined,
+      filePath: d.file_path || undefined,
+      createdAt: d.created_at,
+      uploadDate: d.created_at,
+    }))
+  }
+  emit()
 }
 
-let listeners: Array<() => void> = []
 const emit = () => listeners.forEach((l) => l())
 
 export const getDocumentStatus = (expirationDate?: string): DocumentStatus => {
@@ -114,6 +68,41 @@ export const documentsStore = {
     listeners.push(l)
     return () => {
       listeners = listeners.filter((fn) => fn !== l)
+    }
+  },
+  addDocument: async (doc: Omit<PropertyDocument, 'id' | 'createdAt' | 'uploadDate'>) => {
+    const { data, error } = await (supabase as any)
+      .from('property_documents')
+      .insert({
+        property_id: doc.propertyId,
+        name: doc.name,
+        category: doc.category,
+        entity_code: doc.entityCode,
+        entity_name: doc.entityName,
+        file_path: doc.filePath,
+      })
+      .select('*')
+      .single()
+
+    if (error) {
+      console.error('Failed to add document', error)
+      return
+    }
+
+    if (data) {
+      const newDoc = {
+        id: data.id,
+        propertyId: data.property_id,
+        name: data.name,
+        category: data.category,
+        entityCode: data.entity_code || undefined,
+        entityName: data.entity_name || undefined,
+        filePath: data.file_path || undefined,
+        createdAt: data.created_at,
+        uploadDate: data.created_at,
+      }
+      state = { ...state, documents: [newDoc, ...state.documents] }
+      emit()
     }
   },
 }

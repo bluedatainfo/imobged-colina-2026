@@ -6,6 +6,7 @@ import { initKeysStore } from '@/stores/keys'
 import { initUsersStore } from '@/stores/users'
 import { initEntitiesStore } from '@/stores/entities'
 import { initTemplatesStore } from '@/stores/templates'
+import { initDocumentsStore } from '@/stores/documents'
 import { Role } from '@/lib/permissions'
 import { toast } from '@/hooks/use-toast'
 import { supabase } from '@/lib/supabase/client'
@@ -219,6 +220,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             initKeysStore(),
             initEntitiesStore(),
             initTemplatesStore(),
+            initDocumentsStore(),
           ])
 
           toast({
@@ -339,6 +341,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               initKeysStore(),
               initEntitiesStore(),
               initTemplatesStore(),
+              initDocumentsStore(),
             ]).then(() => resolve())
           })
           .catch((e) => {
