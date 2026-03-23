@@ -91,7 +91,9 @@ export const m365Service = {
       if (sitePath.startsWith('http')) {
         try {
           sitePath = new URL(sitePath).pathname
-        } catch (e) {}
+        } catch (e) {
+          /* Ignore URL parsing error */
+        }
       }
       if (!sitePath.startsWith('/')) {
         if (!sitePath.startsWith('sites/') && !sitePath.startsWith('teams/'))
@@ -134,7 +136,9 @@ export const m365Service = {
                 const previewData = await previewRes.json()
                 if (previewData.getUrl) return previewData.getUrl
               }
-            } catch (e) {}
+            } catch (e) {
+              /* Ignore preview fetch error */
+            }
             return item.webUrl
           }
         }
@@ -157,7 +161,9 @@ export const m365Service = {
       if (sitePath.startsWith('http')) {
         try {
           sitePath = new URL(sitePath).pathname
-        } catch (e) {}
+        } catch (e) {
+          /* Ignore URL parsing error */
+        }
       }
       if (!sitePath.startsWith('/')) {
         if (!sitePath.startsWith('sites/') && !sitePath.startsWith('teams/'))
@@ -317,7 +323,9 @@ export const m365Service = {
       if (spPath.startsWith('http')) {
         try {
           spPath = new URL(spPath).pathname
-        } catch (e) {}
+        } catch (e) {
+          /* Ignore URL parsing error */
+        }
       }
 
       if (!spPath.startsWith('/')) {
@@ -483,7 +491,9 @@ export const m365Service = {
         if (sitePath.startsWith('http')) {
           try {
             sitePath = new URL(sitePath).pathname
-          } catch (e) {}
+          } catch (e) {
+            /* Ignore URL parsing error */
+          }
         }
 
         if (!sitePath.startsWith('/')) {
