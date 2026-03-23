@@ -81,7 +81,10 @@ const ManagerApproval = () => {
   const approvals = store.properties.filter((p) => p.status === 'Análise Gerencial')
 
   const [selectedHub, setSelectedHub] = useState<Property | null>(null)
-  const [viewingDoc, setViewingDoc] = useState<string | null>(null)
+  const [viewingItem, setViewingItem] = useState<{
+    type: 'document' | 'contract'
+    id: string
+  } | null>(null)
 
   const [rejectId, setRejectId] = useState<string | null>(null)
   const [rejectReason, setRejectReason] = useState('')
@@ -210,7 +213,11 @@ const ManagerApproval = () => {
             <CardContent className="p-4 space-y-3">
               {ownerDocs.length > 0 ? (
                 ownerDocs.map((doc) => (
-                  <DocItem key={doc.id} name={doc.name} onClick={() => setViewingDoc(doc.name)} />
+                  <DocItem
+                    key={doc.id}
+                    name={doc.name}
+                    onClick={() => setViewingItem({ type: 'document', id: doc.id })}
+                  />
                 ))
               ) : (
                 <p className="text-sm text-muted-foreground italic text-center p-4">
@@ -233,7 +240,11 @@ const ManagerApproval = () => {
             <CardContent className="p-4 space-y-3">
               {tenantDocs.length > 0 ? (
                 tenantDocs.map((doc) => (
-                  <DocItem key={doc.id} name={doc.name} onClick={() => setViewingDoc(doc.name)} />
+                  <DocItem
+                    key={doc.id}
+                    name={doc.name}
+                    onClick={() => setViewingItem({ type: 'document', id: doc.id })}
+                  />
                 ))
               ) : (
                 <p className="text-sm text-muted-foreground italic text-center p-4">
@@ -259,7 +270,7 @@ const ManagerApproval = () => {
                       key={c.id}
                       name={c.documentName}
                       badge="Minuta do Sistema"
-                      onClick={() => setViewingDoc(c.documentName)}
+                      onClick={() => setViewingItem({ type: 'contract', id: c.id })}
                     />
                   ))}
                   {uploadedContracts.map((doc) => (
@@ -267,7 +278,7 @@ const ManagerApproval = () => {
                       key={doc.id}
                       name={doc.name}
                       badge="Contrato Importado"
-                      onClick={() => setViewingDoc(doc.name)}
+                      onClick={() => setViewingItem({ type: 'document', id: doc.id })}
                     />
                   ))}
                 </>
@@ -296,9 +307,9 @@ const ManagerApproval = () => {
         </div>
 
         <DocumentViewer
-          open={!!viewingDoc}
-          onClose={() => setViewingDoc(null)}
-          docName={viewingDoc}
+          open={!!viewingItem}
+          onClose={() => setViewingItem(null)}
+          viewItem={viewingItem}
         />
 
         <Dialog open={!!rejectId} onOpenChange={(val) => !val && setRejectId(null)}>

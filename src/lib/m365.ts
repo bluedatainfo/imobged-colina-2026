@@ -73,6 +73,97 @@ export const m365Service = {
       description: `Para: ${to}\nAssunto: ${subject}`,
     })
   },
+  getFilePreviewUrl: async (filePath: string, documentType: string) => {
+    const { data: config } = await supabase
+      .from('sharepoint_configs')
+      .select('*')
+      .eq('document_type', documentType)
+      .maybeSingle()
+
+    if (!config) throw new Error('Mapeamento GED não encontrado para esta categoria de documento.')
+
+    const token = getGraphToken()
+    const { sharepointDomain } = mainStore.getState().sharepoint
+
+    if (!token) throw new Error('Sessão do Microsoft 365 ausente ou expirada.')
+
+    let sitePath = config.site_name.trim()
+    if (sitePath.startsWith('http')) {
+      try {
+        sitePath = new URL(sitePath).pathname
+      } catch (e) {
+        // Ignore URL parsing error
+      }
+    }
+    if (!sitePath.startsWith('/')) {
+      if (!sitePath.startsWith('sites/') && !sitePath.startsWith('teams/')) {
+        sitePath = `/sites/${sitePath}`
+      } else {
+        sitePath = `/${sitePath}`
+      }
+    }
+
+    let siteUrl = `https://graph.microsoft.com/v1.0/sites/${sharepointDomain}:${sitePath}`
+    let siteRes = await fetchWithAuth(siteUrl)
+
+    if (siteRes.status === 404 && sitePath.startsWith('/sites/')) {
+      const fallbackPath = sitePath.replace('/sites/', '/teams/')
+      const fallbackUrl = `https://graph.microsoft.com/v1.0/sites/${sharepointDomain}:${fallbackPath}`
+      const fallbackRes = await fetchWithAuth(fallbackUrl)
+      if (fallbackRes.ok) siteRes = fallbackRes
+    }
+
+    if (!siteRes.ok) {
+      throw new Error(`Site M365 "${config.site_name}" não encontrado. Verifique o mapeamento GED.`)
+    }
+    const siteId = (await siteRes.json()).id
+
+    const drivesRes = await fetchWithAuth(`https://graph.microsoft.com/v1.0/sites/${siteId}/drives`)
+    if (!drivesRes.ok)
+      throw new Error(`Não foi possível listar as bibliotecas do site "${config.site_name}".`)
+
+    const drivesData = await drivesRes.json()
+    const drive = drivesData.value.find(
+      (d: any) =>
+        d.name === config.library_name ||
+        (d.name &&
+          config.library_name &&
+          d.name.toLowerCase() === config.library_name.toLowerCase()),
+    )
+
+    if (!drive)
+      throw new Error(
+        `Biblioteca "${config.library_name}" não encontrada no site "${config.site_name}".`,
+      )
+    const driveId = drive.id
+
+    let safePath = filePath
+    if (safePath.startsWith('/')) safePath = safePath.substring(1)
+
+    const itemUrl = `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/root:/${safePath}`
+    const itemRes = await fetchWithAuth(itemUrl)
+
+    if (!itemRes.ok) {
+      throw new Error(`Arquivo não encontrado no SharePoint no caminho: ${safePath}`)
+    }
+    const itemData = await itemRes.json()
+
+    // Try to get embed preview link
+    try {
+      const previewRes = await fetchWithAuth(
+        `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${itemData.id}/preview`,
+        { method: 'POST' },
+      )
+      if (previewRes.ok) {
+        const previewData = await previewRes.json()
+        if (previewData.getUrl) return previewData.getUrl
+      }
+    } catch (e) {
+      console.warn('Falha ao gerar link de preview, caindo para webUrl original', e)
+    }
+
+    return itemData.webUrl
+  },
   saveToLibrary: async (
     library: string,
     fileName: string,

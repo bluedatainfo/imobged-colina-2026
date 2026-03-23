@@ -83,7 +83,9 @@ export default function Contracts() {
   const { toast } = useToast()
   const mainSettings = useMainStore().sharepoint
   const [wizardOpen, setWizardOpen] = useState(false)
-  const [viewDoc, setViewDoc] = useState<string | null>(null)
+  const [viewItem, setViewItem] = useState<{ type: 'document' | 'contract'; id: string } | null>(
+    null,
+  )
   const [docusignContract, setDocusignContract] = useState<LeaseContract | null>(null)
   const [uploadContract, setUploadContract] = useState<LeaseContract | null>(null)
 
@@ -105,7 +107,7 @@ export default function Contracts() {
   }
 
   const handleCollaborativeEdit = (contract: LeaseContract) => {
-    setViewDoc(contract.documentName)
+    setViewItem({ type: 'contract', id: contract.id })
   }
 
   const handleApproveCritical = (contract: LeaseContract) => {
@@ -233,7 +235,9 @@ export default function Contracts() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-64">
                           <DropdownMenuLabel>Ações do Documento</DropdownMenuLabel>
-                          <DropdownMenuItem onClick={() => setViewDoc(contract.documentName)}>
+                          <DropdownMenuItem
+                            onClick={() => setViewItem({ type: 'contract', id: contract.id })}
+                          >
                             <Eye className="w-4 h-4 mr-2" /> Pré-visualizar (Nativo)
                           </DropdownMenuItem>
 
@@ -303,7 +307,7 @@ export default function Contracts() {
       </Card>
 
       <ContractWizard open={wizardOpen} onClose={() => setWizardOpen(false)} />
-      <DocumentViewer open={!!viewDoc} onClose={() => setViewDoc(null)} docName={viewDoc} />
+      <DocumentViewer open={!!viewItem} onClose={() => setViewItem(null)} viewItem={viewItem} />
       <DocuSignDialog contract={docusignContract} onClose={() => setDocusignContract(null)} />
 
       <Dialog open={!!uploadContract} onOpenChange={(val) => !val && setUploadContract(null)}>
