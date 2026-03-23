@@ -32,7 +32,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { useToast } from '@/hooks/use-toast'
 import useMainStore, { mainStore, isSlaBreached, Property } from '@/stores/main'
 import useDocumentsStore from '@/stores/documents'
-import useContractsStore from '@/stores/contracts'
+import useContractsStore, { contractsStore } from '@/stores/contracts'
 import useEntitiesStore from '@/stores/entities'
 import { useAuth } from '@/contexts/AuthContext'
 import { m365Service } from '@/lib/m365'
@@ -76,7 +76,7 @@ const DocItem = ({
         <TooltipTrigger asChild>
           <AlertCircle className="w-4 h-4 text-amber-500 mr-2 shrink-0" />
         </TooltipTrigger>
-        <TooltipContent>Documento possui notas de revisão</TooltipContent>
+        <TooltipContent>Documento possui notas de revisão pendentes</TooltipContent>
       </Tooltip>
     )}
     <Button
@@ -146,6 +146,16 @@ const ManagerApproval = () => {
     ? contracts.filter((c) => c.propertyId === selectedHub.id && c.status !== 'Rescindido')
     : []
 
+  const hasPendingNotes = useMemo(() => {
+    if (!selectedHub) return false
+    const allDocs = [...ownerDocs, ...tenantDocs, ...uploadedContracts]
+    const hasDocNotes = allDocs.some((d) => d.reviewNotes && d.reviewNotes.trim() !== '')
+    const hasContractNotes = systemContracts.some(
+      (c) => c.reviewNotes && c.reviewNotes.trim() !== '',
+    )
+    return hasDocNotes || hasContractNotes
+  }, [ownerDocs, tenantDocs, systemContracts, uploadedContracts, selectedHub])
+
   useEffect(() => {
     if (selectedHub) {
       let isMounted = true
@@ -171,11 +181,20 @@ const ManagerApproval = () => {
 
   const handleApprove = (id: string) => {
     mainStore.updatePropertyStatus(id, 'Vistoria')
+
+    // Avance os contratos para "Aprovado para Ajuste" quando a gerência aprovar
+    systemContracts.forEach((c) => {
+      if (c.status === 'Em Análise') {
+        contractsStore.updateStatus(c.id, 'Aprovado para Ajuste')
+      }
+    })
+
     mainStore.addAuditLog({
       propertyId: id,
       action: 'Aprovação Gerencial (Hub)',
       user: user?.name || 'Sistema',
-      details: 'Documentação validada no Hub SharePoint. Handoff para vistoria.',
+      details:
+        'Documentação validada no Hub SharePoint. Handoff para vistoria e contratos liberados.',
     })
 
     m365Service.syncToList('Audit Log', `Aprovação do Imóvel ID: ${id} por ${user?.name}`)
@@ -222,6 +241,14 @@ const ManagerApproval = () => {
       const finalReason = `${rejectReason}${notesText}`
 
       mainStore.updatePropertyStatus(rejectId, 'Pendente/Rascunho')
+
+      // Retroceder os contratos para Rascunho para que o gestor possa realizar ajustes e submeter novamente
+      systemContracts.forEach((c) => {
+        if (c.status === 'Em Análise') {
+          contractsStore.updateStatus(c.id, 'Rascunho')
+        }
+      })
+
       mainStore.addAuditLog({
         propertyId: rejectId,
         action: 'Documentação Rejeitada',
@@ -407,12 +434,34 @@ const ManagerApproval = () => {
           <Button variant="destructive" onClick={() => setRejectId(selectedHub.id)}>
             <X className="h-4 w-4 mr-2" /> Rejeitar Documentação
           </Button>
-          <Button
-            className="bg-emerald-600 hover:bg-emerald-700 text-white"
-            onClick={() => handleApprove(selectedHub.id)}
-          >
-            <Check className="h-4 w-4 mr-2" /> Aprovar e Enviar p/ Vistoria
-          </Button>
+
+          {hasPendingNotes ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="inline-block cursor-not-allowed w-full sm:w-auto">
+                  <Button
+                    className="bg-emerald-600/50 text-white pointer-events-none w-full"
+                    tabIndex={-1}
+                  >
+                    <Check className="h-4 w-4 mr-2" /> Aprovar e Enviar p/ Vistoria
+                  </Button>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent className="bg-destructive text-destructive-foreground border-destructive">
+                <p className="font-semibold text-sm mb-1">Aprovação Bloqueada</p>
+                <p className="text-xs">
+                  Existem anotações pendentes nos documentos. Rejeite o dossiê para correções.
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            <Button
+              className="bg-emerald-600 hover:bg-emerald-700 text-white w-full sm:w-auto"
+              onClick={() => handleApprove(selectedHub.id)}
+            >
+              <Check className="h-4 w-4 mr-2" /> Aprovar e Enviar p/ Vistoria
+            </Button>
+          )}
         </div>
 
         <DocumentViewer

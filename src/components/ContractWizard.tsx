@@ -84,7 +84,7 @@ export function ContractWizard({ open, onClose }: { open: boolean; onClose: () =
       propertyId,
       tenantName: finalTenantName,
       template: templateName,
-      status: 'Rascunho',
+      status: 'Em Análise', // Automatically set to "Em Análise" since it goes to Manager Approval
       documentName: docName,
     })
 
@@ -102,7 +102,7 @@ export function ContractWizard({ open, onClose }: { open: boolean; onClose: () =
       propertyId,
       action: 'Minuta Gerada via Wizard (SharePoint Templates)',
       user: 'Equipe de Contratos',
-      details: `Categoria: ${isTenant ? 'Locação' : 'Onboarding Proprietário'} - Enviado para Análise Gerencial.`,
+      details: `Categoria: ${isTenant ? 'Locação' : 'Onboarding Proprietário'} - Enviado para Análise Gerencial. Status atualizado para "Em Análise".`,
     })
 
     setPurpose('tenant_contract')
@@ -286,7 +286,7 @@ export function ContractWizard({ open, onClose }: { open: boolean; onClose: () =
               <p className="text-sm font-medium text-blue-900">Análise Gerencial Obrigatória</p>
               <p className="text-xs text-blue-700 leading-relaxed">
                 Este contrato e o imóvel vinculado serão encaminhados automaticamente ao Hub de
-                Validação para aprovação da gerência.
+                Validação para aprovação da gerência, e o status mudará para "Em Análise".
               </p>
             </div>
           </div>

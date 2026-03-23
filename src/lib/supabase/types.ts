@@ -109,6 +109,7 @@ export type Database = {
           is_critical: boolean | null
           manager_approval: boolean | null
           property_id: string | null
+          review_notes: string | null
           status: string | null
           template: string | null
           tenant_name: string | null
@@ -123,6 +124,7 @@ export type Database = {
           is_critical?: boolean | null
           manager_approval?: boolean | null
           property_id?: string | null
+          review_notes?: string | null
           status?: string | null
           template?: string | null
           tenant_name?: string | null
@@ -137,6 +139,7 @@ export type Database = {
           is_critical?: boolean | null
           manager_approval?: boolean | null
           property_id?: string | null
+          review_notes?: string | null
           status?: string | null
           template?: string | null
           tenant_name?: string | null
@@ -386,6 +389,7 @@ export type Database = {
           id: string
           name: string
           property_id: string
+          review_notes: string | null
           updated_at: string
         }
         Insert: {
@@ -397,6 +401,7 @@ export type Database = {
           id?: string
           name: string
           property_id: string
+          review_notes?: string | null
           updated_at?: string
         }
         Update: {
@@ -408,6 +413,7 @@ export type Database = {
           id?: string
           name?: string
           property_id?: string
+          review_notes?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -667,6 +673,7 @@ export const Constants = {
 //   manager_approval: boolean (nullable, default: false)
 //   created_at: timestamp with time zone (nullable, default: now())
 //   updated_at: timestamp with time zone (nullable, default: now())
+//   review_notes: text (nullable)
 // Table: document_templates
 //   id: uuid (not null, default: gen_random_uuid())
 //   name: text (not null)
@@ -737,6 +744,7 @@ export const Constants = {
 //   file_path: text (nullable)
 //   created_at: timestamp with time zone (not null, default: now())
 //   updated_at: timestamp with time zone (not null, default: now())
+//   review_notes: text (nullable)
 // Table: sharepoint_configs
 //   id: uuid (not null, default: gen_random_uuid())
 //   document_type: text (not null)

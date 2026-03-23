@@ -106,6 +106,10 @@ export default function Contracts() {
     if (newStatus === 'Ativo') {
       m365Service.moveDocument(contract.documentName, mainSettings.libraries.archive)
     }
+
+    if (newStatus === 'Em Análise') {
+      mainStore.updatePropertyStatus(contract.propertyId, 'Análise Gerencial')
+    }
   }
 
   const handleCollaborativeEdit = (contract: LeaseContract) => {
