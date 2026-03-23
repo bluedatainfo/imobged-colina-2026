@@ -251,10 +251,13 @@ export default function Templates() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Todos">Todos</SelectItem>
-                    <SelectItem value="Apartamento">Apartamento</SelectItem>
-                    <SelectItem value="Residencial">Residencial</SelectItem>
-                    <SelectItem value="Comercial">Comercial</SelectItem>
-                    <SelectItem value="Industrial">Industrial</SelectItem>
+                    <SelectItem value="Casa">Casa (CA)</SelectItem>
+                    <SelectItem value="Sala">Sala (SA)</SelectItem>
+                    <SelectItem value="Salão">Salão (SL)</SelectItem>
+                    <SelectItem value="Galpão">Galpão (GA)</SelectItem>
+                    <SelectItem value="Ponto Comercial">Ponto Comercial (PO)</SelectItem>
+                    <SelectItem value="Apartamento">Apartamento (AP)</SelectItem>
+                    <SelectItem value="Prédio">Prédio (PR)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

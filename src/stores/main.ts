@@ -476,6 +476,7 @@ export const mainStore = {
       Casa: 'CA',
       Sala: 'SA',
       Salão: 'SL',
+      Galpão: 'GA',
       Garagem: 'GA',
       'Ponto Comercial': 'PO',
       Apartamento: 'AP',

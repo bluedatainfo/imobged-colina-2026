@@ -163,6 +163,10 @@ export function ContractWizard({ open, onClose }: { open: boolean; onClose: () =
                   <SelectItem value="Fiador">Fiador</SelectItem>
                   <SelectItem value="Seguro Fiança">Seguro Fiança</SelectItem>
                   <SelectItem value="Título de Capitalização">Título de Capitalização</SelectItem>
+                  <SelectItem value="Averbação">Averbação</SelectItem>
+                  <SelectItem value="Sem Garantia">Sem Garantia</SelectItem>
+                  <SelectItem value="Troca de Locatário">Troca de Locatário</SelectItem>
+                  <SelectItem value="Garantia">Garantia</SelectItem>
                 </SelectContent>
               </Select>
             </div>
