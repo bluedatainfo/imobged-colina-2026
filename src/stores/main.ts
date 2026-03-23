@@ -81,6 +81,7 @@ export type Property = {
   tenant?: string
   rentValue?: number
   location?: { x: number; y: number }
+  ownerId?: string
 }
 
 export type MaintenanceStatus = 'Pendente' | 'Em Andamento' | 'Concluído'
@@ -254,7 +255,6 @@ export const initMainStore = async () => {
     }
     state.agencyProfile = ap.agencyProfile || defaultState.agencyProfile
 
-    // Auto-patch new paths for existing roles so they don't lose access to the new features
     let rbac = (settingsData.role_settings as any)?.rbac || defaultState.settings.rbac
     if (!rbac['Admin']?.includes('all')) rbac['Admin'] = ['all']
     if (!rbac['Diretor']?.includes('all')) rbac['Diretor'] = ['all']
@@ -316,6 +316,7 @@ export const initMainStore = async () => {
         p.location_x && p.location_y
           ? { x: Number(p.location_x), y: Number(p.location_y) }
           : undefined,
+      ownerId: (p as any).owner_id || undefined,
     }))
   }
 
@@ -501,22 +502,23 @@ export const mainStore = {
     }
     state = { ...state, properties: [newProperty, ...state.properties] }
     emit()
-    supabase
-      .from('properties')
-      .insert({
-        id: newProperty.id,
-        title: newProperty.title,
-        address: newProperty.address,
-        type: newProperty.type,
-        status: newProperty.status,
-        image: newProperty.image,
-        rent_value: newProperty.rentValue,
-        location_x: newProperty.location?.x,
-        location_y: newProperty.location?.y,
-        tenant: newProperty.tenant,
-        sla_start: newProperty.slaStart,
-      })
-      .then()
+
+    const insertPayload: any = {
+      id: newProperty.id,
+      title: newProperty.title,
+      address: newProperty.address,
+      type: newProperty.type,
+      status: newProperty.status,
+      image: newProperty.image,
+      rent_value: newProperty.rentValue,
+      location_x: newProperty.location?.x,
+      location_y: newProperty.location?.y,
+      tenant: newProperty.tenant,
+      sla_start: newProperty.slaStart,
+      owner_id: newProperty.ownerId,
+    }
+
+    supabase.from('properties').insert(insertPayload).then()
   },
   updatePropertyStatus: (id: string, status: PropertyStatus) => {
     state = {
@@ -537,6 +539,7 @@ export const mainStore = {
     if (updates.tenant !== undefined) payload.tenant = updates.tenant
     if (updates.slaStart !== undefined) payload.sla_start = updates.slaStart
     if (updates.rentValue !== undefined) payload.rent_value = updates.rentValue
+    if (updates.ownerId !== undefined) payload.owner_id = updates.ownerId
     if (Object.keys(payload).length > 0) {
       supabase.from('properties').update(payload).eq('id', id).then()
     }

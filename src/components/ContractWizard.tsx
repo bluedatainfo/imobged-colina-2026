@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { FilePlus, Target, Users, ShieldCheck, Home } from 'lucide-react'
+import { FilePlus, Target, Users, ShieldCheck, Home, User } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -18,26 +18,30 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Switch } from '@/components/ui/switch'
 import useMainStore, { mainStore } from '@/stores/main'
 import useContractsStore, { contractsStore } from '@/stores/contracts'
 import useTemplatesStore from '@/stores/templates'
+import useEntitiesStore from '@/stores/entities'
 import { m365Service } from '@/lib/m365'
 
 export function ContractWizard({ open, onClose }: { open: boolean; onClose: () => void }) {
   const store = useMainStore()
   const { templates } = useTemplatesStore()
+  const { owners, tenants } = useEntitiesStore()
 
   const [purpose, setPurpose] = useState('tenant_contract')
   const [propertyId, setPropertyId] = useState('')
   const [guaranteeType, setGuaranteeType] = useState('N/A')
   const [templateName, setTemplateName] = useState('')
-  const [tenantName, setTenantName] = useState('')
-  const [sendToManager, setSendToManager] = useState(true)
+  const [tenantId, setTenantId] = useState('')
 
   const selectedProperty = useMemo(() => {
     return store.properties.find((p) => p.id === propertyId)
   }, [propertyId, store.properties])
+
+  const propertyOwner = useMemo(() => {
+    return owners.find((o) => o.id === selectedProperty?.ownerId)
+  }, [selectedProperty, owners])
 
   const filteredTemplates = useMemo(() => {
     return templates.filter((t) => {
@@ -54,40 +58,44 @@ export function ContractWizard({ open, onClose }: { open: boolean; onClose: () =
   }, [templates, purpose, selectedProperty, guaranteeType])
 
   const handleCreate = () => {
-    if (!templateName || !propertyId || !tenantName) return
+    const isTenant = purpose === 'tenant_contract'
+    const finalTenantName = isTenant
+      ? tenants.find((t) => t.id === tenantId)?.fullName || ''
+      : propertyOwner?.fullName || ''
 
-    const docName = `Rascunho_${tenantName.replace(/\s+/g, '_')}_${propertyId}.docx`
+    if (!templateName || !propertyId || !finalTenantName) return
+
+    const docName = `Rascunho_${finalTenantName.replace(/\s+/g, '_')}_${propertyId}.docx`
     contractsStore.addContract({
       propertyId,
-      tenantName,
+      tenantName: finalTenantName,
       template: templateName,
       status: 'Rascunho',
       documentName: docName,
     })
 
-    if (sendToManager) {
-      mainStore.updateProperty(propertyId, { status: 'Análise Gerencial', tenant: tenantName })
-    } else {
-      mainStore.updateProperty(propertyId, { tenant: tenantName })
-    }
+    // Manager approval is now mandatory for all new contracts
+    mainStore.updateProperty(propertyId, {
+      status: 'Análise Gerencial',
+      tenant: isTenant ? finalTenantName : undefined,
+    })
 
     m365Service.sendTeamsMessage(
       store.sharepoint.teamsWebhookUrl,
-      `Novo Rascunho Criado: ${templateName} para o imóvel ID ${propertyId}. Relacionado a: ${tenantName}.`,
+      `Novo Rascunho Criado: ${templateName} para o imóvel ID ${propertyId}. Relacionado a: ${finalTenantName}.`,
     )
     mainStore.addAuditLog({
       propertyId,
       action: 'Minuta Gerada via Wizard (SharePoint Templates)',
       user: 'Equipe de Contratos',
-      details: `Categoria: ${purpose === 'tenant_contract' ? 'Locação' : 'Onboarding Proprietário'}`,
+      details: `Categoria: ${isTenant ? 'Locação' : 'Onboarding Proprietário'} - Enviado para Análise Gerencial.`,
     })
 
     setPurpose('tenant_contract')
     setTemplateName('')
     setPropertyId('')
     setGuaranteeType('N/A')
-    setTenantName('')
-    setSendToManager(true)
+    setTenantId('')
     onClose()
   }
 
@@ -99,7 +107,7 @@ export function ContractWizard({ open, onClose }: { open: boolean; onClose: () =
             <FilePlus className="w-5 h-5 text-primary" /> Novo Contrato Inteligente
           </DialogTitle>
           <DialogDescription>
-            O sistema filtrará os modelos de acordo com o imóvel e a finalidade selecionada.
+            O sistema vinculará os proprietários automaticamente.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-5 py-4">
@@ -120,6 +128,23 @@ export function ContractWizard({ open, onClose }: { open: boolean; onClose: () =
               </SelectContent>
             </Select>
           </div>
+
+          {selectedProperty && (
+            <div className="grid gap-2 animate-fade-in">
+              <Label className="flex items-center gap-2">
+                <User className="w-4 h-4 text-muted-foreground" /> Proprietário Vinculado
+              </Label>
+              <Input
+                value={
+                  propertyOwner
+                    ? `${propertyOwner.fullName} (${propertyOwner.code})`
+                    : 'Não vinculado / Indisponível'
+                }
+                readOnly
+                className="bg-muted font-medium text-foreground/80"
+              />
+            </div>
+          )}
 
           <div className="grid gap-2">
             <Label className="flex items-center gap-2">
@@ -143,33 +168,58 @@ export function ContractWizard({ open, onClose }: { open: boolean; onClose: () =
           </div>
 
           {purpose === 'tenant_contract' && (
-            <div className="grid gap-2 animate-fade-in">
-              <Label className="flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-muted-foreground" /> Tipo de Garantia
-              </Label>
-              <Select
-                value={guaranteeType}
-                onValueChange={(v) => {
-                  setGuaranteeType(v)
-                  setTemplateName('')
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a garantia..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="N/A">Não se aplica / Todas</SelectItem>
-                  <SelectItem value="Caução">Caução</SelectItem>
-                  <SelectItem value="Fiador">Fiador</SelectItem>
-                  <SelectItem value="Seguro Fiança">Seguro Fiança</SelectItem>
-                  <SelectItem value="Título de Capitalização">Título de Capitalização</SelectItem>
-                  <SelectItem value="Averbação">Averbação</SelectItem>
-                  <SelectItem value="Sem Garantia">Sem Garantia</SelectItem>
-                  <SelectItem value="Troca de Locatário">Troca de Locatário</SelectItem>
-                  <SelectItem value="Garantia">Garantia</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <>
+              <div className="grid gap-2 animate-fade-in">
+                <Label className="flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-muted-foreground" /> Tipo de Garantia
+                </Label>
+                <Select
+                  value={guaranteeType}
+                  onValueChange={(v) => {
+                    setGuaranteeType(v)
+                    setTemplateName('')
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione a garantia..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="N/A">Não se aplica / Todas</SelectItem>
+                    <SelectItem value="Caução">Caução</SelectItem>
+                    <SelectItem value="Fiador">Fiador</SelectItem>
+                    <SelectItem value="Seguro Fiança">Seguro Fiança</SelectItem>
+                    <SelectItem value="Título de Capitalização">Título de Capitalização</SelectItem>
+                    <SelectItem value="Averbação">Averbação</SelectItem>
+                    <SelectItem value="Sem Garantia">Sem Garantia</SelectItem>
+                    <SelectItem value="Troca de Locatário">Troca de Locatário</SelectItem>
+                    <SelectItem value="Garantia">Garantia</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid gap-2 animate-fade-in">
+                <Label className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-muted-foreground" /> Locatário (Inquilino)
+                </Label>
+                <Select value={tenantId} onValueChange={setTenantId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o inquilino..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {tenants.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.fullName} ({t.code})
+                      </SelectItem>
+                    ))}
+                    {tenants.length === 0 && (
+                      <SelectItem value="_empty" disabled>
+                        Nenhum inquilino cadastrado
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            </>
           )}
 
           <div className="grid gap-2">
@@ -202,31 +252,30 @@ export function ContractWizard({ open, onClose }: { open: boolean; onClose: () =
             </Select>
           </div>
 
-          <div className="grid gap-2">
-            <Label className="flex items-center gap-2">
-              <Users className="w-4 h-4 text-muted-foreground" /> Nome do Responsável
-              (Locatário/Proprietário)
-            </Label>
-            <Input
-              placeholder="Ex: Carlos Eduardo da Silva"
-              value={tenantName}
-              onChange={(e) => setTenantName(e.target.value)}
-            />
-          </div>
-
-          <div className="flex items-center justify-between rounded-lg border p-3 shadow-sm mt-2 bg-muted/30">
-            <div className="space-y-0.5">
-              <Label className="text-sm font-medium">Análise Gerencial</Label>
-              <p className="text-xs text-muted-foreground">Mover imóvel para o Hub de Validação</p>
+          <div className="flex items-start gap-3 rounded-lg border p-3 shadow-sm mt-2 bg-blue-50/50 border-blue-100">
+            <ShieldCheck className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-blue-900">Análise Gerencial Obrigatória</p>
+              <p className="text-xs text-blue-700 leading-relaxed">
+                Este contrato e o imóvel vinculado serão encaminhados automaticamente ao Hub de
+                Validação para aprovação da gerência.
+              </p>
             </div>
-            <Switch checked={sendToManager} onCheckedChange={setSendToManager} />
           </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
             Cancelar
           </Button>
-          <Button onClick={handleCreate} disabled={!templateName || !propertyId || !tenantName}>
+          <Button
+            onClick={handleCreate}
+            disabled={
+              !templateName ||
+              !propertyId ||
+              (purpose === 'tenant_contract' && !tenantId) ||
+              (purpose === 'owner_onboarding' && !propertyOwner)
+            }
+          >
             Gerar Rascunho
           </Button>
         </DialogFooter>

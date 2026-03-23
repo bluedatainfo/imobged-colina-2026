@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Home, Sparkles, MapPin, Tag, Loader2, DollarSign } from 'lucide-react'
+import { Home, Sparkles, MapPin, Tag, Loader2, DollarSign, User } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -19,14 +19,17 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import useMainStore, { mainStore } from '@/stores/main'
+import useEntitiesStore from '@/stores/entities'
 import { useToast } from '@/hooks/use-toast'
 
 export function NewPropertyDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { toast } = useToast()
+  const { owners } = useEntitiesStore()
   const [title, setTitle] = useState('')
   const [address, setAddress] = useState('')
   const [type, setType] = useState('Apartamento')
   const [rentValue, setRentValue] = useState('')
+  const [ownerId, setOwnerId] = useState('')
 
   const [aiLoading, setAiLoading] = useState(false)
   const [aiJustification, setAiJustification] = useState('')
@@ -60,13 +63,14 @@ export function NewPropertyDialog({ open, onClose }: { open: boolean; onClose: (
   }
 
   const handleSave = () => {
-    if (!title || !address || !rentValue) return
+    if (!title || !address || !rentValue || !ownerId) return
 
     mainStore.addProperty({
       title,
       address,
       type,
       rentValue: Number(rentValue),
+      ownerId,
     })
 
     mainStore.addAuditLog({
@@ -86,6 +90,7 @@ export function NewPropertyDialog({ open, onClose }: { open: boolean; onClose: (
     setAddress('')
     setType('Apartamento')
     setRentValue('')
+    setOwnerId('')
     setAiJustification('')
     onClose()
   }
@@ -111,6 +116,30 @@ export function NewPropertyDialog({ open, onClose }: { open: boolean; onClose: (
               value={title}
               onChange={(e) => setTitle(e.target.value)}
             />
+          </div>
+
+          <div className="grid gap-2">
+            <Label className="flex items-center gap-2">
+              <User className="w-4 h-4 text-muted-foreground" /> Proprietário (Entidade)
+            </Label>
+            <Select value={ownerId} onValueChange={setOwnerId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Vincular ao proprietário..." />
+              </SelectTrigger>
+              <SelectContent>
+                {owners.length === 0 ? (
+                  <SelectItem value="_empty" disabled>
+                    Nenhum proprietário cadastrado
+                  </SelectItem>
+                ) : (
+                  owners.map((o) => (
+                    <SelectItem key={o.id} value={o.id}>
+                      {o.fullName} ({o.code})
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="grid gap-2">
@@ -182,7 +211,7 @@ export function NewPropertyDialog({ open, onClose }: { open: boolean; onClose: (
           <Button variant="outline" onClick={onClose}>
             Cancelar
           </Button>
-          <Button onClick={handleSave} disabled={!title || !address || !rentValue}>
+          <Button onClick={handleSave} disabled={!title || !address || !rentValue || !ownerId}>
             Salvar Imóvel
           </Button>
         </DialogFooter>
