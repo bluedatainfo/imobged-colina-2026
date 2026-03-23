@@ -54,6 +54,11 @@ const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
     const newToken = await refreshM365Token()
     if (newToken) {
       res = await executeFetch(newToken)
+      if (res.status === 401) {
+        throw new Error(
+          'Sua sessão M365 expirou e não pôde ser renovada. Por favor, faça login novamente (Logout/Login).',
+        )
+      }
     } else {
       localStorage.removeItem('m365_token')
       localStorage.removeItem('m365_refresh_token')
@@ -73,6 +78,130 @@ export const m365Service = {
       description: `Para: ${to}\nAssunto: ${subject}`,
     })
   },
+
+  findDocumentInSharePoint: async (fileName: string): Promise<string | null> => {
+    const token = getGraphToken()
+    if (!token) return null
+
+    const { sharepointDomain, sites } = mainStore.getState().sharepoint
+    if (!sharepointDomain || !sites.locacao) return null
+
+    try {
+      let sitePath = sites.locacao.trim()
+      if (sitePath.startsWith('http')) {
+        try {
+          sitePath = new URL(sitePath).pathname
+        } catch (e) {}
+      }
+      if (!sitePath.startsWith('/')) {
+        if (!sitePath.startsWith('sites/') && !sitePath.startsWith('teams/'))
+          sitePath = `/sites/${sitePath}`
+        else sitePath = `/${sitePath}`
+      }
+
+      let siteUrl = `https://graph.microsoft.com/v1.0/sites/${sharepointDomain}:${sitePath}`
+      let siteRes = await fetchWithAuth(siteUrl)
+
+      if (siteRes.status === 404 && sitePath.startsWith('/sites/')) {
+        const fallbackPath = sitePath.replace('/sites/', '/teams/')
+        siteUrl = `https://graph.microsoft.com/v1.0/sites/${sharepointDomain}:${fallbackPath}`
+        siteRes = await fetchWithAuth(siteUrl)
+      }
+
+      if (!siteRes.ok) return null
+      const siteId = (await siteRes.json()).id
+
+      const drivesRes = await fetchWithAuth(
+        `https://graph.microsoft.com/v1.0/sites/${siteId}/drives`,
+      )
+      if (!drivesRes.ok) return null
+      const drivesData = await drivesRes.json()
+
+      for (const drive of drivesData.value) {
+        const searchRes = await fetchWithAuth(
+          `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${drive.id}/root/search(q='${fileName}')`,
+        )
+        if (searchRes.ok) {
+          const searchData = await searchRes.json()
+          if (searchData.value && searchData.value.length > 0) {
+            const item = searchData.value[0]
+            try {
+              const previewRes = await fetchWithAuth(
+                `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${drive.id}/items/${item.id}/preview`,
+                { method: 'POST' },
+              )
+              if (previewRes.ok) {
+                const previewData = await previewRes.json()
+                if (previewData.getUrl) return previewData.getUrl
+              }
+            } catch (e) {}
+            return item.webUrl
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to search SharePoint dynamically', e)
+    }
+    return null
+  },
+
+  searchFilesByPropertyId: async (propertyId: string): Promise<any[]> => {
+    const token = getGraphToken()
+    if (!token) return []
+
+    const { sharepointDomain, sites } = mainStore.getState().sharepoint
+    if (!sharepointDomain || !sites.locacao) return []
+
+    try {
+      let sitePath = sites.locacao.trim()
+      if (sitePath.startsWith('http')) {
+        try {
+          sitePath = new URL(sitePath).pathname
+        } catch (e) {}
+      }
+      if (!sitePath.startsWith('/')) {
+        if (!sitePath.startsWith('sites/') && !sitePath.startsWith('teams/'))
+          sitePath = `/sites/${sitePath}`
+        else sitePath = `/${sitePath}`
+      }
+
+      let siteUrl = `https://graph.microsoft.com/v1.0/sites/${sharepointDomain}:${sitePath}`
+      let siteRes = await fetchWithAuth(siteUrl)
+
+      if (siteRes.status === 404 && sitePath.startsWith('/sites/')) {
+        const fallbackPath = sitePath.replace('/sites/', '/teams/')
+        siteUrl = `https://graph.microsoft.com/v1.0/sites/${sharepointDomain}:${fallbackPath}`
+        siteRes = await fetchWithAuth(siteUrl)
+      }
+
+      if (!siteRes.ok) return []
+      const siteId = (await siteRes.json()).id
+
+      const drivesRes = await fetchWithAuth(
+        `https://graph.microsoft.com/v1.0/sites/${siteId}/drives`,
+      )
+      if (!drivesRes.ok) return []
+      const drivesData = await drivesRes.json()
+
+      let allFiles: any[] = []
+      for (const drive of drivesData.value) {
+        const searchRes = await fetchWithAuth(
+          `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${drive.id}/root/search(q='${propertyId}')`,
+        )
+        if (searchRes.ok) {
+          const searchData = await searchRes.json()
+          if (searchData.value) {
+            allFiles = [...allFiles, ...searchData.value]
+          }
+        }
+      }
+      return allFiles
+    } catch (e) {
+      console.warn('Failed to search SharePoint by Property ID', e)
+      return []
+    }
+  },
+
   getFilePreviewUrl: async (filePath: string, documentType: string) => {
     const { data: config } = await supabase
       .from('sharepoint_configs')
@@ -148,7 +277,6 @@ export const m365Service = {
     }
     const itemData = await itemRes.json()
 
-    // Try to get embed preview link
     try {
       const previewRes = await fetchWithAuth(
         `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${itemData.id}/preview`,
@@ -164,6 +292,7 @@ export const m365Service = {
 
     return itemData.webUrl
   },
+
   saveToLibrary: async (
     library: string,
     fileName: string,
@@ -188,9 +317,7 @@ export const m365Service = {
       if (spPath.startsWith('http')) {
         try {
           spPath = new URL(spPath).pathname
-        } catch (e) {
-          // Ignore URL parsing error, fallback to raw string
-        }
+        } catch (e) {}
       }
 
       if (!spPath.startsWith('/')) {
@@ -201,7 +328,6 @@ export const m365Service = {
         }
       }
 
-      // Get Site ID
       let siteUrl = `https://graph.microsoft.com/v1.0/sites/${hostname}:${spPath}`
       let siteRes = await fetchWithAuth(siteUrl)
 
@@ -218,7 +344,6 @@ export const m365Service = {
       if (!siteRes.ok) throw new Error(`Site "${sitePath}" não encontrado no M365.`)
       const siteId = (await siteRes.json()).id
 
-      // Get Drive ID
       const drivesRes = await fetchWithAuth(
         `https://graph.microsoft.com/v1.0/sites/${siteId}/drives`,
       )
@@ -233,7 +358,6 @@ export const m365Service = {
       if (!drive) throw new Error(`Biblioteca "${library}" não encontrada no site "${sitePath}".`)
       const driveId = drive.id
 
-      // Upload with ID-based URL
       const url = `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/root:/${fileName}:/content`
 
       const res = await fetchWithAuth(url, {
@@ -262,6 +386,7 @@ export const m365Service = {
       })
     }
   },
+
   syncToList: async (listName: string, itemData: string) => {
     const token = getGraphToken()
     const { sharepointDomain, clientId, tenantId } = mainStore.getState().sharepoint
@@ -279,6 +404,7 @@ export const m365Service = {
       description: `Dados enviados em tempo real para a lista ${listName}.`,
     })
   },
+
   sendTeamsMessage: (webhookUrl: string | undefined, message: string) => {
     if (!webhookUrl) return
     toast({
@@ -286,6 +412,7 @@ export const m365Service = {
       description: message,
     })
   },
+
   moveDocument: (fileName: string, targetLibrary: string) => {
     const { sharepointDomain } = mainStore.getState().sharepoint
     toast({
@@ -293,6 +420,7 @@ export const m365Service = {
       description: `Arquivo ${fileName} movido automaticamente para a biblioteca "${targetLibrary}".`,
     })
   },
+
   uploadStructuredDocument: async (
     file: File | Blob,
     fileName: string,
@@ -325,7 +453,6 @@ export const m365Service = {
       folderPath = [config.base_path, year, month, propertyId].filter(Boolean).join('/')
     }
 
-    // Ensure uniqueness
     const extIndex = fileName.lastIndexOf('.')
     const nameWithoutExt = extIndex !== -1 ? fileName.substring(0, extIndex) : fileName
     const ext = extIndex !== -1 ? fileName.substring(extIndex) : ''
@@ -356,9 +483,7 @@ export const m365Service = {
         if (sitePath.startsWith('http')) {
           try {
             sitePath = new URL(sitePath).pathname
-          } catch (e) {
-            // Ignore URL parsing error, fallback to raw string
-          }
+          } catch (e) {}
         }
 
         if (!sitePath.startsWith('/')) {
@@ -369,7 +494,6 @@ export const m365Service = {
           }
         }
 
-        // 1. Get Site ID Dynamically
         let siteUrl = `https://graph.microsoft.com/v1.0/sites/${hostname}:${sitePath}`
         let siteRes = await fetchWithAuth(siteUrl)
 
@@ -393,7 +517,6 @@ export const m365Service = {
         }
         const siteId = (await siteRes.json()).id
 
-        // 2. Get Drive ID Dynamically
         const drivesRes = await fetchWithAuth(
           `https://graph.microsoft.com/v1.0/sites/${siteId}/drives`,
         )
@@ -414,7 +537,6 @@ export const m365Service = {
           )
         const driveId = drive.id
 
-        // 3. Upload File Using Dynamic IDs
         const url = `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/root:/${fullPath}:/content`
 
         const res = await fetchWithAuth(url, {
@@ -431,7 +553,6 @@ export const m365Service = {
 
         const uploadedItem = await res.json()
 
-        // 4. Update Metadata if it's an entity doc
         if (isEntityDoc && entityCode) {
           try {
             await fetchWithAuth(

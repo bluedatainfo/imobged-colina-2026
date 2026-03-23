@@ -12,6 +12,7 @@ import useMainStore from '@/stores/main'
 import useDocumentsStore from '@/stores/documents'
 import useContractsStore from '@/stores/contracts'
 import useTemplatesStore from '@/stores/templates'
+import useEntitiesStore from '@/stores/entities'
 import { m365Service } from '@/lib/m365'
 
 interface DocumentViewerProps {
@@ -23,10 +24,11 @@ interface DocumentViewerProps {
 }
 
 export function DocumentViewer({ open, onClose, viewItem, docName, isTerm }: DocumentViewerProps) {
-  const { agencyProfile } = useMainStore()
+  const { agencyProfile, properties } = useMainStore()
   const { documents } = useDocumentsStore()
   const { contracts } = useContractsStore()
   const { templates } = useTemplatesStore()
+  const { owners } = useEntitiesStore()
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [templateContent, setTemplateContent] = useState<string | null>(null)
@@ -38,7 +40,6 @@ export function DocumentViewer({ open, onClose, viewItem, docName, isTerm }: Doc
     if (!open) return
 
     if (!viewItem) {
-      // Legacy fallback
       setTitle(docName || 'Documento')
       setPreviewUrl(null)
       setTemplateContent(null)
@@ -71,13 +72,62 @@ export function DocumentViewer({ open, onClose, viewItem, docName, isTerm }: Doc
           if (!contract) throw new Error('Contrato não encontrado.')
           setTitle(contract.documentName)
 
+          // 1. Try to find if this contract was explicitly uploaded to GED
+          const uploadedDoc = documents.find(
+            (d) => d.propertyId === contract.propertyId && d.name === contract.documentName,
+          )
+
+          if (uploadedDoc && uploadedDoc.filePath && uploadedDoc.category) {
+            const url = await m365Service.getFilePreviewUrl(
+              uploadedDoc.filePath,
+              uploadedDoc.category,
+            )
+            setPreviewUrl(url)
+            setLoading(false)
+            return
+          }
+
+          // 2. Hybrid Search: Try to find the file dynamically in SharePoint by name
+          try {
+            const spUrl = await m365Service.findDocumentInSharePoint(contract.documentName)
+            if (spUrl) {
+              setPreviewUrl(spUrl)
+              setLoading(false)
+              return
+            }
+          } catch (e) {
+            console.warn('Busca híbrida de contrato no SP falhou, caindo para template local.', e)
+          }
+
+          // 3. Fallback: Show the Template HTML with replaced real data
           const template = templates.find((t) => t.name === contract.template)
           if (!template) {
             throw new Error(`O modelo de contrato "${contract.template}" não foi encontrado.`)
           }
 
           if (template.content) {
-            setTemplateContent(template.content)
+            const property = properties.find((p) => p.id === contract.propertyId)
+            const owner = owners.find((o) => o.id === property?.ownerId)
+
+            let finalContent = template.content
+            finalContent = finalContent.replace(
+              /\{\{tenantName\}\}/gi,
+              contract.tenantName || 'Inquilino a Definir',
+            )
+            finalContent = finalContent.replace(
+              /\{\{propertyAddress\}\}/gi,
+              property?.address || 'Endereço Indisponível',
+            )
+            finalContent = finalContent.replace(
+              /\{\{ownerName\}\}/gi,
+              owner?.fullName || 'Proprietário Não Vinculado',
+            )
+            finalContent = finalContent.replace(
+              /\{\{rentValue\}\}/gi,
+              property?.rentValue ? `R$ ${property.rentValue}` : 'Valor a Definir',
+            )
+
+            setTemplateContent(finalContent)
           } else {
             throw new Error('O modelo selecionado está vazio e não possui conteúdo para exibição.')
           }
@@ -90,7 +140,7 @@ export function DocumentViewer({ open, onClose, viewItem, docName, isTerm }: Doc
     }
 
     loadPreview()
-  }, [open, viewItem, docName, documents, contracts, templates])
+  }, [open, viewItem, docName, documents, contracts, templates, properties, owners])
 
   const handleOpenExternal = () => {
     if (previewUrl) window.open(previewUrl, '_blank')
@@ -108,9 +158,9 @@ export function DocumentViewer({ open, onClose, viewItem, docName, isTerm }: Doc
               {title}
             </DialogTitle>
             <DialogDescription>
-              {viewItem?.type === 'document'
+              {viewItem?.type === 'document' || previewUrl
                 ? 'Visualização nativa via SharePoint Online (Modo Leitura)'
-                : 'Visualização de Minuta do Sistema'}
+                : 'Visualização de Minuta do Sistema (Dados preenchidos)'}
             </DialogDescription>
           </div>
           <div className="flex items-center gap-2 mr-6">
@@ -133,7 +183,7 @@ export function DocumentViewer({ open, onClose, viewItem, docName, isTerm }: Doc
                 Sincronizando com o Microsoft 365...
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                Buscando o arquivo mais recente do GED
+                Realizando busca híbrida por arquivos GED
               </p>
             </div>
           )}
@@ -157,7 +207,7 @@ export function DocumentViewer({ open, onClose, viewItem, docName, isTerm }: Doc
             />
           )}
 
-          {!loading && !error && templateContent && (
+          {!loading && !error && !previewUrl && templateContent && (
             <div className="p-4 md:p-8 flex justify-center">
               <div className="bg-background shadow-lg border p-10 md:p-16 w-full max-w-3xl min-h-full flex flex-col">
                 <div className="text-center mb-10 border-b pb-8">
@@ -168,7 +218,7 @@ export function DocumentViewer({ open, onClose, viewItem, docName, isTerm }: Doc
                       className="h-20 mx-auto mb-6 object-contain"
                     />
                   )}
-                  <h1 className="text-2xl font-bold uppercase underline">Contrato de Locação</h1>
+                  <h1 className="text-2xl font-bold uppercase underline">Documento do Sistema</h1>
                   <p className="text-muted-foreground mt-4 font-semibold">{agencyProfile.name}</p>
                   <p className="text-sm text-muted-foreground mt-1">
                     {agencyProfile.address} | {agencyProfile.website}
@@ -192,7 +242,6 @@ export function DocumentViewer({ open, onClose, viewItem, docName, isTerm }: Doc
             </div>
           )}
 
-          {/* Legacy Fallback Render */}
           {!loading && !error && !viewItem && (
             <div className="p-4 md:p-8 flex justify-center">
               <div className="bg-background shadow-lg border p-10 md:p-16 w-full max-w-3xl min-h-full flex flex-col">

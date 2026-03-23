@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
   Check,
   X,
@@ -12,6 +12,8 @@ import {
   User,
   Users,
   FileSignature,
+  FolderSearch,
+  Loader2,
 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -89,6 +91,9 @@ const ManagerApproval = () => {
   const [rejectId, setRejectId] = useState<string | null>(null)
   const [rejectReason, setRejectReason] = useState('')
 
+  const [spFiles, setSpFiles] = useState<any[]>([])
+  const [scanningSp, setScanningSp] = useState(false)
+
   const ownerEntity = useMemo(() => {
     return selectedHub?.ownerId ? owners.find((o) => o.id === selectedHub.ownerId) : null
   }, [selectedHub, owners])
@@ -123,6 +128,29 @@ const ManagerApproval = () => {
   const systemContracts = selectedHub
     ? contracts.filter((c) => c.propertyId === selectedHub.id && c.status !== 'Rescindido')
     : []
+
+  useEffect(() => {
+    if (selectedHub) {
+      let isMounted = true
+      setScanningSp(true)
+      m365Service
+        .searchFilesByPropertyId(selectedHub.id)
+        .then((files) => {
+          if (isMounted) {
+            setSpFiles(files)
+            setScanningSp(false)
+          }
+        })
+        .catch(() => {
+          if (isMounted) setScanningSp(false)
+        })
+      return () => {
+        isMounted = false
+      }
+    } else {
+      setSpFiles([])
+    }
+  }, [selectedHub])
 
   const handleApprove = (id: string) => {
     mainStore.updatePropertyStatus(id, 'Vistoria')
@@ -200,7 +228,6 @@ const ManagerApproval = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Proprietário */}
           <Card className="shadow-sm">
             <CardHeader className="bg-muted/30 pb-4 border-b">
               <CardTitle className="flex items-center gap-2 text-lg">
@@ -227,7 +254,6 @@ const ManagerApproval = () => {
             </CardContent>
           </Card>
 
-          {/* Inquilino */}
           <Card className="shadow-sm">
             <CardHeader className="bg-muted/30 pb-4 border-b">
               <CardTitle className="flex items-center gap-2 text-lg">
@@ -254,11 +280,10 @@ const ManagerApproval = () => {
             </CardContent>
           </Card>
 
-          {/* Contrato */}
           <Card className="shadow-sm border-blue-200">
             <CardHeader className="bg-blue-50/50 pb-4 border-b border-blue-100">
               <CardTitle className="flex items-center gap-2 text-lg text-blue-900">
-                <FileSignature className="h-5 w-5 text-blue-600" /> Contrato
+                <FileSignature className="h-5 w-5 text-blue-600" /> Contrato (GED + Ciclo)
               </CardTitle>
               <CardDescription>Minuta gerada ou contrato importado</CardDescription>
             </CardHeader>
@@ -269,7 +294,7 @@ const ManagerApproval = () => {
                     <DocItem
                       key={c.id}
                       name={c.documentName}
-                      badge="Minuta do Sistema"
+                      badge="Ciclo de Contratos"
                       onClick={() => setViewingItem({ type: 'contract', id: c.id })}
                     />
                   ))}
@@ -290,6 +315,49 @@ const ManagerApproval = () => {
             </CardContent>
           </Card>
         </div>
+
+        {scanningSp ? (
+          <div className="flex items-center justify-center p-8 text-muted-foreground text-sm border border-dashed rounded-lg bg-muted/20">
+            <Loader2 className="w-5 h-5 animate-spin mr-3 text-primary" />
+            Buscando arquivos físicos adicionais vinculados a este imóvel no SharePoint...
+          </div>
+        ) : spFiles.length > 0 ? (
+          <Card className="shadow-sm border-purple-200 mt-6 animate-fade-in-up">
+            <CardHeader className="bg-purple-50/50 pb-4 border-b border-purple-100">
+              <CardTitle className="flex items-center gap-2 text-lg text-purple-900">
+                <FolderSearch className="h-5 w-5 text-purple-600" /> Arquivos Físicos no SharePoint
+              </CardTitle>
+              <CardDescription>
+                Resultado da pesquisa híbrida automática na pasta do imóvel e arredores
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+              {spFiles.map((file) => {
+                const isDocStore = documents.some((d) => d.name === file.name)
+                const isContractStore = contracts.some((c) => c.documentName === file.name)
+                if (isDocStore || isContractStore) return null
+
+                return (
+                  <DocItem
+                    key={file.id}
+                    name={file.name}
+                    badge="SharePoint Online"
+                    onClick={() => window.open(file.webUrl, '_blank')}
+                  />
+                )
+              })}
+              {spFiles.filter(
+                (f) =>
+                  !documents.some((d) => d.name === f.name) &&
+                  !contracts.some((c) => c.documentName === f.name),
+              ).length === 0 && (
+                <p className="col-span-full text-sm text-muted-foreground italic text-center p-2">
+                  Todos os arquivos encontrados já estão listados nos cards acima.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        ) : null}
 
         <div className="flex flex-col sm:flex-row justify-end gap-4 pt-6 border-t">
           <Button variant="outline" onClick={() => setSelectedHub(null)}>
