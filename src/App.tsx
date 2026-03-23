@@ -37,6 +37,8 @@ const AccessDenied = lazy(() => import('./pages/AccessDenied'))
 const Portal = lazy(() => import('./pages/Portal'))
 const Profile = lazy(() => import('./pages/Profile'))
 const Templates = lazy(() => import('./pages/Templates'))
+const Sales = lazy(() => import('./pages/Sales'))
+const Financial = lazy(() => import('./pages/Financial'))
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAuth()
@@ -88,6 +90,8 @@ const AppRoutes = () => (
         <Route path="/sync-monitor" element={<SyncMonitor />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/templates" element={<Templates />} />
+        <Route path="/sales" element={<Sales />} />
+        <Route path="/financial" element={<Financial />} />
         <Route path="/access-denied" element={<AccessDenied />} />
       </Route>
       <Route path="*" element={<NotFound />} />

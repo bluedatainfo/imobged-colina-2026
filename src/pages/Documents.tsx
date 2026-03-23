@@ -130,21 +130,41 @@ const Documents = () => {
         </div>
       </div>
 
-      <Tabs defaultValue="library" className="flex-1 flex flex-col">
+      <Tabs defaultValue="scan" className="flex-1 flex flex-col">
         <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent mb-4">
-          <TabsTrigger
-            value="library"
-            className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary py-3"
-          >
-            <FolderSync className="w-4 h-4 mr-2" /> Biblioteca: {siteNames[selectedSite]}
-          </TabsTrigger>
           <TabsTrigger
             value="scan"
             className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary py-3"
           >
             <UploadCloud className="w-4 h-4 mr-2" /> Digitalização & Upload
           </TabsTrigger>
+          <TabsTrigger
+            value="library"
+            className="rounded-none data-[state=active]:border-b-2 data-[state=active]:border-primary py-3"
+          >
+            <FolderSync className="w-4 h-4 mr-2" /> Biblioteca: {siteNames[selectedSite]}
+          </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="scan" className="flex-1">
+          <div className="grid md:grid-cols-2 gap-6 h-full min-h-[400px]">
+            <ScannerPanel onScan={handleFileUpload} />
+            <Card className="border-primary/20 shadow-sm flex flex-col h-full">
+              <CardHeader className="bg-muted/50 border-b pb-4">
+                <div className="flex items-center gap-2">
+                  <UploadCloud className="h-5 w-5 text-primary" />
+                  <CardTitle className="text-lg">Upload Estruturado</CardTitle>
+                </div>
+                <CardDescription>
+                  Envie arquivos diretamente para a estrutura taxônomica no SharePoint.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6 flex-1 flex flex-col">
+                <GedUpload />
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
 
         <TabsContent value="library" className="flex-1 space-y-4">
           <div className="flex items-center justify-between">
@@ -186,26 +206,6 @@ const Documents = () => {
               </TableBody>
             </Table>
           </Card>
-        </TabsContent>
-
-        <TabsContent value="scan" className="flex-1">
-          <div className="grid md:grid-cols-2 gap-6 h-full min-h-[400px]">
-            <ScannerPanel onScan={handleFileUpload} />
-            <Card className="border-primary/20 shadow-sm flex flex-col h-full">
-              <CardHeader className="bg-muted/50 border-b pb-4">
-                <div className="flex items-center gap-2">
-                  <UploadCloud className="h-5 w-5 text-primary" />
-                  <CardTitle className="text-lg">Upload Estruturado</CardTitle>
-                </div>
-                <CardDescription>
-                  Envie arquivos diretamente para a estrutura taxônomica no SharePoint.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pt-6 flex-1 flex flex-col">
-                <GedUpload />
-              </CardContent>
-            </Card>
-          </div>
         </TabsContent>
       </Tabs>
 

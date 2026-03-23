@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { FileText, Plus, Edit, Trash2, BookOpen, Shield } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -30,7 +30,11 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import useTemplatesStore, { templatesStore, DocumentTemplate } from '@/stores/templates'
+import useTemplatesStore, {
+  templatesStore,
+  DocumentTemplate,
+  initTemplatesStore,
+} from '@/stores/templates'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/hooks/use-toast'
 
@@ -43,6 +47,11 @@ export default function Templates() {
   const [editingTemplate, setEditingTemplate] = useState<DocumentTemplate | null>(null)
   const [isNewOpen, setIsNewOpen] = useState(false)
   const [formData, setFormData] = useState<Partial<DocumentTemplate>>({})
+
+  // Ensure templates are loaded directly when opening the page
+  useEffect(() => {
+    initTemplatesStore()
+  }, [])
 
   // Admin, Juridico and Gerente have edit rights
   const canEdit = ['Admin', 'Jurídico', 'Gerente'].includes(user?.role || '')

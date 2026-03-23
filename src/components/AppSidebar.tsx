@@ -16,6 +16,8 @@ import {
   UsersRound,
   Activity,
   BookOpen,
+  TrendingUp,
+  Wallet,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -47,6 +49,8 @@ const navigation = [
   { title: 'Manutenção', url: '/maintenance', icon: Wrench },
   { title: 'Renovações', url: '/renewals', icon: CalendarClock },
   { title: 'Jurídico', url: '/legal', icon: Scale },
+  { title: 'Vendas', url: '/sales', icon: TrendingUp },
+  { title: 'Financeiro', url: '/financial', icon: Wallet },
   { title: 'Configurações', url: '/settings', icon: Settings },
 ]
 

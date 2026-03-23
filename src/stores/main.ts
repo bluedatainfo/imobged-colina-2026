@@ -124,6 +124,8 @@ const defaultRbac: Record<string, string[]> = {
     '/maintenance',
     '/renewals',
     '/legal',
+    '/sales',
+    '/financial',
     '/profile',
     '/templates',
   ],
@@ -146,6 +148,7 @@ const defaultRbac: Record<string, string[]> = {
     '/properties',
     '/renewals',
     '/maintenance',
+    '/financial',
     '/profile',
   ],
   'Gestor de Contrato': [
@@ -161,7 +164,7 @@ const defaultRbac: Record<string, string[]> = {
     '/entities',
     '/profile',
   ],
-  Corretor: ['/', '/properties', '/profile'],
+  Corretor: ['/', '/properties', '/sales', '/profile'],
 }
 
 const defaultState: State = {
@@ -250,10 +253,27 @@ export const initMainStore = async () => {
       lists: ap.lists || defaultState.sharepoint.lists,
     }
     state.agencyProfile = ap.agencyProfile || defaultState.agencyProfile
+
+    // Auto-patch new paths for existing roles so they don't lose access to the new features
+    let rbac = (settingsData.role_settings as any)?.rbac || defaultState.settings.rbac
+    if (!rbac['Admin']?.includes('all')) rbac['Admin'] = ['all']
+    if (!rbac['Diretor']?.includes('all')) rbac['Diretor'] = ['all']
+
+    const patchRole = (role: string, paths: string[]) => {
+      if (rbac[role]) {
+        let missing = paths.filter((p) => !rbac[role].includes(p))
+        if (missing.length > 0) rbac[role] = [...rbac[role], ...missing]
+      }
+    }
+
+    patchRole('Gerente', ['/sales', '/financial'])
+    patchRole('Financeiro', ['/financial'])
+    patchRole('Corretor', ['/sales'])
+
     state.settings = {
       ...defaultState.settings,
       ...(settingsData.role_settings as any),
-      rbac: (settingsData.role_settings as any)?.rbac || defaultState.settings.rbac,
+      rbac,
     }
     state.security = (settingsData.security_settings as any) || defaultState.security
   } else {
