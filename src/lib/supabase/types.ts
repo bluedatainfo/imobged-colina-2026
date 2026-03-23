@@ -101,6 +101,7 @@ export type Database = {
       }
       contracts: {
         Row: {
+          content: string | null
           created_at: string | null
           document_name: string | null
           docusign_status: string | null
@@ -116,6 +117,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          content?: string | null
           created_at?: string | null
           document_name?: string | null
           docusign_status?: string | null
@@ -131,6 +133,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          content?: string | null
           created_at?: string | null
           document_name?: string | null
           docusign_status?: string | null
@@ -677,6 +680,7 @@ export const Constants = {
 //   created_at: timestamp with time zone (nullable, default: now())
 //   updated_at: timestamp with time zone (nullable, default: now())
 //   review_notes: text (nullable)
+//   content: text (nullable)
 // Table: document_templates
 //   id: uuid (not null, default: gen_random_uuid())
 //   name: text (not null)
