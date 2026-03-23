@@ -525,6 +525,21 @@ export const mainStore = {
     emit()
     supabase.from('properties').update({ status }).eq('id', id).then()
   },
+  updateProperty: (id: string, updates: Partial<Property>) => {
+    state = {
+      ...state,
+      properties: state.properties.map((p) => (p.id === id ? { ...p, ...updates } : p)),
+    }
+    emit()
+    const payload: any = {}
+    if (updates.status !== undefined) payload.status = updates.status
+    if (updates.tenant !== undefined) payload.tenant = updates.tenant
+    if (updates.slaStart !== undefined) payload.sla_start = updates.slaStart
+    if (updates.rentValue !== undefined) payload.rent_value = updates.rentValue
+    if (Object.keys(payload).length > 0) {
+      supabase.from('properties').update(payload).eq('id', id).then()
+    }
+  },
   addAuditLog: (log: Omit<AuditLog, 'id' | 'timestamp'>) => {
     const newLog = {
       ...log,

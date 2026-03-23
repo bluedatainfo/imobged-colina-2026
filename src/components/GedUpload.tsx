@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import {
   Command,
@@ -21,7 +22,7 @@ import {
 } from '@/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { m365Service } from '@/lib/m365'
-import useMainStore from '@/stores/main'
+import useMainStore, { mainStore } from '@/stores/main'
 import useEntitiesStore from '@/stores/entities'
 import { documentsStore } from '@/stores/documents'
 import { useAuth } from '@/contexts/AuthContext'
@@ -37,7 +38,7 @@ interface GedUploadProps {
 const DOCUMENT_TYPES = [
   { id: 'OWNER_DOCUMENT', label: 'Documento de Proprietário' },
   { id: 'TENANT_DOCUMENT', label: 'Documento de Inquilino' },
-  { id: 'CONTRACT_ACTIVE', label: 'Contrato Ativo' },
+  { id: 'CONTRACT_ACTIVE', label: 'Contrato Ativo (Importar Legado)' },
   { id: 'CONTRACT_TERMINATED', label: 'Contrato Encerrado' },
   { id: 'INSPECTION_MOVE_IN', label: 'Vistoria de Entrada' },
   { id: 'INSPECTION_MOVE_OUT', label: 'Vistoria de Saída' },
@@ -55,6 +56,7 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
   const [entityCode, setEntityCode] = useState('')
   const [file, setFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [sendToManager, setSendToManager] = useState(false)
 
   const hasSpAccess = useMemo(() => {
     if (!user) return false
@@ -104,11 +106,16 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
         filePath: result?.path || undefined,
       })
 
+      if (sendToManager) {
+        mainStore.updateProperty(property.id, { status: 'Análise Gerencial' })
+      }
+
       toast({
         title: 'Upload Concluído',
         description: 'Documento enviado e classificado com sucesso no SharePoint.',
       })
       setFile(null)
+      setEntityCode('')
       const fileInput = document.getElementById('file-upload') as HTMLInputElement
       if (fileInput) fileInput.value = ''
 
@@ -245,6 +252,23 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
       <div className="grid gap-2">
         <Label>Arquivo Selecionado</Label>
         <Input id="file-upload" type="file" onChange={handleFileChange} disabled={!hasSpAccess} />
+      </div>
+
+      <div className="flex items-center justify-between rounded-lg border p-4 shadow-sm bg-muted/30">
+        <div className="space-y-0.5">
+          <Label className="text-sm font-medium cursor-pointer" htmlFor="manager-approval-switch">
+            Análise Gerencial
+          </Label>
+          <p className="text-xs text-muted-foreground">
+            Mover imóvel para o Hub de Validação após concluir
+          </p>
+        </div>
+        <Switch
+          id="manager-approval-switch"
+          checked={sendToManager}
+          onCheckedChange={setSendToManager}
+          disabled={!hasSpAccess || !propertyId}
+        />
       </div>
 
       <Button

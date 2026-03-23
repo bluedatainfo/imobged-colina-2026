@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
 import useMainStore, { mainStore } from '@/stores/main'
 import useContractsStore, { contractsStore } from '@/stores/contracts'
 import useTemplatesStore from '@/stores/templates'
@@ -32,6 +33,7 @@ export function ContractWizard({ open, onClose }: { open: boolean; onClose: () =
   const [guaranteeType, setGuaranteeType] = useState('N/A')
   const [templateName, setTemplateName] = useState('')
   const [tenantName, setTenantName] = useState('')
+  const [sendToManager, setSendToManager] = useState(true)
 
   const selectedProperty = useMemo(() => {
     return store.properties.find((p) => p.id === propertyId)
@@ -63,6 +65,12 @@ export function ContractWizard({ open, onClose }: { open: boolean; onClose: () =
       documentName: docName,
     })
 
+    if (sendToManager) {
+      mainStore.updateProperty(propertyId, { status: 'Análise Gerencial', tenant: tenantName })
+    } else {
+      mainStore.updateProperty(propertyId, { tenant: tenantName })
+    }
+
     m365Service.sendTeamsMessage(
       store.sharepoint.teamsWebhookUrl,
       `Novo Rascunho Criado: ${templateName} para o imóvel ID ${propertyId}. Relacionado a: ${tenantName}.`,
@@ -79,6 +87,7 @@ export function ContractWizard({ open, onClose }: { open: boolean; onClose: () =
     setPropertyId('')
     setGuaranteeType('N/A')
     setTenantName('')
+    setSendToManager(true)
     onClose()
   }
 
@@ -199,6 +208,14 @@ export function ContractWizard({ open, onClose }: { open: boolean; onClose: () =
               value={tenantName}
               onChange={(e) => setTenantName(e.target.value)}
             />
+          </div>
+
+          <div className="flex items-center justify-between rounded-lg border p-3 shadow-sm mt-2 bg-muted/30">
+            <div className="space-y-0.5">
+              <Label className="text-sm font-medium">Análise Gerencial</Label>
+              <p className="text-xs text-muted-foreground">Mover imóvel para o Hub de Validação</p>
+            </div>
+            <Switch checked={sendToManager} onCheckedChange={setSendToManager} />
           </div>
         </div>
         <DialogFooter>

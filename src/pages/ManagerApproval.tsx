@@ -33,7 +33,15 @@ import { useAuth } from '@/contexts/AuthContext'
 import { m365Service } from '@/lib/m365'
 import { DocumentViewer } from '@/components/DocumentViewer'
 
-const DocItem = ({ name, onClick }: { name: string; onClick: () => void }) => (
+const DocItem = ({
+  name,
+  badge,
+  onClick,
+}: {
+  name: string
+  badge?: string
+  onClick: () => void
+}) => (
   <div
     className="flex items-center gap-3 p-3 border rounded-lg bg-background hover:bg-accent transition-colors group cursor-pointer shadow-sm"
     onClick={onClick}
@@ -41,9 +49,16 @@ const DocItem = ({ name, onClick }: { name: string; onClick: () => void }) => (
     <div className="p-2 rounded-md bg-blue-100/50 text-blue-700">
       <FileText className="h-4 w-4" />
     </div>
-    <span className="text-sm font-medium flex-1 truncate" title={name}>
-      {name}
-    </span>
+    <div className="flex-1 flex flex-col min-w-0">
+      <span className="text-sm font-medium truncate" title={name}>
+        {name}
+      </span>
+      {badge && (
+        <span className="text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5">
+          {badge}
+        </span>
+      )}
+    </div>
     <Button
       variant="ghost"
       size="icon"
@@ -217,11 +232,17 @@ const ManagerApproval = () => {
                     <DocItem
                       key={c.id}
                       name={c.documentName}
+                      badge="Minuta do Sistema"
                       onClick={() => setViewingDoc(c.documentName)}
                     />
                   ))}
                   {uploadedContracts.map((doc) => (
-                    <DocItem key={doc.id} name={doc.name} onClick={() => setViewingDoc(doc.name)} />
+                    <DocItem
+                      key={doc.id}
+                      name={doc.name}
+                      badge="Contrato Importado"
+                      onClick={() => setViewingDoc(doc.name)}
+                    />
                   ))}
                 </>
               ) : (

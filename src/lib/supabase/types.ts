@@ -365,6 +365,50 @@ export type Database = {
         }
         Relationships: []
       }
+      property_documents: {
+        Row: {
+          category: string
+          created_at: string
+          entity_code: string | null
+          entity_name: string | null
+          file_path: string | null
+          id: string
+          name: string
+          property_id: string
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          entity_code?: string | null
+          entity_name?: string | null
+          file_path?: string | null
+          id?: string
+          name: string
+          property_id: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          entity_code?: string | null
+          entity_name?: string | null
+          file_path?: string | null
+          id?: string
+          name?: string
+          property_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'property_documents_property_id_fkey'
+            columns: ['property_id']
+            isOneToOne: false
+            referencedRelation: 'properties'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       sharepoint_configs: {
         Row: {
           base_path: string
@@ -671,6 +715,16 @@ export const Constants = {
 //   location_y: numeric (nullable)
 //   created_at: timestamp with time zone (nullable, default: now())
 //   updated_at: timestamp with time zone (nullable, default: now())
+// Table: property_documents
+//   id: uuid (not null, default: gen_random_uuid())
+//   property_id: text (not null)
+//   name: text (not null)
+//   category: text (not null)
+//   entity_code: text (nullable)
+//   entity_name: text (nullable)
+//   file_path: text (nullable)
+//   created_at: timestamp with time zone (not null, default: now())
+//   updated_at: timestamp with time zone (not null, default: now())
 // Table: sharepoint_configs
 //   id: uuid (not null, default: gen_random_uuid())
 //   document_type: text (not null)
@@ -712,6 +766,9 @@ export const Constants = {
 //   PRIMARY KEY owners_pkey: PRIMARY KEY (id)
 // Table: properties
 //   PRIMARY KEY properties_pkey: PRIMARY KEY (id)
+// Table: property_documents
+//   PRIMARY KEY property_documents_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY property_documents_property_id_fkey: FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE CASCADE
 // Table: sharepoint_configs
 //   UNIQUE sharepoint_configs_document_type_key: UNIQUE (document_type)
 //   PRIMARY KEY sharepoint_configs_pkey: PRIMARY KEY (id)
@@ -760,6 +817,10 @@ export const Constants = {
 //     WITH CHECK: true
 // Table: properties
 //   Policy "authenticated_all_properties" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
+// Table: property_documents
+//   Policy "authenticated_all_property_documents" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
 //     WITH CHECK: true
 // Table: sharepoint_configs
