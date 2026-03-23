@@ -28,6 +28,7 @@ import useEntitiesStore from '@/stores/entities'
 import { m365Service } from '@/lib/m365'
 import { useToast } from '@/hooks/use-toast'
 import { useAuth } from '@/contexts/AuthContext'
+import { cn } from '@/lib/utils'
 
 interface DocumentViewerProps {
   open: boolean
@@ -407,109 +408,104 @@ export function DocumentViewer({ open, onClose, viewItem, docName, isTerm }: Doc
               <div className="p-4 border-b font-medium flex items-center gap-2 bg-muted/30">
                 <MessageSquare className="w-4 h-4 text-primary" /> Avaliação e Correções
               </div>
-              <div className="p-4 flex-1 overflow-auto flex flex-col gap-4">
-                {isManager ? (
-                  <>
+              <div className="p-4 flex-1 overflow-auto flex flex-col gap-6">
+                {savedNotes && (
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-md text-sm animate-in fade-in slide-in-from-top-2 shadow-sm">
+                    <strong className="text-amber-900 flex items-center gap-1 mb-2">
+                      <AlertCircle className="w-4 h-4" /> Nota Atual de Revisão:
+                    </strong>
+                    <p className="text-amber-800 whitespace-pre-wrap">{savedNotes}</p>
+                  </div>
+                )}
+
+                <div className="bg-card p-4 rounded-md border shadow-sm space-y-4">
+                  <h4 className="text-sm font-semibold flex items-center gap-2 border-b pb-2">
+                    <Save className="w-4 h-4 text-primary" />{' '}
+                    {savedNotes ? 'Aplicar Correções e Resolver' : 'Editar Metadados'}
+                  </h4>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Nome do Arquivo / Título</Label>
+                    <Input
+                      value={correctionName}
+                      onChange={(e) => setCorrectionName(e.target.value)}
+                      className="h-8 text-xs"
+                    />
+                  </div>
+
+                  {viewItem.type === 'contract' && (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Nome do Locatário / Vinculado</Label>
+                      <Input
+                        value={correctionTenant}
+                        onChange={(e) => setCorrectionTenant(e.target.value)}
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                  )}
+
+                  {viewItem.type === 'document' && (
+                    <div className="space-y-1.5 pt-1">
+                      <Label className="text-xs text-muted-foreground flex justify-between">
+                        Substituir Arquivo <span className="font-normal">(Opcional)</span>
+                      </Label>
+                      <Input
+                        type="file"
+                        onChange={(e) => setCorrectionFile(e.target.files?.[0] || null)}
+                        className="h-8 text-xs cursor-pointer"
+                      />
+                    </div>
+                  )}
+
+                  <Button
+                    onClick={handleResolveWithCorrections}
+                    disabled={savingNotes}
+                    size="sm"
+                    className={cn(
+                      'w-full mt-4',
+                      savedNotes ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : '',
+                    )}
+                  >
+                    {savingNotes ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : savedNotes ? (
+                      <CheckCircle2 className="w-4 h-4 mr-2" />
+                    ) : (
+                      <Save className="w-4 h-4 mr-2" />
+                    )}
+                    {savedNotes ? 'Salvar e Marcar Resolvido' : 'Salvar Alterações'}
+                  </Button>
+                </div>
+
+                {isManager && (
+                  <div className="pt-4 border-t space-y-3">
+                    <h4 className="text-sm font-semibold flex items-center gap-2 text-muted-foreground">
+                      <MessageSquare className="w-4 h-4" /> Gestão da Nota de Revisão
+                    </h4>
                     <p className="text-xs text-muted-foreground">
-                      Insira apontamentos ou correções necessárias para este documento.
+                      Modifique ou insira um novo apontamento para este documento.
                     </p>
                     <Textarea
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
                       placeholder="Ex: Assinatura ilegível, data incorreta, falta anexo..."
-                      className="min-h-[150px] resize-none text-sm"
+                      className="min-h-[100px] resize-none text-sm"
                     />
-                    <Button onClick={handleSaveNotes} disabled={savingNotes} size="sm">
+                    <Button
+                      variant="secondary"
+                      onClick={handleSaveNotes}
+                      disabled={savingNotes}
+                      size="sm"
+                      className="w-full"
+                    >
                       {savingNotes ? (
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                       ) : (
                         <Save className="w-4 h-4 mr-2" />
                       )}
-                      Salvar Anotações
+                      Atualizar Nota
                     </Button>
-
-                    {savedNotes && (
-                      <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-md text-sm animate-in fade-in slide-in-from-top-2">
-                        <strong className="text-amber-900 flex items-center gap-1 mb-1">
-                          <AlertCircle className="w-3 h-3" /> Nota Atual:
-                        </strong>
-                        <span className="text-amber-800 whitespace-pre-wrap">{savedNotes}</span>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    {savedNotes ? (
-                      <div className="space-y-4">
-                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-md text-sm">
-                          <strong className="text-amber-900 flex items-center gap-1 mb-1">
-                            <AlertCircle className="w-4 h-4" /> Pendência de Correção:
-                          </strong>
-                          <p className="text-amber-800 whitespace-pre-wrap mt-2">{savedNotes}</p>
-                        </div>
-
-                        <div className="bg-white p-4 rounded-md border shadow-sm space-y-3">
-                          <h4 className="text-sm font-semibold flex items-center gap-2 border-b pb-2">
-                            <Save className="w-4 h-4" /> Efetuar Correções
-                          </h4>
-
-                          <div className="space-y-1.5">
-                            <Label className="text-xs">Nome do Arquivo / Título</Label>
-                            <Input
-                              value={correctionName}
-                              onChange={(e) => setCorrectionName(e.target.value)}
-                              className="h-8 text-xs"
-                            />
-                          </div>
-
-                          {viewItem.type === 'contract' && (
-                            <div className="space-y-1.5">
-                              <Label className="text-xs">Nome do Locatário</Label>
-                              <Input
-                                value={correctionTenant}
-                                onChange={(e) => setCorrectionTenant(e.target.value)}
-                                className="h-8 text-xs"
-                              />
-                            </div>
-                          )}
-
-                          {viewItem.type === 'document' && (
-                            <div className="space-y-1.5 pt-1">
-                              <Label className="text-xs text-muted-foreground flex justify-between">
-                                Substituir Arquivo <span className="font-normal">(Opcional)</span>
-                              </Label>
-                              <Input
-                                type="file"
-                                onChange={(e) => setCorrectionFile(e.target.files?.[0] || null)}
-                                className="h-8 text-xs cursor-pointer"
-                              />
-                            </div>
-                          )}
-
-                          <Button
-                            onClick={handleResolveWithCorrections}
-                            disabled={savingNotes}
-                            size="sm"
-                            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white mt-4"
-                          >
-                            {savingNotes ? (
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            ) : (
-                              <CheckCircle2 className="w-4 h-4 mr-2" />
-                            )}
-                            Salvar e Marcar Resolvido
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="text-center p-4">
-                        <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2 opacity-50" />
-                        <p className="text-sm text-muted-foreground">
-                          Nenhuma pendência registrada para este documento.
-                        </p>
-                      </div>
-                    )}
-                  </>
+                  </div>
                 )}
               </div>
             </div>
