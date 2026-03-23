@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { UploadCloud, Loader2, AlertCircle } from 'lucide-react'
+import { UploadCloud, Loader2, AlertCircle, Check, ChevronsUpDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -11,11 +11,21 @@ import {
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { m365Service } from '@/lib/m365'
 import useMainStore from '@/stores/main'
 import useEntitiesStore from '@/stores/entities'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/hooks/use-toast'
+import { cn } from '@/lib/utils'
 
 interface GedUploadProps {
   preselectedPropertyId?: string
@@ -39,6 +49,7 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
   const { toast } = useToast()
 
   const [propertyId, setPropertyId] = useState(preselectedPropertyId || '')
+  const [propertyOpen, setPropertyOpen] = useState(false)
   const [docType, setDocType] = useState(preselectedType || '')
   const [entityCode, setEntityCode] = useState('')
   const [file, setFile] = useState<File | null>(null)
@@ -48,6 +59,8 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
     if (!user) return false
     return settings.spIntegrationRoles?.includes(user.role) ?? false
   }, [user, settings.spIntegrationRoles])
+
+  const selectedProperty = properties.find((p) => p.id === propertyId)
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -110,22 +123,56 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
 
       <div className="grid gap-2">
         <Label>Imóvel Relacionado</Label>
-        <Select
-          value={propertyId}
-          onValueChange={setPropertyId}
-          disabled={!!preselectedPropertyId || !hasSpAccess}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Selecione o imóvel..." />
-          </SelectTrigger>
-          <SelectContent>
-            {properties.map((p) => (
-              <SelectItem key={p.id} value={p.id}>
-                {p.title}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Popover open={propertyOpen} onOpenChange={setPropertyOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              role="combobox"
+              aria-expanded={propertyOpen}
+              disabled={!!preselectedPropertyId || !hasSpAccess}
+              className="w-full justify-between font-normal"
+            >
+              {selectedProperty ? (
+                <span className="truncate">
+                  <strong className="mr-1">{selectedProperty.id}</strong> - {selectedProperty.title}
+                </span>
+              ) : (
+                <span className="text-muted-foreground">Selecione ou busque o imóvel...</span>
+              )}
+              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+            <Command>
+              <CommandInput placeholder="Buscar por ID ou título..." />
+              <CommandList>
+                <CommandEmpty>Nenhum imóvel encontrado.</CommandEmpty>
+                <CommandGroup>
+                  {properties.map((p) => (
+                    <CommandItem
+                      key={p.id}
+                      value={`${p.id} ${p.title}`}
+                      onSelect={() => {
+                        setPropertyId(p.id)
+                        setPropertyOpen(false)
+                      }}
+                    >
+                      <Check
+                        className={cn(
+                          'mr-2 h-4 w-4',
+                          propertyId === p.id ? 'opacity-100' : 'opacity-0',
+                        )}
+                      />
+                      <span className="truncate">
+                        <strong className="mr-1">{p.id}</strong> - {p.title}
+                      </span>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
       </div>
 
       <div className="grid gap-2">

@@ -36,8 +36,9 @@ const navigation = [
   { title: 'Painel', url: '/', icon: LayoutDashboard },
   { title: 'Entidades (Prop. / Inq.)', url: '/entities', icon: UsersRound },
   { title: 'Imóveis', url: '/properties', icon: Home },
-  { title: 'Ciclo de Contratos', url: '/contracts', icon: FileSignature },
+  { title: 'Gestão de Modelos', url: '/templates', icon: BookOpen },
   { title: 'Documentos GED', url: '/documents', icon: FolderOpen },
+  { title: 'Ciclo de Contratos', url: '/contracts', icon: FileSignature },
   { title: 'Alertas GED', url: '/document-alerts', icon: BellRing },
   { title: 'Monitor de Sincronização', url: '/sync-monitor', icon: Activity },
   { title: 'Análise da Gerencia', url: '/manager-approval', icon: UserCheck },
@@ -46,7 +47,6 @@ const navigation = [
   { title: 'Manutenção', url: '/maintenance', icon: Wrench },
   { title: 'Renovações', url: '/renewals', icon: CalendarClock },
   { title: 'Jurídico', url: '/legal', icon: Scale },
-  { title: 'Gestão de Modelos', url: '/templates', icon: BookOpen },
   { title: 'Configurações', url: '/settings', icon: Settings },
 ]
 
