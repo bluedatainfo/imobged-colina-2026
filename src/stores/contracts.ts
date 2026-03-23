@@ -26,6 +26,7 @@ export type LeaseContract = {
   docusignStatus?: DocuSignStatus
   isCritical?: boolean
   managerApproval?: boolean
+  reviewNotes?: string
 }
 
 type State = {
@@ -51,6 +52,7 @@ export const initContractsStore = async () => {
       docusignStatus: c.docusign_status as any,
       isCritical: c.is_critical || false,
       managerApproval: c.manager_approval || false,
+      reviewNotes: c.review_notes || undefined,
     }))
   } else if (localStorage.getItem('app_user_id')) {
     const defaultContracts: LeaseContract[] = [
@@ -212,6 +214,21 @@ export const contractsStore = {
       }),
     }
     emit()
+  },
+  updateReviewNotes: (id: string, notes: string) => {
+    const updatedStr = new Date().toISOString()
+    state = {
+      ...state,
+      contracts: state.contracts.map((c) =>
+        c.id === id ? { ...c, reviewNotes: notes, updatedAt: updatedStr } : c,
+      ),
+    }
+    emit()
+    supabase
+      .from('contracts')
+      .update({ review_notes: notes, updated_at: updatedStr })
+      .eq('id', id)
+      .then()
   },
 }
 

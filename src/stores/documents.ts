@@ -14,6 +14,7 @@ export type PropertyDocument = {
   createdAt: string
   uploadDate: string
   expirationDate?: string
+  reviewNotes?: string
 }
 
 type State = {
@@ -40,6 +41,7 @@ export const initDocumentsStore = async () => {
       filePath: d.file_path || undefined,
       createdAt: d.created_at,
       uploadDate: d.created_at,
+      reviewNotes: d.review_notes || undefined,
     }))
   }
   emit()
@@ -100,8 +102,23 @@ export const documentsStore = {
         filePath: data.file_path || undefined,
         createdAt: data.created_at,
         uploadDate: data.created_at,
+        reviewNotes: data.review_notes || undefined,
       }
       state = { ...state, documents: [newDoc, ...state.documents] }
+      emit()
+    }
+  },
+  updateReviewNotes: async (id: string, notes: string) => {
+    const { error } = await (supabase as any)
+      .from('property_documents')
+      .update({ review_notes: notes })
+      .eq('id', id)
+
+    if (!error) {
+      state = {
+        ...state,
+        documents: state.documents.map((d) => (d.id === id ? { ...d, reviewNotes: notes } : d)),
+      }
       emit()
     }
   },

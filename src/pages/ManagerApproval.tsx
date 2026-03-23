@@ -14,6 +14,7 @@ import {
   FileSignature,
   FolderSearch,
   Loader2,
+  MessageSquare,
 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -27,6 +28,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useToast } from '@/hooks/use-toast'
 import useMainStore, { mainStore, isSlaBreached, Property } from '@/stores/main'
 import useDocumentsStore from '@/stores/documents'
@@ -39,18 +41,25 @@ import { DocumentViewer } from '@/components/DocumentViewer'
 const DocItem = ({
   name,
   badge,
+  hasNotes,
   onClick,
 }: {
   name: string
   badge?: string
+  hasNotes?: boolean
   onClick: () => void
 }) => (
   <div
-    className="flex items-center gap-3 p-3 border rounded-lg bg-background hover:bg-accent transition-colors group cursor-pointer shadow-sm"
+    className="flex items-center gap-3 p-3 border rounded-lg bg-background hover:bg-accent transition-colors group cursor-pointer shadow-sm relative overflow-hidden"
     onClick={onClick}
   >
-    <div className="p-2 rounded-md bg-blue-100/50 text-blue-700">
-      <FileText className="h-4 w-4" />
+    {hasNotes && <div className="absolute top-0 left-0 w-1 h-full bg-amber-500"></div>}
+    <div
+      className={`p-2 rounded-md ${
+        hasNotes ? 'bg-amber-100 text-amber-700' : 'bg-blue-100/50 text-blue-700'
+      }`}
+    >
+      {hasNotes ? <MessageSquare className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
     </div>
     <div className="flex-1 flex flex-col min-w-0">
       <span className="text-sm font-medium truncate" title={name}>
@@ -62,6 +71,14 @@ const DocItem = ({
         </span>
       )}
     </div>
+    {hasNotes && (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <AlertCircle className="w-4 h-4 text-amber-500 mr-2 shrink-0" />
+        </TooltipTrigger>
+        <TooltipContent>Documento possui notas de revisão</TooltipContent>
+      </Tooltip>
+    )}
     <Button
       variant="ghost"
       size="icon"
@@ -186,19 +203,39 @@ const ManagerApproval = () => {
     }
 
     if (rejectId) {
+      const allNotes: string[] = []
+      ownerDocs.forEach((d) => {
+        if (d.reviewNotes) allNotes.push(`- Proprietário (${d.name}): ${d.reviewNotes}`)
+      })
+      tenantDocs.forEach((d) => {
+        if (d.reviewNotes) allNotes.push(`- Inquilino (${d.name}): ${d.reviewNotes}`)
+      })
+      systemContracts.forEach((c) => {
+        if (c.reviewNotes) allNotes.push(`- Contrato (${c.documentName}): ${c.reviewNotes}`)
+      })
+      uploadedContracts.forEach((d) => {
+        if (d.reviewNotes) allNotes.push(`- Contrato Importado (${d.name}): ${d.reviewNotes}`)
+      })
+
+      const notesText =
+        allNotes.length > 0 ? `\n\nApontamentos nos Documentos:\n${allNotes.join('\n')}` : ''
+      const finalReason = `${rejectReason}${notesText}`
+
       mainStore.updatePropertyStatus(rejectId, 'Pendente/Rascunho')
       mainStore.addAuditLog({
         propertyId: rejectId,
         action: 'Documentação Rejeitada',
         user: user?.name || 'Sistema',
-        details: `Motivo: ${rejectReason}`,
+        details: `Motivo Geral: ${rejectReason}${
+          notesText ? ' (Ver apontamentos nos documentos)' : ''
+        }`,
       })
 
       m365Service.syncToList('Audit Log', `Rejeição do Imóvel ID: ${rejectId} por ${user?.name}`)
       m365Service.sendEmail(
         `${store.settings.administrativeEmails}, ${store.settings.managementEmails}`,
         `Documentação Rejeitada - Imóvel ID: ${rejectId}`,
-        `Motivo: ${rejectReason}. Por favor, corrija as informações no SharePoint e reenvie.`,
+        `Motivo: ${finalReason}\n\nPor favor, corrija as informações e reenvie para análise.`,
       )
 
       toast({
@@ -243,6 +280,7 @@ const ManagerApproval = () => {
                   <DocItem
                     key={doc.id}
                     name={doc.name}
+                    hasNotes={!!doc.reviewNotes}
                     onClick={() => setViewingItem({ type: 'document', id: doc.id })}
                   />
                 ))
@@ -269,6 +307,7 @@ const ManagerApproval = () => {
                   <DocItem
                     key={doc.id}
                     name={doc.name}
+                    hasNotes={!!doc.reviewNotes}
                     onClick={() => setViewingItem({ type: 'document', id: doc.id })}
                   />
                 ))
@@ -295,6 +334,7 @@ const ManagerApproval = () => {
                       key={c.id}
                       name={c.documentName}
                       badge="Ciclo de Contratos"
+                      hasNotes={!!c.reviewNotes}
                       onClick={() => setViewingItem({ type: 'contract', id: c.id })}
                     />
                   ))}
@@ -303,6 +343,7 @@ const ManagerApproval = () => {
                       key={doc.id}
                       name={doc.name}
                       badge="Contrato Importado"
+                      hasNotes={!!doc.reviewNotes}
                       onClick={() => setViewingItem({ type: 'document', id: doc.id })}
                     />
                   ))}
@@ -387,8 +428,8 @@ const ManagerApproval = () => {
                 <AlertCircle className="h-5 w-5 text-destructive" /> Rejeitar Documentação
               </DialogTitle>
               <DialogDescription>
-                Informe o motivo da rejeição. Um e-mail será enviado automaticamente para a equipe
-                administrativa e o Dossiê será devolvido.
+                Informe o motivo da rejeição. As notas inseridas individualmente nos documentos
+                serão enviadas aos gestores automaticamente.
               </DialogDescription>
             </DialogHeader>
             <div className="py-4">

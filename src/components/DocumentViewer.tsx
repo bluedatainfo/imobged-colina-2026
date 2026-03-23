@@ -6,14 +6,24 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog'
-import { FileText, Download, Share2, Loader2, ExternalLink, AlertCircle } from 'lucide-react'
+import {
+  FileText,
+  Download,
+  Loader2,
+  ExternalLink,
+  AlertCircle,
+  MessageSquare,
+  Save,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
 import useMainStore from '@/stores/main'
-import useDocumentsStore from '@/stores/documents'
-import useContractsStore from '@/stores/contracts'
+import useDocumentsStore, { documentsStore } from '@/stores/documents'
+import useContractsStore, { contractsStore } from '@/stores/contracts'
 import useTemplatesStore from '@/stores/templates'
 import useEntitiesStore from '@/stores/entities'
 import { m365Service } from '@/lib/m365'
+import { useToast } from '@/hooks/use-toast'
 
 interface DocumentViewerProps {
   open: boolean
@@ -29,12 +39,18 @@ export function DocumentViewer({ open, onClose, viewItem, docName, isTerm }: Doc
   const { contracts } = useContractsStore()
   const { templates } = useTemplatesStore()
   const { owners } = useEntitiesStore()
+  const { toast } = useToast()
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [templateContent, setTemplateContent] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [title, setTitle] = useState('')
+
+  // Review Notes State
+  const [notes, setNotes] = useState('')
+  const [savedNotes, setSavedNotes] = useState('')
+  const [savingNotes, setSavingNotes] = useState(false)
 
   useEffect(() => {
     if (!open) return
@@ -44,6 +60,8 @@ export function DocumentViewer({ open, onClose, viewItem, docName, isTerm }: Doc
       setPreviewUrl(null)
       setTemplateContent(null)
       setError(null)
+      setNotes('')
+      setSavedNotes('')
       return
     }
 
@@ -52,12 +70,16 @@ export function DocumentViewer({ open, onClose, viewItem, docName, isTerm }: Doc
       setError(null)
       setPreviewUrl(null)
       setTemplateContent(null)
+      setNotes('')
+      setSavedNotes('')
 
       try {
         if (viewItem.type === 'document') {
           const doc = documents.find((d) => d.id === viewItem.id)
           if (!doc) throw new Error('Documento não encontrado na base de dados.')
           setTitle(doc.name)
+          setNotes(doc.reviewNotes || '')
+          setSavedNotes(doc.reviewNotes || '')
 
           if (!doc.filePath || !doc.category) {
             throw new Error(
@@ -71,6 +93,8 @@ export function DocumentViewer({ open, onClose, viewItem, docName, isTerm }: Doc
           const contract = contracts.find((c) => c.id === viewItem.id)
           if (!contract) throw new Error('Contrato não encontrado.')
           setTitle(contract.documentName)
+          setNotes(contract.reviewNotes || '')
+          setSavedNotes(contract.reviewNotes || '')
 
           // 1. Try to find if this contract was explicitly uploaded to GED
           const uploadedDoc = documents.find(
@@ -146,11 +170,32 @@ export function DocumentViewer({ open, onClose, viewItem, docName, isTerm }: Doc
     if (previewUrl) window.open(previewUrl, '_blank')
   }
 
+  const handleSaveNotes = async () => {
+    if (!viewItem) return
+    setSavingNotes(true)
+    try {
+      if (viewItem.type === 'document') {
+        await documentsStore.updateReviewNotes(viewItem.id, notes)
+      } else if (viewItem.type === 'contract') {
+        await contractsStore.updateReviewNotes(viewItem.id, notes)
+      }
+      setSavedNotes(notes)
+      toast({
+        title: 'Anotações salvas',
+        description: 'As notas de revisão foram atualizadas com sucesso.',
+      })
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Erro', description: 'Falha ao salvar as anotações.' })
+    } finally {
+      setSavingNotes(false)
+    }
+  }
+
   if (!open && !docName && !viewItem) return null
 
   return (
     <Dialog open={open} onOpenChange={(val) => !val && onClose()}>
-      <DialogContent className="max-w-5xl h-[85vh] flex flex-col p-0 overflow-hidden bg-muted/30">
+      <DialogContent className="max-w-[1200px] w-[95vw] h-[90vh] flex flex-col p-0 overflow-hidden bg-muted/30">
         <DialogHeader className="p-4 border-b bg-background flex flex-row items-center justify-between shrink-0">
           <div className="space-y-1">
             <DialogTitle className="flex items-center gap-2">
@@ -175,107 +220,146 @@ export function DocumentViewer({ open, onClose, viewItem, docName, isTerm }: Doc
           </div>
         </DialogHeader>
 
-        <div className="flex-1 overflow-auto relative bg-muted/10">
-          {loading && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 z-10">
-              <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
-              <p className="text-sm font-medium text-foreground">
-                Sincronizando com o Microsoft 365...
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Realizando busca híbrida por arquivos GED
-              </p>
-            </div>
-          )}
-
-          {error && !loading && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center bg-background">
-              <div className="bg-destructive/10 p-4 rounded-full mb-4">
-                <AlertCircle className="h-10 w-10 text-destructive" />
+        <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+          <div className="flex-1 overflow-auto relative bg-muted/10 flex flex-col">
+            {loading && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 z-10">
+                <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
+                <p className="text-sm font-medium text-foreground">
+                  Sincronizando com o Microsoft 365...
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Realizando busca híbrida por arquivos GED
+                </p>
               </div>
-              <h3 className="text-xl font-semibold text-foreground mb-2">Documento Indisponível</h3>
-              <p className="text-muted-foreground max-w-md">{error}</p>
-            </div>
-          )}
+            )}
 
-          {!loading && !error && previewUrl && (
-            <iframe
-              src={previewUrl}
-              className="w-full h-full border-0"
-              title={title}
-              allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
-            />
-          )}
-
-          {!loading && !error && !previewUrl && templateContent && (
-            <div className="p-4 md:p-8 flex justify-center">
-              <div className="bg-background shadow-lg border p-10 md:p-16 w-full max-w-3xl min-h-full flex flex-col">
-                <div className="text-center mb-10 border-b pb-8">
-                  {agencyProfile.logo && (
-                    <img
-                      src={agencyProfile.logo}
-                      alt="Logo"
-                      className="h-20 mx-auto mb-6 object-contain"
-                    />
-                  )}
-                  <h1 className="text-2xl font-bold uppercase underline">Documento do Sistema</h1>
-                  <p className="text-muted-foreground mt-4 font-semibold">{agencyProfile.name}</p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {agencyProfile.address} | {agencyProfile.website}
-                  </p>
+            {error && !loading && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center bg-background">
+                <div className="bg-destructive/10 p-4 rounded-full mb-4">
+                  <AlertCircle className="h-10 w-10 text-destructive" />
                 </div>
-                <div
-                  className="space-y-4 text-sm text-foreground/90 text-justify leading-relaxed flex-1 [&>p]:mb-4 [&>ul]:list-disc [&>ul]:ml-6 [&>strong]:font-bold"
-                  dangerouslySetInnerHTML={{ __html: templateContent }}
+                <h3 className="text-xl font-semibold text-foreground mb-2">
+                  Documento Indisponível
+                </h3>
+                <p className="text-muted-foreground max-w-md">{error}</p>
+              </div>
+            )}
+
+            {!loading && !error && previewUrl && (
+              <iframe
+                src={previewUrl}
+                className="w-full flex-1 border-0"
+                title={title}
+                allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+              />
+            )}
+
+            {!loading && !error && !previewUrl && templateContent && (
+              <div className="p-4 md:p-8 flex justify-center flex-1">
+                <div className="bg-background shadow-lg border p-10 md:p-16 w-full max-w-3xl flex flex-col h-fit">
+                  <div className="text-center mb-10 border-b pb-8">
+                    {agencyProfile.logo && (
+                      <img
+                        src={agencyProfile.logo}
+                        alt="Logo"
+                        className="h-20 mx-auto mb-6 object-contain"
+                      />
+                    )}
+                    <h1 className="text-2xl font-bold uppercase underline">Documento do Sistema</h1>
+                    <p className="text-muted-foreground mt-4 font-semibold">{agencyProfile.name}</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {agencyProfile.address} | {agencyProfile.website}
+                    </p>
+                  </div>
+                  <div
+                    className="space-y-4 text-sm text-foreground/90 text-justify leading-relaxed flex-1 [&>p]:mb-4 [&>ul]:list-disc [&>ul]:ml-6 [&>strong]:font-bold"
+                    dangerouslySetInnerHTML={{ __html: templateContent }}
+                  />
+                  <div className="mt-16 pt-8 flex justify-between px-8 opacity-50">
+                    <div className="text-center">
+                      <div className="w-48 border-b border-foreground/50 mb-2"></div>
+                      <p className="text-xs">Locador</p>
+                    </div>
+                    <div className="text-center">
+                      <div className="w-48 border-b border-foreground/50 mb-2"></div>
+                      <p className="text-xs">Locatário</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {!loading && !error && !viewItem && (
+              <div className="p-4 md:p-8 flex justify-center flex-1">
+                <div className="bg-background shadow-lg border p-10 md:p-16 w-full max-w-3xl flex flex-col h-fit">
+                  <div className="text-center mb-10 border-b pb-8">
+                    {agencyProfile.logo && (
+                      <img
+                        src={agencyProfile.logo}
+                        alt="Logo"
+                        className="h-20 mx-auto mb-6 object-contain"
+                      />
+                    )}
+                    <h1 className="text-2xl font-bold uppercase underline">
+                      {isTerm ? 'Termo de Responsabilidade' : 'Documento'}
+                    </h1>
+                    <p className="text-muted-foreground mt-4 font-semibold">{agencyProfile.name}</p>
+                  </div>
+                  <div className="space-y-6 text-sm text-foreground/90 text-justify leading-relaxed flex-1">
+                    {isTerm ? (
+                      <>
+                        <p>
+                          Declaro para os devidos fins que recebi/entreguei as chaves referentes ao
+                          imóvel situado no endereço supracitado, em plenas condições de acordo com
+                          o processo em vigência.
+                        </p>
+                        <p>
+                          O presente termo isenta ou responsabiliza a parte envolvida com base na
+                          vistoria anexada aos autos, em conformidade com as políticas internas da{' '}
+                          <strong>{agencyProfile.name}</strong>.
+                        </p>
+                      </>
+                    ) : (
+                      <p>Conteúdo do documento não disponível via preview direto.</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {viewItem && (
+            <div className="w-full md:w-[320px] shrink-0 border-t md:border-t-0 md:border-l bg-background flex flex-col z-20">
+              <div className="p-4 border-b font-medium flex items-center gap-2 bg-muted/30">
+                <MessageSquare className="w-4 h-4 text-primary" /> Notas de Revisão
+              </div>
+              <div className="p-4 flex-1 overflow-auto flex flex-col gap-4">
+                <p className="text-xs text-muted-foreground">
+                  Insira apontamentos ou correções necessárias para este documento.
+                </p>
+                <Textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Ex: Assinatura ilegível, data incorreta, falta anexo..."
+                  className="min-h-[150px] resize-none text-sm"
                 />
-                <div className="mt-16 pt-8 flex justify-between px-8 opacity-50">
-                  <div className="text-center">
-                    <div className="w-48 border-b border-foreground/50 mb-2"></div>
-                    <p className="text-xs">Locador</p>
-                  </div>
-                  <div className="text-center">
-                    <div className="w-48 border-b border-foreground/50 mb-2"></div>
-                    <p className="text-xs">Locatário</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {!loading && !error && !viewItem && (
-            <div className="p-4 md:p-8 flex justify-center">
-              <div className="bg-background shadow-lg border p-10 md:p-16 w-full max-w-3xl min-h-full flex flex-col">
-                <div className="text-center mb-10 border-b pb-8">
-                  {agencyProfile.logo && (
-                    <img
-                      src={agencyProfile.logo}
-                      alt="Logo"
-                      className="h-20 mx-auto mb-6 object-contain"
-                    />
-                  )}
-                  <h1 className="text-2xl font-bold uppercase underline">
-                    {isTerm ? 'Termo de Responsabilidade' : 'Documento'}
-                  </h1>
-                  <p className="text-muted-foreground mt-4 font-semibold">{agencyProfile.name}</p>
-                </div>
-                <div className="space-y-6 text-sm text-foreground/90 text-justify leading-relaxed flex-1">
-                  {isTerm ? (
-                    <>
-                      <p>
-                        Declaro para os devidos fins que recebi/entreguei as chaves referentes ao
-                        imóvel situado no endereço supracitado, em plenas condições de acordo com o
-                        processo em vigência.
-                      </p>
-                      <p>
-                        O presente termo isenta ou responsabiliza a parte envolvida com base na
-                        vistoria anexada aos autos, em conformidade com as políticas internas da{' '}
-                        <strong>{agencyProfile.name}</strong>.
-                      </p>
-                    </>
+                <Button onClick={handleSaveNotes} disabled={savingNotes} size="sm">
+                  {savingNotes ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   ) : (
-                    <p>Conteúdo do documento não disponível via preview direto.</p>
+                    <Save className="w-4 h-4 mr-2" />
                   )}
-                </div>
+                  Salvar Anotações
+                </Button>
+                {savedNotes && (
+                  <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-md text-sm animate-in fade-in slide-in-from-top-2">
+                    <strong className="text-amber-900 flex items-center gap-1 mb-1">
+                      <AlertCircle className="w-3 h-3" /> Nota Atual:
+                    </strong>
+                    <span className="text-amber-800 whitespace-pre-wrap">{savedNotes}</span>
+                  </div>
+                )}
               </div>
             </div>
           )}

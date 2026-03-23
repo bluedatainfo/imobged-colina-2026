@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   MessageCircle,
   UploadCloud,
+  MessageSquareWarning,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import {
@@ -32,6 +33,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import useContractsStore, {
   ContractStatus,
   LeaseContract,
@@ -191,6 +193,17 @@ export default function Contracts() {
                             Crítico
                           </Badge>
                         )}
+                        {contract.reviewNotes && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <MessageSquareWarning className="w-4 h-4 text-amber-500 cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs p-3">
+                              <p className="font-semibold text-xs mb-1">Apontamento da Gerência:</p>
+                              <p className="text-xs">{contract.reviewNotes}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
                       </div>
                       <div className="text-xs text-muted-foreground mt-1">
                         Modelo: {contract.template}
@@ -238,7 +251,7 @@ export default function Contracts() {
                           <DropdownMenuItem
                             onClick={() => setViewItem({ type: 'contract', id: contract.id })}
                           >
-                            <Eye className="w-4 h-4 mr-2" /> Pré-visualizar (Nativo)
+                            <Eye className="w-4 h-4 mr-2" /> Pré-visualizar / Corrigir
                           </DropdownMenuItem>
 
                           <DropdownMenuItem onClick={() => setUploadContract(contract)}>
