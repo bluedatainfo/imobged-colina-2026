@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react'
-import { FilePlus, Target, Users, ShieldCheck, Home, User } from 'lucide-react'
+import { useState, useMemo, useEffect } from 'react'
+import { FilePlus, Target, Users, ShieldCheck, Home, User, AlertCircle } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -28,6 +28,7 @@ export function ContractWizard({ open, onClose }: { open: boolean; onClose: () =
   const store = useMainStore()
   const { templates } = useTemplatesStore()
   const { owners, tenants } = useEntitiesStore()
+  const { contracts } = useContractsStore()
 
   const [purpose, setPurpose] = useState('tenant_contract')
   const [propertyId, setPropertyId] = useState('')
@@ -42,6 +43,19 @@ export function ContractWizard({ open, onClose }: { open: boolean; onClose: () =
   const propertyOwner = useMemo(() => {
     return owners.find((o) => o.id === selectedProperty?.ownerId)
   }, [selectedProperty, owners])
+
+  const existingContract = useMemo(() => {
+    return contracts.find((c) => c.propertyId === propertyId && c.status !== 'Rescindido')
+  }, [propertyId, contracts])
+
+  useEffect(() => {
+    if (selectedProperty && selectedProperty.tenant && purpose === 'tenant_contract') {
+      const existingTenant = tenants.find((t) => t.fullName === selectedProperty.tenant)
+      if (existingTenant) {
+        setTenantId(existingTenant.id)
+      }
+    }
+  }, [selectedProperty, purpose, tenants])
 
   const filteredTemplates = useMemo(() => {
     return templates.filter((t) => {
@@ -128,6 +142,20 @@ export function ContractWizard({ open, onClose }: { open: boolean; onClose: () =
               </SelectContent>
             </Select>
           </div>
+
+          {existingContract && (
+            <div className="flex items-start gap-3 rounded-lg border p-3 shadow-sm mt-1 bg-amber-50 border-amber-200 animate-fade-in">
+              <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-amber-900">Contrato Já Vinculado</p>
+                <p className="text-xs text-amber-700 leading-relaxed">
+                  Este imóvel já possui um contrato:{' '}
+                  <strong>{existingContract.documentName}</strong> ({existingContract.status}).
+                  Criar um novo rascunho pode gerar duplicidade.
+                </p>
+              </div>
+            </div>
+          )}
 
           {selectedProperty && (
             <div className="grid gap-2 animate-fade-in">

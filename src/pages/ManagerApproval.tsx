@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import {
   Check,
   X,
@@ -29,6 +29,7 @@ import { useToast } from '@/hooks/use-toast'
 import useMainStore, { mainStore, isSlaBreached, Property } from '@/stores/main'
 import useDocumentsStore from '@/stores/documents'
 import useContractsStore from '@/stores/contracts'
+import useEntitiesStore from '@/stores/entities'
 import { useAuth } from '@/contexts/AuthContext'
 import { m365Service } from '@/lib/m365'
 import { DocumentViewer } from '@/components/DocumentViewer'
@@ -75,6 +76,7 @@ const ManagerApproval = () => {
   const store = useMainStore()
   const { documents } = useDocumentsStore()
   const { contracts } = useContractsStore()
+  const { owners, tenants } = useEntitiesStore()
 
   const approvals = store.properties.filter((p) => p.status === 'Análise Gerencial')
 
@@ -84,12 +86,34 @@ const ManagerApproval = () => {
   const [rejectId, setRejectId] = useState<string | null>(null)
   const [rejectReason, setRejectReason] = useState('')
 
-  const ownerDocs = selectedHub
-    ? documents.filter((d) => d.propertyId === selectedHub.id && d.category === 'OWNER_DOCUMENT')
-    : []
-  const tenantDocs = selectedHub
-    ? documents.filter((d) => d.propertyId === selectedHub.id && d.category === 'TENANT_DOCUMENT')
-    : []
+  const ownerEntity = useMemo(() => {
+    return selectedHub?.ownerId ? owners.find((o) => o.id === selectedHub.ownerId) : null
+  }, [selectedHub, owners])
+
+  const tenantEntity = useMemo(() => {
+    return selectedHub?.tenant ? tenants.find((t) => t.fullName === selectedHub.tenant) : null
+  }, [selectedHub, tenants])
+
+  const ownerDocs = useMemo(() => {
+    if (!selectedHub) return []
+    const docs = documents.filter(
+      (d) =>
+        (d.propertyId === selectedHub.id && d.category === 'OWNER_DOCUMENT') ||
+        (ownerEntity && d.entityCode === ownerEntity.code && d.category === 'OWNER_DOCUMENT'),
+    )
+    return Array.from(new Set(docs.map((a) => a.id))).map((id) => docs.find((a) => a.id === id)!)
+  }, [selectedHub, documents, ownerEntity])
+
+  const tenantDocs = useMemo(() => {
+    if (!selectedHub) return []
+    const docs = documents.filter(
+      (d) =>
+        (d.propertyId === selectedHub.id && d.category === 'TENANT_DOCUMENT') ||
+        (tenantEntity && d.entityCode === tenantEntity.code && d.category === 'TENANT_DOCUMENT'),
+    )
+    return Array.from(new Set(docs.map((a) => a.id))).map((id) => docs.find((a) => a.id === id)!)
+  }, [selectedHub, documents, tenantEntity])
+
   const uploadedContracts = selectedHub
     ? documents.filter((d) => d.propertyId === selectedHub.id && d.category.startsWith('CONTRACT_'))
     : []
@@ -179,7 +203,9 @@ const ManagerApproval = () => {
               <CardTitle className="flex items-center gap-2 text-lg">
                 <User className="h-5 w-5 text-primary" /> Proprietário
               </CardTitle>
-              <CardDescription>Documentos de posse e identificação</CardDescription>
+              <CardDescription>
+                Documentos vinculados ({ownerEntity?.fullName || 'Não definido'})
+              </CardDescription>
             </CardHeader>
             <CardContent className="p-4 space-y-3">
               {ownerDocs.length > 0 ? (
@@ -188,7 +214,7 @@ const ManagerApproval = () => {
                 ))
               ) : (
                 <p className="text-sm text-muted-foreground italic text-center p-4">
-                  Nenhum documento de proprietário vinculado.
+                  Nenhum documento de proprietário localizado no GED.
                 </p>
               )}
             </CardContent>
@@ -211,7 +237,7 @@ const ManagerApproval = () => {
                 ))
               ) : (
                 <p className="text-sm text-muted-foreground italic text-center p-4">
-                  Nenhum documento de inquilino vinculado.
+                  Nenhum documento de inquilino localizado no GED.
                 </p>
               )}
             </CardContent>

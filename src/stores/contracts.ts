@@ -49,7 +49,7 @@ export const initContractsStore = async () => {
       updatedAt: c.updated_at || new Date().toISOString(),
       expirationDate: c.expiration_date || undefined,
       docusignStatus: c.docusign_status as any,
-      isCritical: c.isCritical || false,
+      isCritical: c.is_critical || false,
       managerApproval: c.manager_approval || false,
     }))
   } else if (localStorage.getItem('app_user_id')) {
