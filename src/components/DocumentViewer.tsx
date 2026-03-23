@@ -14,6 +14,7 @@ import {
   AlertCircle,
   MessageSquare,
   Save,
+  CheckCircle2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -24,6 +25,7 @@ import useTemplatesStore from '@/stores/templates'
 import useEntitiesStore from '@/stores/entities'
 import { m365Service } from '@/lib/m365'
 import { useToast } from '@/hooks/use-toast'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface DocumentViewerProps {
   open: boolean
@@ -40,6 +42,9 @@ export function DocumentViewer({ open, onClose, viewItem, docName, isTerm }: Doc
   const { templates } = useTemplatesStore()
   const { owners } = useEntitiesStore()
   const { toast } = useToast()
+  const { user } = useAuth()
+
+  const isManager = ['Admin', 'Gerente', 'Diretor'].includes(user?.role || '')
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [templateContent, setTemplateContent] = useState<string | null>(null)
@@ -191,6 +196,32 @@ export function DocumentViewer({ open, onClose, viewItem, docName, isTerm }: Doc
     }
   }
 
+  const handleResolve = async () => {
+    if (!viewItem) return
+    setSavingNotes(true)
+    try {
+      if (viewItem.type === 'document') {
+        await documentsStore.updateReviewNotes(viewItem.id, '')
+      } else if (viewItem.type === 'contract') {
+        await contractsStore.updateReviewNotes(viewItem.id, '')
+      }
+      setSavedNotes('')
+      setNotes('')
+      toast({
+        title: 'Pendência resolvida',
+        description: 'A anotação foi marcada como corrigida.',
+      })
+    } catch (e) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro',
+        description: 'Falha ao resolver a pendência.',
+      })
+    } finally {
+      setSavingNotes(false)
+    }
+  }
+
   if (!open && !docName && !viewItem) return null
 
   return (
@@ -335,24 +366,66 @@ export function DocumentViewer({ open, onClose, viewItem, docName, isTerm }: Doc
                 <MessageSquare className="w-4 h-4 text-primary" /> Notas de Revisão
               </div>
               <div className="p-4 flex-1 overflow-auto flex flex-col gap-4">
-                <p className="text-xs text-muted-foreground">
-                  Insira apontamentos ou correções necessárias para este documento.
-                </p>
-                <Textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Ex: Assinatura ilegível, data incorreta, falta anexo..."
-                  className="min-h-[150px] resize-none text-sm"
-                />
-                <Button onClick={handleSaveNotes} disabled={savingNotes} size="sm">
-                  {savingNotes ? (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <Save className="w-4 h-4 mr-2" />
-                  )}
-                  Salvar Anotações
-                </Button>
-                {savedNotes && (
+                {isManager ? (
+                  <>
+                    <p className="text-xs text-muted-foreground">
+                      Insira apontamentos ou correções necessárias para este documento.
+                    </p>
+                    <Textarea
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      placeholder="Ex: Assinatura ilegível, data incorreta, falta anexo..."
+                      className="min-h-[150px] resize-none text-sm"
+                    />
+                    <Button onClick={handleSaveNotes} disabled={savingNotes} size="sm">
+                      {savingNotes ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <Save className="w-4 h-4 mr-2" />
+                      )}
+                      Salvar Anotações
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    {savedNotes ? (
+                      <div className="space-y-4">
+                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-md text-sm">
+                          <strong className="text-amber-900 flex items-center gap-1 mb-1">
+                            <AlertCircle className="w-4 h-4" /> Pendência de Correção:
+                          </strong>
+                          <p className="text-amber-800 whitespace-pre-wrap mt-2">{savedNotes}</p>
+                        </div>
+                        <Button
+                          onClick={handleResolve}
+                          disabled={savingNotes}
+                          size="sm"
+                          className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                        >
+                          {savingNotes ? (
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          ) : (
+                            <CheckCircle2 className="w-4 h-4 mr-2" />
+                          )}
+                          Marcar como Resolvido
+                        </Button>
+                        <p className="text-xs text-muted-foreground text-center">
+                          Marque como resolvido apenas após realizar a correção no arquivo ou
+                          sistema.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="text-center p-4">
+                        <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2 opacity-50" />
+                        <p className="text-sm text-muted-foreground">
+                          Nenhuma pendência registrada para este documento.
+                        </p>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {isManager && savedNotes && (
                   <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-md text-sm animate-in fade-in slide-in-from-top-2">
                     <strong className="text-amber-900 flex items-center gap-1 mb-1">
                       <AlertCircle className="w-3 h-3" /> Nota Atual:

@@ -82,6 +82,7 @@ export type Property = {
   rentValue?: number
   location?: { x: number; y: number }
   ownerId?: string
+  isResubmission?: boolean
 }
 
 export type MaintenanceStatus = 'Pendente' | 'Em Andamento' | 'Concluído'
@@ -317,6 +318,7 @@ export const initMainStore = async () => {
           ? { x: Number(p.location_x), y: Number(p.location_y) }
           : undefined,
       ownerId: (p as any).owner_id || undefined,
+      isResubmission: (p as any).is_resubmission || false,
     }))
   }
 
@@ -472,7 +474,7 @@ export const mainStore = {
     emit()
     syncConfig()
   },
-  addProperty: (p: Omit<Property, 'id' | 'status' | 'image'>) => {
+  addProperty: (p: Omit<Property, 'id' | 'status' | 'image' | 'isResubmission'>) => {
     const prefixMap: Record<string, string> = {
       Casa: 'CA',
       Sala: 'SA',
@@ -499,6 +501,7 @@ export const mainStore = {
       id: newId,
       status: 'Pendente/Rascunho',
       image: 'https://img.usecurling.com/p/400/300?q=house',
+      isResubmission: false,
     }
     state = { ...state, properties: [newProperty, ...state.properties] }
     emit()
@@ -516,6 +519,7 @@ export const mainStore = {
       tenant: newProperty.tenant,
       sla_start: newProperty.slaStart,
       owner_id: newProperty.ownerId,
+      is_resubmission: newProperty.isResubmission,
     }
 
     supabase.from('properties').insert(insertPayload).then()
@@ -540,6 +544,8 @@ export const mainStore = {
     if (updates.slaStart !== undefined) payload.sla_start = updates.slaStart
     if (updates.rentValue !== undefined) payload.rent_value = updates.rentValue
     if (updates.ownerId !== undefined) payload.owner_id = updates.ownerId
+    if (updates.isResubmission !== undefined) payload.is_resubmission = updates.isResubmission
+
     if (Object.keys(payload).length > 0) {
       supabase.from('properties').update(payload).eq('id', id).then()
     }

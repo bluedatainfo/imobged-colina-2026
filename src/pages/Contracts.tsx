@@ -12,6 +12,7 @@ import {
   MessageCircle,
   UploadCloud,
   MessageSquareWarning,
+  ShieldAlert,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import {
@@ -40,11 +41,13 @@ import useContractsStore, {
   contractsStore,
 } from '@/stores/contracts'
 import useMainStore, { mainStore } from '@/stores/main'
+import useDocumentsStore from '@/stores/documents'
 import { m365Service } from '@/lib/m365'
 import { ContractWizard } from '@/components/ContractWizard'
 import { DocumentViewer } from '@/components/DocumentViewer'
 import { DocuSignDialog } from '@/components/DocuSignDialog'
 import { GedUpload } from '@/components/GedUpload'
+import { ReviewResolutionDialog } from '@/components/ReviewResolutionDialog'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/hooks/use-toast'
 
@@ -81,6 +84,7 @@ const getNextActions = (status: ContractStatus): ContractStatus[] => {
 
 export default function Contracts() {
   const { contracts } = useContractsStore()
+  const { documents } = useDocumentsStore()
   const { user } = useAuth()
   const { toast } = useToast()
   const mainSettings = useMainStore().sharepoint
@@ -90,6 +94,7 @@ export default function Contracts() {
   )
   const [docusignContract, setDocusignContract] = useState<LeaseContract | null>(null)
   const [uploadContract, setUploadContract] = useState<LeaseContract | null>(null)
+  const [resolutionPropertyId, setResolutionPropertyId] = useState<string | null>(null)
 
   const handleStatusChange = (contract: LeaseContract, newStatus: ContractStatus) => {
     contractsStore.updateStatus(contract.id, newStatus)
@@ -186,6 +191,13 @@ export default function Contracts() {
                   user?.role || '',
                 )
 
+                const propertyDocs = documents.filter(
+                  (d) => d.propertyId === contract.propertyId && d.reviewNotes,
+                )
+                const hasNotes = !!contract.reviewNotes || propertyDocs.length > 0
+                const isRejected =
+                  (contract.status === 'Rascunho' || contract.status === 'Em Análise') && hasNotes
+
                 return (
                   <TableRow key={contract.id}>
                     <TableCell className="font-mono text-xs">{contract.id}</TableCell>
@@ -215,12 +227,19 @@ export default function Contracts() {
                     </TableCell>
                     <TableCell>{contract.tenantName}</TableCell>
                     <TableCell>
-                      <Badge
-                        variant="outline"
-                        className={`shadow-sm ${statusColors[contract.status]}`}
-                      >
-                        {contract.status}
-                      </Badge>
+                      <div className="flex flex-col gap-1 items-start">
+                        <Badge
+                          variant="outline"
+                          className={`shadow-sm ${statusColors[contract.status]}`}
+                        >
+                          {contract.status}
+                        </Badge>
+                        {isRejected && (
+                          <Badge variant="destructive" className="text-[10px] py-0">
+                            Pendências
+                          </Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       {contract.docusignStatus === 'Signed' && (
@@ -252,6 +271,16 @@ export default function Contracts() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-64">
                           <DropdownMenuLabel>Ações do Documento</DropdownMenuLabel>
+
+                          {isRejected && (
+                            <DropdownMenuItem
+                              onClick={() => setResolutionPropertyId(contract.propertyId)}
+                              className="text-amber-600 font-medium"
+                            >
+                              <ShieldAlert className="w-4 h-4 mr-2" /> Resolver Pendências
+                            </DropdownMenuItem>
+                          )}
+
                           <DropdownMenuItem
                             onClick={() => setViewItem({ type: 'contract', id: contract.id })}
                           >
@@ -326,6 +355,10 @@ export default function Contracts() {
       <ContractWizard open={wizardOpen} onClose={() => setWizardOpen(false)} />
       <DocumentViewer open={!!viewItem} onClose={() => setViewItem(null)} viewItem={viewItem} />
       <DocuSignDialog contract={docusignContract} onClose={() => setDocusignContract(null)} />
+      <ReviewResolutionDialog
+        propertyId={resolutionPropertyId}
+        onClose={() => setResolutionPropertyId(null)}
+      />
 
       <Dialog open={!!uploadContract} onOpenChange={(val) => !val && setUploadContract(null)}>
         <DialogContent>

@@ -15,6 +15,7 @@ import {
   FolderSearch,
   Loader2,
   MessageSquare,
+  ArrowLeftRight,
 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -180,7 +181,7 @@ const ManagerApproval = () => {
   }, [selectedHub])
 
   const handleApprove = (id: string) => {
-    mainStore.updatePropertyStatus(id, 'Vistoria')
+    mainStore.updateProperty(id, { status: 'Vistoria', isResubmission: false })
 
     // Avance os contratos para "Aprovado para Ajuste" quando a gerência aprovar
     systemContracts.forEach((c) => {
@@ -240,7 +241,7 @@ const ManagerApproval = () => {
         allNotes.length > 0 ? `\n\nApontamentos nos Documentos:\n${allNotes.join('\n')}` : ''
       const finalReason = `${rejectReason}${notesText}`
 
-      mainStore.updatePropertyStatus(rejectId, 'Pendente/Rascunho')
+      mainStore.updateProperty(rejectId, { status: 'Pendente/Rascunho', isResubmission: false })
 
       // Retroceder os contratos para Rascunho para que o gestor possa realizar ajustes e submeter novamente
       systemContracts.forEach((c) => {
@@ -547,6 +548,14 @@ const ManagerApproval = () => {
                       >
                         Análise Gerencial
                       </Badge>
+                      {item.isResubmission && (
+                        <Badge
+                          variant="outline"
+                          className="border-purple-500 text-purple-700 bg-purple-50 animate-in fade-in"
+                        >
+                          <ArrowLeftRight className="w-3 h-3 mr-1" /> Nova Análise (Retorno)
+                        </Badge>
+                      )}
                       {breached && (
                         <Badge variant="destructive" className="animate-pulse">
                           <AlertCircle className="w-3 h-3 mr-1" /> SLA Violado (&gt;{' '}
