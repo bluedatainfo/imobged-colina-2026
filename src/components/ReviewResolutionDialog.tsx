@@ -47,10 +47,13 @@ export function ReviewResolutionDialog({ propertyId, onClose }: ReviewResolution
 
   const handleResubmit = () => {
     if (totalPending > 0 || !propertyId) return
+
+    // Update property to "Análise Gerencial" and mark as resubmission
     mainStore.updateProperty(propertyId, { status: 'Análise Gerencial', isResubmission: true })
 
+    // Also explicitly force contract status to "Em Análise"
     const propertyContracts = contracts.filter(
-      (c) => c.propertyId === propertyId && c.status === 'Rascunho',
+      (c) => c.propertyId === propertyId && (c.status === 'Rascunho' || c.status === 'Em Análise'),
     )
     propertyContracts.forEach((c) => contractsStore.updateStatus(c.id, 'Em Análise'))
 
@@ -155,7 +158,7 @@ export function ReviewResolutionDialog({ propertyId, onClose }: ReviewResolution
           <Button
             onClick={handleResubmit}
             disabled={totalPending > 0}
-            className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700"
+            className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white"
           >
             <Send className="w-4 h-4 mr-2" /> Reenviar para Análise
           </Button>

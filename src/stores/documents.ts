@@ -108,10 +108,27 @@ export const documentsStore = {
       emit()
     }
   },
+  updateDocument: async (id: string, updates: Partial<PropertyDocument>) => {
+    const dbUpdates: any = {}
+    if (updates.name !== undefined) dbUpdates.name = updates.name
+    if (updates.filePath !== undefined) dbUpdates.file_path = updates.filePath
+    if (updates.reviewNotes !== undefined)
+      dbUpdates.review_notes = updates.reviewNotes === '' ? null : updates.reviewNotes
+
+    state = {
+      ...state,
+      documents: state.documents.map((d) => (d.id === id ? { ...d, ...updates } : d)),
+    }
+    emit()
+
+    if (Object.keys(dbUpdates).length > 0) {
+      await (supabase as any).from('property_documents').update(dbUpdates).eq('id', id)
+    }
+  },
   updateReviewNotes: async (id: string, notes: string) => {
     const { error } = await (supabase as any)
       .from('property_documents')
-      .update({ review_notes: notes })
+      .update({ review_notes: notes === '' ? null : notes })
       .eq('id', id)
 
     if (!error) {

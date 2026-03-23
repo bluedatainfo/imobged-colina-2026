@@ -139,6 +139,28 @@ export const contractsStore = {
       })
       .then()
   },
+  updateContract: async (id: string, updates: Partial<LeaseContract>) => {
+    const updatedStr = new Date().toISOString()
+    const dbUpdates: any = { updated_at: updatedStr }
+
+    if (updates.tenantName !== undefined) dbUpdates.tenant_name = updates.tenantName
+    if (updates.documentName !== undefined) dbUpdates.document_name = updates.documentName
+    if (updates.status !== undefined) dbUpdates.status = updates.status
+    if (updates.reviewNotes !== undefined)
+      dbUpdates.review_notes = updates.reviewNotes === '' ? null : updates.reviewNotes
+
+    state = {
+      ...state,
+      contracts: state.contracts.map((c) =>
+        c.id === id ? { ...c, ...updates, updatedAt: updatedStr } : c,
+      ),
+    }
+    emit()
+
+    if (Object.keys(dbUpdates).length > 1) {
+      await supabase.from('contracts').update(dbUpdates).eq('id', id)
+    }
+  },
   updateStatus: (id: string, status: ContractStatus) => {
     const updatedStr = new Date().toISOString()
     state = {
@@ -194,27 +216,6 @@ export const contractsStore = {
       .eq('id', id)
       .then()
   },
-  extendExpiration: (id: string, days: number) => {
-    state = {
-      ...state,
-      contracts: state.contracts.map((c) => {
-        if (c.id === id) {
-          const newDate = c.expirationDate ? new Date(c.expirationDate) : new Date()
-          newDate.setDate(newDate.getDate() + days)
-          const newExp = newDate.toISOString()
-          const newUpd = new Date().toISOString()
-          supabase
-            .from('contracts')
-            .update({ expiration_date: newExp, updated_at: newUpd })
-            .eq('id', id)
-            .then()
-          return { ...c, expirationDate: newExp, updatedAt: newUpd }
-        }
-        return c
-      }),
-    }
-    emit()
-  },
   updateReviewNotes: (id: string, notes: string) => {
     const updatedStr = new Date().toISOString()
     state = {
@@ -226,7 +227,7 @@ export const contractsStore = {
     emit()
     supabase
       .from('contracts')
-      .update({ review_notes: notes, updated_at: updatedStr })
+      .update({ review_notes: notes === '' ? null : notes, updated_at: updatedStr })
       .eq('id', id)
       .then()
   },

@@ -326,6 +326,7 @@ export type Database = {
           created_at: string | null
           id: string
           image: string | null
+          is_resubmission: boolean | null
           location_x: number | null
           location_y: number | null
           owner_id: string | null
@@ -342,6 +343,7 @@ export type Database = {
           created_at?: string | null
           id: string
           image?: string | null
+          is_resubmission?: boolean | null
           location_x?: number | null
           location_y?: number | null
           owner_id?: string | null
@@ -358,6 +360,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           image?: string | null
+          is_resubmission?: boolean | null
           location_x?: number | null
           location_y?: number | null
           owner_id?: string | null
@@ -734,6 +737,7 @@ export const Constants = {
 //   created_at: timestamp with time zone (nullable, default: now())
 //   updated_at: timestamp with time zone (nullable, default: now())
 //   owner_id: uuid (nullable)
+//   is_resubmission: boolean (nullable, default: false)
 // Table: property_documents
 //   id: uuid (not null, default: gen_random_uuid())
 //   property_id: text (not null)

@@ -18,6 +18,8 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import useMainStore from '@/stores/main'
 import useDocumentsStore, { documentsStore } from '@/stores/documents'
 import useContractsStore, { contractsStore } from '@/stores/contracts'
@@ -57,6 +59,11 @@ export function DocumentViewer({ open, onClose, viewItem, docName, isTerm }: Doc
   const [savedNotes, setSavedNotes] = useState('')
   const [savingNotes, setSavingNotes] = useState(false)
 
+  // Correction Fields State
+  const [correctionName, setCorrectionName] = useState('')
+  const [correctionTenant, setCorrectionTenant] = useState('')
+  const [correctionFile, setCorrectionFile] = useState<File | null>(null)
+
   useEffect(() => {
     if (!open) return
 
@@ -67,6 +74,9 @@ export function DocumentViewer({ open, onClose, viewItem, docName, isTerm }: Doc
       setError(null)
       setNotes('')
       setSavedNotes('')
+      setCorrectionName('')
+      setCorrectionTenant('')
+      setCorrectionFile(null)
       return
     }
 
@@ -77,6 +87,7 @@ export function DocumentViewer({ open, onClose, viewItem, docName, isTerm }: Doc
       setTemplateContent(null)
       setNotes('')
       setSavedNotes('')
+      setCorrectionFile(null)
 
       try {
         if (viewItem.type === 'document') {
@@ -85,6 +96,7 @@ export function DocumentViewer({ open, onClose, viewItem, docName, isTerm }: Doc
           setTitle(doc.name)
           setNotes(doc.reviewNotes || '')
           setSavedNotes(doc.reviewNotes || '')
+          setCorrectionName(doc.name)
 
           if (!doc.filePath || !doc.category) {
             throw new Error(
@@ -100,6 +112,8 @@ export function DocumentViewer({ open, onClose, viewItem, docName, isTerm }: Doc
           setTitle(contract.documentName)
           setNotes(contract.reviewNotes || '')
           setSavedNotes(contract.reviewNotes || '')
+          setCorrectionName(contract.documentName)
+          setCorrectionTenant(contract.tenantName || '')
 
           // 1. Try to find if this contract was explicitly uploaded to GED
           const uploadedDoc = documents.find(
@@ -196,26 +210,54 @@ export function DocumentViewer({ open, onClose, viewItem, docName, isTerm }: Doc
     }
   }
 
-  const handleResolve = async () => {
+  const handleResolveWithCorrections = async () => {
     if (!viewItem) return
     setSavingNotes(true)
     try {
-      if (viewItem.type === 'document') {
-        await documentsStore.updateReviewNotes(viewItem.id, '')
-      } else if (viewItem.type === 'contract') {
-        await contractsStore.updateReviewNotes(viewItem.id, '')
+      let newPath: string | undefined = undefined
+
+      if (correctionFile && viewItem.type === 'document') {
+        const d = documents.find((x) => x.id === viewItem.id)
+        if (d) {
+          const p = properties.find((x) => x.id === d.propertyId)
+          const res = await m365Service.uploadStructuredDocument(
+            correctionFile,
+            correctionFile.name,
+            d.category,
+            d.propertyId,
+            p?.title || '',
+            user?.name || 'Sistema',
+          )
+          if (res?.success) newPath = res.path
+        }
       }
+
+      if (viewItem.type === 'document') {
+        await documentsStore.updateDocument(viewItem.id, {
+          name: correctionName || undefined,
+          filePath: newPath,
+          reviewNotes: '',
+        })
+      } else if (viewItem.type === 'contract') {
+        await contractsStore.updateContract(viewItem.id, {
+          documentName: correctionName || undefined,
+          tenantName: correctionTenant || undefined,
+          reviewNotes: '',
+        })
+      }
+
       setSavedNotes('')
       setNotes('')
       toast({
         title: 'Pendência resolvida',
-        description: 'A anotação foi marcada como corrigida.',
+        description: 'As correções foram aplicadas e a pendência foi removida com sucesso.',
       })
-    } catch (e) {
+      onClose()
+    } catch (e: any) {
       toast({
         variant: 'destructive',
-        title: 'Erro',
-        description: 'Falha ao resolver a pendência.',
+        title: 'Erro de Atualização',
+        description: e.message || 'Falha ao aplicar as correções no documento.',
       })
     } finally {
       setSavingNotes(false)
@@ -361,9 +403,9 @@ export function DocumentViewer({ open, onClose, viewItem, docName, isTerm }: Doc
           </div>
 
           {viewItem && (
-            <div className="w-full md:w-[320px] shrink-0 border-t md:border-t-0 md:border-l bg-background flex flex-col z-20">
+            <div className="w-full md:w-[340px] shrink-0 border-t md:border-t-0 md:border-l bg-background flex flex-col z-20">
               <div className="p-4 border-b font-medium flex items-center gap-2 bg-muted/30">
-                <MessageSquare className="w-4 h-4 text-primary" /> Notas de Revisão
+                <MessageSquare className="w-4 h-4 text-primary" /> Avaliação e Correções
               </div>
               <div className="p-4 flex-1 overflow-auto flex flex-col gap-4">
                 {isManager ? (
@@ -385,6 +427,15 @@ export function DocumentViewer({ open, onClose, viewItem, docName, isTerm }: Doc
                       )}
                       Salvar Anotações
                     </Button>
+
+                    {savedNotes && (
+                      <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-md text-sm animate-in fade-in slide-in-from-top-2">
+                        <strong className="text-amber-900 flex items-center gap-1 mb-1">
+                          <AlertCircle className="w-3 h-3" /> Nota Atual:
+                        </strong>
+                        <span className="text-amber-800 whitespace-pre-wrap">{savedNotes}</span>
+                      </div>
+                    )}
                   </>
                 ) : (
                   <>
@@ -396,23 +447,59 @@ export function DocumentViewer({ open, onClose, viewItem, docName, isTerm }: Doc
                           </strong>
                           <p className="text-amber-800 whitespace-pre-wrap mt-2">{savedNotes}</p>
                         </div>
-                        <Button
-                          onClick={handleResolve}
-                          disabled={savingNotes}
-                          size="sm"
-                          className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
-                        >
-                          {savingNotes ? (
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          ) : (
-                            <CheckCircle2 className="w-4 h-4 mr-2" />
+
+                        <div className="bg-white p-4 rounded-md border shadow-sm space-y-3">
+                          <h4 className="text-sm font-semibold flex items-center gap-2 border-b pb-2">
+                            <Save className="w-4 h-4" /> Efetuar Correções
+                          </h4>
+
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Nome do Arquivo / Título</Label>
+                            <Input
+                              value={correctionName}
+                              onChange={(e) => setCorrectionName(e.target.value)}
+                              className="h-8 text-xs"
+                            />
+                          </div>
+
+                          {viewItem.type === 'contract' && (
+                            <div className="space-y-1.5">
+                              <Label className="text-xs">Nome do Locatário</Label>
+                              <Input
+                                value={correctionTenant}
+                                onChange={(e) => setCorrectionTenant(e.target.value)}
+                                className="h-8 text-xs"
+                              />
+                            </div>
                           )}
-                          Marcar como Resolvido
-                        </Button>
-                        <p className="text-xs text-muted-foreground text-center">
-                          Marque como resolvido apenas após realizar a correção no arquivo ou
-                          sistema.
-                        </p>
+
+                          {viewItem.type === 'document' && (
+                            <div className="space-y-1.5 pt-1">
+                              <Label className="text-xs text-muted-foreground flex justify-between">
+                                Substituir Arquivo <span className="font-normal">(Opcional)</span>
+                              </Label>
+                              <Input
+                                type="file"
+                                onChange={(e) => setCorrectionFile(e.target.files?.[0] || null)}
+                                className="h-8 text-xs cursor-pointer"
+                              />
+                            </div>
+                          )}
+
+                          <Button
+                            onClick={handleResolveWithCorrections}
+                            disabled={savingNotes}
+                            size="sm"
+                            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white mt-4"
+                          >
+                            {savingNotes ? (
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            ) : (
+                              <CheckCircle2 className="w-4 h-4 mr-2" />
+                            )}
+                            Salvar e Marcar Resolvido
+                          </Button>
+                        </div>
                       </div>
                     ) : (
                       <div className="text-center p-4">
@@ -423,15 +510,6 @@ export function DocumentViewer({ open, onClose, viewItem, docName, isTerm }: Doc
                       </div>
                     )}
                   </>
-                )}
-
-                {isManager && savedNotes && (
-                  <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-md text-sm animate-in fade-in slide-in-from-top-2">
-                    <strong className="text-amber-900 flex items-center gap-1 mb-1">
-                      <AlertCircle className="w-3 h-3" /> Nota Atual:
-                    </strong>
-                    <span className="text-amber-800 whitespace-pre-wrap">{savedNotes}</span>
-                  </div>
                 )}
               </div>
             </div>
