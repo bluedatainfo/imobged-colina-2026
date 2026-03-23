@@ -70,6 +70,59 @@ const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
   return res
 }
 
+const resolveSiteId = async (hostname: string, sitePath: string): Promise<string | null> => {
+  let spPath = sitePath.trim()
+  if (spPath.startsWith('http')) {
+    try {
+      spPath = new URL(spPath).pathname
+    } catch (e) {
+      // Ignore URL parsing error
+    }
+  }
+
+  if (!spPath || spPath === '/') {
+    try {
+      const res = await fetchWithAuth(`https://graph.microsoft.com/v1.0/sites/${hostname}`)
+      if (res.ok) return (await res.json()).id
+    } catch (e) {}
+    return null
+  }
+
+  if (!spPath.startsWith('/')) {
+    if (!spPath.startsWith('sites/') && !spPath.startsWith('teams/')) {
+      spPath = `/sites/${spPath}`
+    } else {
+      spPath = `/${spPath}`
+    }
+  }
+
+  const siteName = spPath.split('/').filter(Boolean).pop()
+  if (siteName) {
+    try {
+      const searchRes = await fetchWithAuth(
+        `https://graph.microsoft.com/v1.0/sites?search=${encodeURIComponent(siteName)}`,
+      )
+      if (searchRes.ok) {
+        const data = await searchRes.json()
+        const site = data.value?.find(
+          (s: any) =>
+            s.webUrl &&
+            (s.webUrl.toLowerCase().endsWith(spPath.toLowerCase()) ||
+              s.webUrl.toLowerCase().endsWith(spPath.replace('/sites/', '/teams/').toLowerCase())),
+        )
+        if (site && site.id) return site.id
+
+        const fallbackSite = data.value?.find(
+          (s: any) => s.name?.toLowerCase() === siteName.toLowerCase(),
+        )
+        if (fallbackSite && fallbackSite.id) return fallbackSite.id
+      }
+    } catch (e) {}
+  }
+
+  return null
+}
+
 export const m365Service = {
   sendEmail: (to: string, subject: string, body?: string) => {
     const { primaryDomain } = mainStore.getState().sharepoint
@@ -87,31 +140,8 @@ export const m365Service = {
     if (!sharepointDomain || !sites.locacao) return null
 
     try {
-      let sitePath = sites.locacao.trim()
-      if (sitePath.startsWith('http')) {
-        try {
-          sitePath = new URL(sitePath).pathname
-        } catch (e) {
-          /* Ignore URL parsing error */
-        }
-      }
-      if (!sitePath.startsWith('/')) {
-        if (!sitePath.startsWith('sites/') && !sitePath.startsWith('teams/'))
-          sitePath = `/sites/${sitePath}`
-        else sitePath = `/${sitePath}`
-      }
-
-      let siteUrl = `https://graph.microsoft.com/v1.0/sites/${sharepointDomain}:${sitePath}`
-      let siteRes = await fetchWithAuth(siteUrl)
-
-      if (siteRes.status === 404 && sitePath.startsWith('/sites/')) {
-        const fallbackPath = sitePath.replace('/sites/', '/teams/')
-        siteUrl = `https://graph.microsoft.com/v1.0/sites/${sharepointDomain}:${fallbackPath}`
-        siteRes = await fetchWithAuth(siteUrl)
-      }
-
-      if (!siteRes.ok) return null
-      const siteId = (await siteRes.json()).id
+      const siteId = await resolveSiteId(sharepointDomain, sites.locacao)
+      if (!siteId) return null
 
       const drivesRes = await fetchWithAuth(
         `https://graph.microsoft.com/v1.0/sites/${siteId}/drives`,
@@ -157,31 +187,8 @@ export const m365Service = {
     if (!sharepointDomain || !sites.locacao) return []
 
     try {
-      let sitePath = sites.locacao.trim()
-      if (sitePath.startsWith('http')) {
-        try {
-          sitePath = new URL(sitePath).pathname
-        } catch (e) {
-          /* Ignore URL parsing error */
-        }
-      }
-      if (!sitePath.startsWith('/')) {
-        if (!sitePath.startsWith('sites/') && !sitePath.startsWith('teams/'))
-          sitePath = `/sites/${sitePath}`
-        else sitePath = `/${sitePath}`
-      }
-
-      let siteUrl = `https://graph.microsoft.com/v1.0/sites/${sharepointDomain}:${sitePath}`
-      let siteRes = await fetchWithAuth(siteUrl)
-
-      if (siteRes.status === 404 && sitePath.startsWith('/sites/')) {
-        const fallbackPath = sitePath.replace('/sites/', '/teams/')
-        siteUrl = `https://graph.microsoft.com/v1.0/sites/${sharepointDomain}:${fallbackPath}`
-        siteRes = await fetchWithAuth(siteUrl)
-      }
-
-      if (!siteRes.ok) return []
-      const siteId = (await siteRes.json()).id
+      const siteId = await resolveSiteId(sharepointDomain, sites.locacao)
+      if (!siteId) return []
 
       const drivesRes = await fetchWithAuth(
         `https://graph.microsoft.com/v1.0/sites/${siteId}/drives`,
@@ -222,36 +229,10 @@ export const m365Service = {
 
     if (!token) throw new Error('Sessão do Microsoft 365 ausente ou expirada.')
 
-    let sitePath = config.site_name.trim()
-    if (sitePath.startsWith('http')) {
-      try {
-        sitePath = new URL(sitePath).pathname
-      } catch (e) {
-        // Ignore URL parsing error
-      }
-    }
-    if (!sitePath.startsWith('/')) {
-      if (!sitePath.startsWith('sites/') && !sitePath.startsWith('teams/')) {
-        sitePath = `/sites/${sitePath}`
-      } else {
-        sitePath = `/${sitePath}`
-      }
-    }
-
-    let siteUrl = `https://graph.microsoft.com/v1.0/sites/${sharepointDomain}:${sitePath}`
-    let siteRes = await fetchWithAuth(siteUrl)
-
-    if (siteRes.status === 404 && sitePath.startsWith('/sites/')) {
-      const fallbackPath = sitePath.replace('/sites/', '/teams/')
-      const fallbackUrl = `https://graph.microsoft.com/v1.0/sites/${sharepointDomain}:${fallbackPath}`
-      const fallbackRes = await fetchWithAuth(fallbackUrl)
-      if (fallbackRes.ok) siteRes = fallbackRes
-    }
-
-    if (!siteRes.ok) {
+    const siteId = await resolveSiteId(sharepointDomain, config.site_name)
+    if (!siteId) {
       throw new Error(`Site M365 "${config.site_name}" não encontrado. Verifique o mapeamento GED.`)
     }
-    const siteId = (await siteRes.json()).id
 
     const drivesRes = await fetchWithAuth(`https://graph.microsoft.com/v1.0/sites/${siteId}/drives`)
     if (!drivesRes.ok)
@@ -275,13 +256,19 @@ export const m365Service = {
     let safePath = filePath
     if (safePath.startsWith('/')) safePath = safePath.substring(1)
 
-    const itemUrl = `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/root:/${safePath}`
-    const itemRes = await fetchWithAuth(itemUrl)
+    const fileName = safePath.split('/').pop() || safePath
+    const searchUrl = `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/root/search(q='${encodeURIComponent(fileName)}')`
+    const searchRes = await fetchWithAuth(searchUrl)
 
-    if (!itemRes.ok) {
+    let itemData: any = null
+    if (searchRes.ok) {
+      const searchData = await searchRes.json()
+      itemData = searchData.value?.find((v: any) => v.name === fileName)
+    }
+
+    if (!itemData) {
       throw new Error(`Arquivo não encontrado no SharePoint no caminho: ${safePath}`)
     }
-    const itemData = await itemRes.json()
 
     try {
       const previewRes = await fetchWithAuth(
@@ -317,40 +304,8 @@ export const m365Service = {
     }
 
     try {
-      const hostname = sharepointDomain
-
-      let spPath = sitePath.trim()
-      if (spPath.startsWith('http')) {
-        try {
-          spPath = new URL(spPath).pathname
-        } catch (e) {
-          /* Ignore URL parsing error */
-        }
-      }
-
-      if (!spPath.startsWith('/')) {
-        if (!spPath.startsWith('sites/') && !spPath.startsWith('teams/')) {
-          spPath = `/sites/${spPath}`
-        } else {
-          spPath = `/${spPath}`
-        }
-      }
-
-      let siteUrl = `https://graph.microsoft.com/v1.0/sites/${hostname}:${spPath}`
-      let siteRes = await fetchWithAuth(siteUrl)
-
-      if (siteRes.status === 404 && spPath.startsWith('/sites/')) {
-        const fallbackPath = spPath.replace('/sites/', '/teams/')
-        const fallbackUrl = `https://graph.microsoft.com/v1.0/sites/${hostname}:${fallbackPath}`
-        const fallbackRes = await fetchWithAuth(fallbackUrl)
-        if (fallbackRes.ok) {
-          siteRes = fallbackRes
-          spPath = fallbackPath
-        }
-      }
-
-      if (!siteRes.ok) throw new Error(`Site "${sitePath}" não encontrado no M365.`)
-      const siteId = (await siteRes.json()).id
+      const siteId = await resolveSiteId(sharepointDomain, sitePath)
+      if (!siteId) throw new Error(`Site "${sitePath}" não encontrado no M365.`)
 
       const drivesRes = await fetchWithAuth(
         `https://graph.microsoft.com/v1.0/sites/${siteId}/drives`,
@@ -484,48 +439,13 @@ export const m365Service = {
           details: `[Mock] Arquivo ${uniqueFileName} salvo em ${config.site_name}/${config.library_name}/${folderPath}`,
         })
       } else {
-        const hostname = sharepointDomain
+        const siteId = await resolveSiteId(sharepointDomain, config.site_name)
 
-        let sitePath = config.site_name.trim()
-
-        if (sitePath.startsWith('http')) {
-          try {
-            sitePath = new URL(sitePath).pathname
-          } catch (e) {
-            /* Ignore URL parsing error */
-          }
-        }
-
-        if (!sitePath.startsWith('/')) {
-          if (!sitePath.startsWith('sites/') && !sitePath.startsWith('teams/')) {
-            sitePath = `/sites/${sitePath}`
-          } else {
-            sitePath = `/${sitePath}`
-          }
-        }
-
-        let siteUrl = `https://graph.microsoft.com/v1.0/sites/${hostname}:${sitePath}`
-        let siteRes = await fetchWithAuth(siteUrl)
-
-        if (siteRes.status === 404 && sitePath.startsWith('/sites/')) {
-          const fallbackPath = sitePath.replace('/sites/', '/teams/')
-          const fallbackUrl = `https://graph.microsoft.com/v1.0/sites/${hostname}:${fallbackPath}`
-          const fallbackRes = await fetchWithAuth(fallbackUrl)
-          if (fallbackRes.ok) {
-            siteRes = fallbackRes
-            sitePath = fallbackPath
-          }
-        }
-
-        if (!siteRes.ok) {
-          const errorMsg = await siteRes
-            .json()
-            .catch(() => ({ error: { message: siteRes.statusText } }))
+        if (!siteId) {
           throw new Error(
-            `Site M365 "${config.site_name}" não encontrado. (Erro: ${errorMsg?.error?.message || siteRes.status}). Verifique o mapeamento GED.`,
+            `Site M365 "${config.site_name}" não encontrado. Verifique o mapeamento GED.`,
           )
         }
-        const siteId = (await siteRes.json()).id
 
         const drivesRes = await fetchWithAuth(
           `https://graph.microsoft.com/v1.0/sites/${siteId}/drives`,
