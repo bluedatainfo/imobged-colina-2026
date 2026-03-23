@@ -25,7 +25,7 @@ export function NewPropertyDialog({ open, onClose }: { open: boolean; onClose: (
   const { toast } = useToast()
   const [title, setTitle] = useState('')
   const [address, setAddress] = useState('')
-  const [type, setType] = useState('Residencial')
+  const [type, setType] = useState('Apartamento')
   const [rentValue, setRentValue] = useState('')
 
   const [aiLoading, setAiLoading] = useState(false)
@@ -47,10 +47,10 @@ export function NewPropertyDialog({ open, onClose }: { open: boolean; onClose: (
     // Simulate AI connecting to SharePoint sites to calculate average
     setTimeout(() => {
       setAiLoading(false)
-      const mockValue = type === 'Comercial' ? '4500' : '2800'
+      const mockValue = ['Sala', 'Salão', 'Ponto Comercial'].includes(type) ? '4500' : '2800'
       setRentValue(mockValue)
       setAiJustification(
-        `Valor calculado cruzando dados dos Sites "Vendas" e "Locação". Média de ${type === 'Comercial' ? '12' : '24'} imóveis recentes na região do endereço informado.`,
+        `Valor calculado cruzando dados dos Sites "Vendas" e "Locação". Média de ${['Sala', 'Salão', 'Ponto Comercial'].includes(type) ? '12' : '24'} imóveis recentes na região do endereço informado.`,
       )
       toast({
         title: 'Sugestão de Preço Concluída',
@@ -78,13 +78,13 @@ export function NewPropertyDialog({ open, onClose }: { open: boolean; onClose: (
 
     toast({
       title: 'Captação Registrada',
-      description: 'O imóvel foi adicionado com sucesso à fila.',
+      description: 'O imóvel foi adicionado com sucesso à fila com o novo padrão de ID.',
     })
 
     // Reset and close
     setTitle('')
     setAddress('')
-    setType('Residencial')
+    setType('Apartamento')
     setRentValue('')
     setAiJustification('')
     onClose()
@@ -98,8 +98,8 @@ export function NewPropertyDialog({ open, onClose }: { open: boolean; onClose: (
             <Home className="w-5 h-5 text-primary" /> Nova Captação
           </DialogTitle>
           <DialogDescription>
-            Insira os dados do novo imóvel. Use a Inteligência Artificial para estimar o valor ideal
-            do aluguel.
+            Insira os dados do novo imóvel. O ID será gerado automaticamente com base no tipo. Use a
+            Inteligência Artificial para estimar o valor ideal do aluguel.
           </DialogDescription>
         </DialogHeader>
 
@@ -133,9 +133,13 @@ export function NewPropertyDialog({ open, onClose }: { open: boolean; onClose: (
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Residencial">Residencial</SelectItem>
-                <SelectItem value="Comercial">Comercial</SelectItem>
-                <SelectItem value="Industrial">Industrial</SelectItem>
+                <SelectItem value="Apartamento">Apartamento</SelectItem>
+                <SelectItem value="Casa">Casa</SelectItem>
+                <SelectItem value="Sala">Sala</SelectItem>
+                <SelectItem value="Salão">Salão</SelectItem>
+                <SelectItem value="Garagem">Garagem</SelectItem>
+                <SelectItem value="Ponto Comercial">Ponto Comercial</SelectItem>
+                <SelectItem value="Prédio">Prédio</SelectItem>
               </SelectContent>
             </Select>
           </div>

@@ -472,14 +472,25 @@ export const mainStore = {
     syncConfig()
   },
   addProperty: (p: Omit<Property, 'id' | 'status' | 'image'>) => {
+    const prefixMap: Record<string, string> = {
+      Casa: 'CA',
+      Sala: 'SA',
+      Salão: 'SL',
+      Garagem: 'GA',
+      'Ponto Comercial': 'PO',
+      Apartamento: 'AP',
+      Prédio: 'PR',
+    }
+    const prefix = prefixMap[p.type] || 'IM'
+
     let max = 0
     state.properties.forEach((prop) => {
-      if (prop.id.startsWith('IMV')) {
-        const num = parseInt(prop.id.substring(3), 10)
+      if (prop.id.startsWith(prefix)) {
+        const num = parseInt(prop.id.substring(prefix.length), 10)
         if (!isNaN(num) && num > max) max = num
       }
     })
-    const newId = `IMV${(max + 1).toString().padStart(6, '0')}`
+    const newId = `${prefix}${(max + 1).toString().padStart(6, '0')}`
 
     const newProperty: Property = {
       ...p,
