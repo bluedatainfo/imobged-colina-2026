@@ -84,7 +84,9 @@ const resolveSiteId = async (hostname: string, sitePath: string): Promise<string
     try {
       const res = await fetchWithAuth(`https://graph.microsoft.com/v1.0/sites/${hostname}`)
       if (res.ok) return (await res.json()).id
-    } catch (e) {}
+    } catch (e) {
+      // Ignore site root fetch error
+    }
     return null
   }
 
@@ -117,7 +119,9 @@ const resolveSiteId = async (hostname: string, sitePath: string): Promise<string
         )
         if (fallbackSite && fallbackSite.id) return fallbackSite.id
       }
-    } catch (e) {}
+    } catch (e) {
+      // Ignore search site error
+    }
   }
 
   return null
