@@ -138,13 +138,12 @@ export const m365Service = {
     const date = new Date()
     const year = date.getFullYear().toString()
     const month = (date.getMonth() + 1).toString().padStart(2, '0')
-    const sanitizedTitle = propertyTitle.replace(/[^a-zA-Z0-9 -]/g, '').trim()
 
     let folderPath = ''
     if (isEntityDoc && entityCode) {
       folderPath = [config.base_path, entityCode].filter(Boolean).join('/')
     } else {
-      folderPath = [config.base_path, year, month, sanitizedTitle].filter(Boolean).join('/')
+      folderPath = [config.base_path, year, month, propertyId].filter(Boolean).join('/')
     }
 
     // Ensure uniqueness
