@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -15,6 +15,7 @@ import {
   MessageSquare,
   Save,
   CheckCircle2,
+  FileEdit,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -46,6 +47,7 @@ export function DocumentViewer({ open, onClose, viewItem, docName, isTerm }: Doc
   const { owners } = useEntitiesStore()
   const { toast } = useToast()
   const { user } = useAuth()
+  const contentRef = useRef<HTMLDivElement>(null)
 
   const isManager = ['Admin', 'Gerente', 'Diretor'].includes(user?.role || '')
 
@@ -62,7 +64,6 @@ export function DocumentViewer({ open, onClose, viewItem, docName, isTerm }: Doc
 
   // Correction Fields State
   const [correctionName, setCorrectionName] = useState('')
-  const [correctionTenant, setCorrectionTenant] = useState('')
   const [correctionFile, setCorrectionFile] = useState<File | null>(null)
 
   useEffect(() => {
@@ -76,7 +77,6 @@ export function DocumentViewer({ open, onClose, viewItem, docName, isTerm }: Doc
       setNotes('')
       setSavedNotes('')
       setCorrectionName('')
-      setCorrectionTenant('')
       setCorrectionFile(null)
       return
     }
@@ -114,7 +114,6 @@ export function DocumentViewer({ open, onClose, viewItem, docName, isTerm }: Doc
           setNotes(contract.reviewNotes || '')
           setSavedNotes(contract.reviewNotes || '')
           setCorrectionName(contract.documentName)
-          setCorrectionTenant(contract.tenantName || '')
 
           // 1. Try to find if this contract was explicitly uploaded to GED
           const uploadedDoc = documents.find(
@@ -143,37 +142,43 @@ export function DocumentViewer({ open, onClose, viewItem, docName, isTerm }: Doc
             console.warn('Busca híbrida de contrato no SP falhou, caindo para template local.', e)
           }
 
-          // 3. Fallback: Show the Template HTML with replaced real data
-          const template = templates.find((t) => t.name === contract.template)
-          if (!template) {
-            throw new Error(`O modelo de contrato "${contract.template}" não foi encontrado.`)
-          }
-
-          if (template.content) {
-            const property = properties.find((p) => p.id === contract.propertyId)
-            const owner = owners.find((o) => o.id === property?.ownerId)
-
-            let finalContent = template.content
-            finalContent = finalContent.replace(
-              /\{\{tenantName\}\}/gi,
-              contract.tenantName || 'Inquilino a Definir',
-            )
-            finalContent = finalContent.replace(
-              /\{\{propertyAddress\}\}/gi,
-              property?.address || 'Endereço Indisponível',
-            )
-            finalContent = finalContent.replace(
-              /\{\{ownerName\}\}/gi,
-              owner?.fullName || 'Proprietário Não Vinculado',
-            )
-            finalContent = finalContent.replace(
-              /\{\{rentValue\}\}/gi,
-              property?.rentValue ? `R$ ${property.rentValue}` : 'Valor a Definir',
-            )
-
-            setTemplateContent(finalContent)
+          // 3. Fallback: Show the Template HTML with replaced real data or existing contract content
+          if (contract.content) {
+            setTemplateContent(contract.content)
           } else {
-            throw new Error('O modelo selecionado está vazio e não possui conteúdo para exibição.')
+            const template = templates.find((t) => t.name === contract.template)
+            if (!template) {
+              throw new Error(`O modelo de contrato "${contract.template}" não foi encontrado.`)
+            }
+
+            if (template.content) {
+              const property = properties.find((p) => p.id === contract.propertyId)
+              const owner = owners.find((o) => o.id === property?.ownerId)
+
+              let finalContent = template.content
+              finalContent = finalContent.replace(
+                /\{\{tenantName\}\}/gi,
+                contract.tenantName || 'Inquilino a Definir',
+              )
+              finalContent = finalContent.replace(
+                /\{\{propertyAddress\}\}/gi,
+                property?.address || 'Endereço Indisponível',
+              )
+              finalContent = finalContent.replace(
+                /\{\{ownerName\}\}/gi,
+                owner?.fullName || 'Proprietário Não Vinculado',
+              )
+              finalContent = finalContent.replace(
+                /\{\{rentValue\}\}/gi,
+                property?.rentValue ? `R$ ${property.rentValue}` : 'Valor a Definir',
+              )
+
+              setTemplateContent(finalContent)
+            } else {
+              throw new Error(
+                'O modelo selecionado está vazio e não possui conteúdo para exibição.',
+              )
+            }
           }
         }
       } catch (err: any) {
@@ -240,9 +245,9 @@ export function DocumentViewer({ open, onClose, viewItem, docName, isTerm }: Doc
           reviewNotes: '',
         })
       } else if (viewItem.type === 'contract') {
+        const updatedContent = contentRef.current?.innerHTML || templateContent || ''
         await contractsStore.updateContract(viewItem.id, {
-          documentName: correctionName || undefined,
-          tenantName: correctionTenant || undefined,
+          content: updatedContent,
           reviewNotes: '',
         })
       }
@@ -340,14 +345,33 @@ export function DocumentViewer({ open, onClose, viewItem, docName, isTerm }: Doc
                         className="h-20 mx-auto mb-6 object-contain"
                       />
                     )}
-                    <h1 className="text-2xl font-bold uppercase underline">Documento do Sistema</h1>
+                    <h1 className="text-2xl font-bold uppercase underline">
+                      {viewItem?.type === 'contract' ? title : 'Documento do Sistema'}
+                    </h1>
                     <p className="text-muted-foreground mt-4 font-semibold">{agencyProfile.name}</p>
                     <p className="text-sm text-muted-foreground mt-1">
                       {agencyProfile.address} | {agencyProfile.website}
                     </p>
                   </div>
+
+                  {viewItem?.type === 'contract' && !!savedNotes && (
+                    <div className="bg-blue-50 text-blue-800 p-3 mb-6 rounded text-sm flex items-center gap-2 border border-blue-100 shadow-sm">
+                      <FileEdit className="w-5 h-5 shrink-0" />
+                      Modo de edição ativo: Clique diretamente no texto do contrato abaixo para
+                      realizar as alterações necessárias.
+                    </div>
+                  )}
+
                   <div
-                    className="space-y-4 text-sm text-foreground/90 text-justify leading-relaxed flex-1 [&>p]:mb-4 [&>ul]:list-disc [&>ul]:ml-6 [&>strong]:font-bold"
+                    ref={contentRef}
+                    contentEditable={viewItem?.type === 'contract' && !!savedNotes}
+                    suppressContentEditableWarning
+                    className={cn(
+                      'space-y-4 text-sm text-foreground/90 text-justify leading-relaxed flex-1 [&>p]:mb-4 [&>ul]:list-disc [&>ul]:ml-6 [&>strong]:font-bold outline-none transition-all',
+                      viewItem?.type === 'contract' && !!savedNotes
+                        ? 'focus:ring-2 focus:ring-primary/50 p-4 -mx-4 rounded-md hover:bg-muted/30 cursor-text min-h-[300px]'
+                        : '',
+                    )}
                     dangerouslySetInnerHTML={{ __html: templateContent }}
                   />
                   <div className="mt-16 pt-8 flex justify-between px-8 opacity-50">
@@ -424,36 +448,43 @@ export function DocumentViewer({ open, onClose, viewItem, docName, isTerm }: Doc
                     {savedNotes ? 'Aplicar Correções e Resolver' : 'Editar Metadados'}
                   </h4>
 
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Nome do Arquivo / Título</Label>
-                    <Input
-                      value={correctionName}
-                      onChange={(e) => setCorrectionName(e.target.value)}
-                      className="h-8 text-xs"
-                    />
-                  </div>
-
-                  {viewItem.type === 'contract' && (
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Nome do Locatário / Vinculado</Label>
-                      <Input
-                        value={correctionTenant}
-                        onChange={(e) => setCorrectionTenant(e.target.value)}
-                        className="h-8 text-xs"
-                      />
-                    </div>
+                  {viewItem.type === 'document' && (
+                    <>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Nome do Arquivo / Título</Label>
+                        <Input
+                          value={correctionName}
+                          onChange={(e) => setCorrectionName(e.target.value)}
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                      <div className="space-y-1.5 pt-1">
+                        <Label className="text-xs text-muted-foreground flex justify-between">
+                          Substituir Arquivo <span className="font-normal">(Opcional)</span>
+                        </Label>
+                        <Input
+                          type="file"
+                          onChange={(e) => setCorrectionFile(e.target.files?.[0] || null)}
+                          className="h-8 text-xs cursor-pointer"
+                        />
+                      </div>
+                    </>
                   )}
 
-                  {viewItem.type === 'document' && (
-                    <div className="space-y-1.5 pt-1">
-                      <Label className="text-xs text-muted-foreground flex justify-between">
-                        Substituir Arquivo <span className="font-normal">(Opcional)</span>
-                      </Label>
-                      <Input
-                        type="file"
-                        onChange={(e) => setCorrectionFile(e.target.files?.[0] || null)}
-                        className="h-8 text-xs cursor-pointer"
-                      />
+                  {viewItem.type === 'contract' && savedNotes && (
+                    <div className="text-sm text-muted-foreground mb-4">
+                      {previewUrl ? (
+                        <p>
+                          Este contrato está armazenado no SharePoint. Edite-o diretamente
+                          utilizando o botão "Abrir no SharePoint" e depois clique em Salvar para
+                          resolver a pendência.
+                        </p>
+                      ) : (
+                        <p>
+                          As alterações feitas no painel à esquerda serão salvas e a pendência será
+                          marcada como resolvida para reanálise.
+                        </p>
+                      )}
                     </div>
                   )}
 

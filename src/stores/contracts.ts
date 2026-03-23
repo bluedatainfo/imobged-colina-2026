@@ -27,6 +27,7 @@ export type LeaseContract = {
   isCritical?: boolean
   managerApproval?: boolean
   reviewNotes?: string
+  content?: string
 }
 
 type State = {
@@ -40,7 +41,7 @@ export const initContractsStore = async () => {
   const { data } = await supabase.from('contracts').select('*')
 
   if (data && data.length > 0) {
-    state.contracts = data.map((c) => ({
+    state.contracts = data.map((c: any) => ({
       id: c.id,
       propertyId: c.property_id || '',
       tenantName: c.tenant_name || '',
@@ -53,6 +54,7 @@ export const initContractsStore = async () => {
       isCritical: c.is_critical || false,
       managerApproval: c.manager_approval || false,
       reviewNotes: c.review_notes || undefined,
+      content: c.content || undefined,
     }))
   } else if (localStorage.getItem('app_user_id')) {
     const defaultContracts: LeaseContract[] = [
@@ -95,7 +97,8 @@ export const initContractsStore = async () => {
         docusign_status: c.docusignStatus,
         is_critical: c.isCritical,
         manager_approval: c.managerApproval,
-      })
+        content: c.content,
+      } as any)
     }
   }
   emit()
@@ -136,7 +139,8 @@ export const contractsStore = {
         docusign_status: newContract.docusignStatus,
         is_critical: newContract.isCritical,
         manager_approval: newContract.managerApproval,
-      })
+        content: newContract.content,
+      } as any)
       .then()
   },
   updateContract: async (id: string, updates: Partial<LeaseContract>) => {
@@ -148,6 +152,7 @@ export const contractsStore = {
     if (updates.status !== undefined) dbUpdates.status = updates.status
     if (updates.reviewNotes !== undefined)
       dbUpdates.review_notes = updates.reviewNotes === '' ? null : updates.reviewNotes
+    if (updates.content !== undefined) dbUpdates.content = updates.content
 
     state = {
       ...state,
