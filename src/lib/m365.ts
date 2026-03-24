@@ -219,6 +219,54 @@ export const m365Service = {
     }
   },
 
+  getEntityDocuments: async (documentType: string, entityCode: string): Promise<any[] | null> => {
+    const { data: config } = await supabase
+      .from('sharepoint_configs')
+      .select('*')
+      .eq('document_type', documentType)
+      .maybeSingle()
+
+    if (!config) return null
+
+    const token = getGraphToken()
+    const { sharepointDomain, clientId, tenantId } = mainStore.getState().sharepoint
+
+    if (!token || !clientId || !tenantId) return null
+
+    try {
+      const siteId = await resolveSiteId(sharepointDomain, config.site_name)
+      if (!siteId) return null
+
+      const drivesRes = await fetchWithAuth(
+        `https://graph.microsoft.com/v1.0/sites/${siteId}/drives`,
+      )
+      if (!drivesRes.ok) return null
+      const drivesData = await drivesRes.json()
+      const drive = drivesData.value.find(
+        (d: any) =>
+          d.name === config.library_name ||
+          (d.name &&
+            config.library_name &&
+            d.name.toLowerCase() === config.library_name.toLowerCase()),
+      )
+      if (!drive) return null
+
+      const folderPath = [config.base_path, entityCode].filter(Boolean).join('/')
+      const url = `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${drive.id}/root:/${folderPath}:/children`
+
+      const res = await fetchWithAuth(url)
+      if (res.ok) {
+        const data = await res.json()
+        return data.value || []
+      } else if (res.status === 404) {
+        return []
+      }
+    } catch (e) {
+      console.warn('Failed to fetch entity documents from SP', e)
+    }
+    return null
+  },
+
   getFilePreviewUrl: async (filePath: string, documentType: string) => {
     const { data: config } = await supabase
       .from('sharepoint_configs')

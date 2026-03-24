@@ -32,7 +32,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useToast } from '@/hooks/use-toast'
 import useMainStore, { mainStore, isSlaBreached, Property } from '@/stores/main'
-import useDocumentsStore from '@/stores/documents'
+import useDocumentsStore, { documentsStore } from '@/stores/documents'
 import useContractsStore, { contractsStore } from '@/stores/contracts'
 import useEntitiesStore from '@/stores/entities'
 import { useAuth } from '@/contexts/AuthContext'
@@ -112,6 +112,10 @@ const ManagerApproval = () => {
   const [spFiles, setSpFiles] = useState<any[]>([])
   const [scanningSp, setScanningSp] = useState(false)
 
+  const [spOwnerDocs, setSpOwnerDocs] = useState<any[] | null>(null)
+  const [spTenantDocs, setSpTenantDocs] = useState<any[] | null>(null)
+  const [scanningSpEntities, setScanningSpEntities] = useState(false)
+
   const ownerEntity = useMemo(() => {
     return selectedHub?.ownerId ? owners.find((o) => o.id === selectedHub.ownerId) : null
   }, [selectedHub, owners])
@@ -140,6 +144,82 @@ const ManagerApproval = () => {
     return Array.from(new Set(docs.map((a) => a.id))).map((id) => docs.find((a) => a.id === id)!)
   }, [selectedHub, documents, tenantEntity])
 
+  useEffect(() => {
+    if (selectedHub) {
+      let isMounted = true
+      setScanningSpEntities(true)
+
+      const fetchAndSyncEntities = async () => {
+        try {
+          const [oDocs, tDocs] = await Promise.all([
+            ownerEntity
+              ? m365Service.getEntityDocuments('OWNER_DOCUMENT', ownerEntity.code)
+              : Promise.resolve(null),
+            tenantEntity
+              ? m365Service.getEntityDocuments('TENANT_DOCUMENT', tenantEntity.code)
+              : Promise.resolve(null),
+          ])
+
+          if (!isMounted) return
+
+          const syncMissing = async (spFiles: any[], category: string, entity: any) => {
+            if (!spFiles || !entity) return
+            for (const spFile of spFiles) {
+              const currentDocs = documentsStore.getState().documents
+              const exists = currentDocs.some(
+                (d) =>
+                  d.name.toLowerCase() === spFile.name.toLowerCase() &&
+                  d.category === category &&
+                  d.entityCode === entity.code,
+              )
+              if (!exists) {
+                await documentsStore.addDocument({
+                  propertyId: selectedHub.id,
+                  name: spFile.name,
+                  category: category,
+                  entityCode: entity.code,
+                  entityName: entity.fullName,
+                  filePath: spFile.name,
+                })
+              }
+            }
+          }
+
+          if (oDocs) await syncMissing(oDocs, 'OWNER_DOCUMENT', ownerEntity)
+          if (tDocs) await syncMissing(tDocs, 'TENANT_DOCUMENT', tenantEntity)
+
+          if (isMounted) {
+            setSpOwnerDocs(oDocs)
+            setSpTenantDocs(tDocs)
+            setScanningSpEntities(false)
+          }
+        } catch (e) {
+          console.error('Error fetching entity docs', e)
+          if (isMounted) setScanningSpEntities(false)
+        }
+      }
+
+      fetchAndSyncEntities()
+    } else {
+      setSpOwnerDocs(null)
+      setSpTenantDocs(null)
+    }
+  }, [selectedHub, ownerEntity, tenantEntity])
+
+  const finalOwnerDocs = useMemo(() => {
+    if (spOwnerDocs === null) return ownerDocs
+    return ownerDocs.filter((d) =>
+      spOwnerDocs.some((sp) => sp.name.toLowerCase() === d.name.toLowerCase()),
+    )
+  }, [ownerDocs, spOwnerDocs])
+
+  const finalTenantDocs = useMemo(() => {
+    if (spTenantDocs === null) return tenantDocs
+    return tenantDocs.filter((d) =>
+      spTenantDocs.some((sp) => sp.name.toLowerCase() === d.name.toLowerCase()),
+    )
+  }, [tenantDocs, spTenantDocs])
+
   const uploadedContracts = selectedHub
     ? documents.filter((d) => d.propertyId === selectedHub.id && d.category.startsWith('CONTRACT_'))
     : []
@@ -149,13 +229,13 @@ const ManagerApproval = () => {
 
   const hasPendingNotes = useMemo(() => {
     if (!selectedHub) return false
-    const allDocs = [...ownerDocs, ...tenantDocs, ...uploadedContracts]
+    const allDocs = [...finalOwnerDocs, ...finalTenantDocs, ...uploadedContracts]
     const hasDocNotes = allDocs.some((d) => d.reviewNotes && d.reviewNotes.trim() !== '')
     const hasContractNotes = systemContracts.some(
       (c) => c.reviewNotes && c.reviewNotes.trim() !== '',
     )
     return hasDocNotes || hasContractNotes
-  }, [ownerDocs, tenantDocs, systemContracts, uploadedContracts, selectedHub])
+  }, [finalOwnerDocs, finalTenantDocs, systemContracts, uploadedContracts, selectedHub])
 
   useEffect(() => {
     if (selectedHub) {
@@ -183,7 +263,6 @@ const ManagerApproval = () => {
   const handleApprove = (id: string) => {
     mainStore.updateProperty(id, { status: 'Vistoria', isResubmission: false })
 
-    // Avance os contratos para "Aprovado para Ajuste" quando a gerência aprovar
     systemContracts.forEach((c) => {
       if (c.status === 'Em Análise') {
         contractsStore.updateStatus(c.id, 'Aprovado para Ajuste')
@@ -224,10 +303,10 @@ const ManagerApproval = () => {
 
     if (rejectId) {
       const allNotes: string[] = []
-      ownerDocs.forEach((d) => {
+      finalOwnerDocs.forEach((d) => {
         if (d.reviewNotes) allNotes.push(`- Proprietário (${d.name}): ${d.reviewNotes}`)
       })
-      tenantDocs.forEach((d) => {
+      finalTenantDocs.forEach((d) => {
         if (d.reviewNotes) allNotes.push(`- Inquilino (${d.name}): ${d.reviewNotes}`)
       })
       systemContracts.forEach((c) => {
@@ -243,7 +322,6 @@ const ManagerApproval = () => {
 
       mainStore.updateProperty(rejectId, { status: 'Pendente/Rascunho', isResubmission: false })
 
-      // Retroceder os contratos para Rascunho para que o gestor possa realizar ajustes e submeter novamente
       systemContracts.forEach((c) => {
         if (c.status === 'Em Análise') {
           contractsStore.updateStatus(c.id, 'Rascunho')
@@ -303,8 +381,12 @@ const ManagerApproval = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-4 space-y-3">
-              {ownerDocs.length > 0 ? (
-                ownerDocs.map((doc) => (
+              {scanningSpEntities ? (
+                <div className="flex justify-center p-4">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : finalOwnerDocs.length > 0 ? (
+                finalOwnerDocs.map((doc) => (
                   <DocItem
                     key={doc.id}
                     name={doc.name}
@@ -330,8 +412,12 @@ const ManagerApproval = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-4 space-y-3">
-              {tenantDocs.length > 0 ? (
-                tenantDocs.map((doc) => (
+              {scanningSpEntities ? (
+                <div className="flex justify-center p-4">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : finalTenantDocs.length > 0 ? (
+                finalTenantDocs.map((doc) => (
                   <DocItem
                     key={doc.id}
                     name={doc.name}
