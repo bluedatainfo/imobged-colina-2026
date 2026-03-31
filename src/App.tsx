@@ -14,6 +14,7 @@ import { initKeysStore } from './stores/keys'
 import { initEntitiesStore } from './stores/entities'
 import { initTemplatesStore } from './stores/templates'
 import { initDocumentsStore } from './stores/documents'
+import { initModulesStore } from './stores/modules'
 import { supabase } from './lib/supabase/client'
 
 // Code splitting routes to prevent out-of-memory errors during build chunking
@@ -119,6 +120,7 @@ const App = () => {
         initEntitiesStore(),
         initTemplatesStore(),
         initDocumentsStore(),
+        initModulesStore(),
       ])
       setReady(true)
     }

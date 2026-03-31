@@ -33,6 +33,7 @@ import {
 import useMainStore from '@/stores/main'
 import { useAuth } from '@/contexts/AuthContext'
 import { checkAccess } from '@/lib/permissions'
+import { useModulesStore } from '@/stores/modules'
 
 const navigation = [
   { title: 'Painel', url: '/', icon: LayoutDashboard },
@@ -58,8 +59,34 @@ export function AppSidebar() {
   const location = useLocation()
   const { agencyProfile } = useMainStore()
   const { user } = useAuth()
+  const { modules } = useModulesStore()
 
-  const visibleNavigation = navigation.filter((item) => checkAccess(item.url, user?.role))
+  const moduleMapping: Record<string, keyof typeof modules> = {
+    '/entities': 'entities',
+    '/properties': 'properties',
+    '/templates': 'templates',
+    '/contracts': 'contracts',
+    '/manager-approval': 'manager_approval',
+    '/documents': 'documents',
+    '/inspections': 'inspections',
+    '/keys': 'keys',
+    '/document-alerts': 'document_alerts',
+    '/sync-monitor': 'sync_monitor',
+    '/maintenance': 'maintenance',
+    '/renewals': 'renewals',
+    '/legal': 'legal',
+    '/sales': 'sales',
+    '/financial': 'financial',
+  }
+
+  const visibleNavigation = navigation.filter((item) => {
+    if (!checkAccess(item.url, user?.role)) return false
+
+    const moduleKey = moduleMapping[item.url]
+    if (moduleKey && modules[moduleKey] === false) return false
+
+    return true
+  })
 
   return (
     <Sidebar variant="inset">

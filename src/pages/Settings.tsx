@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Loader2 } from 'lucide-react'
+import { useAuth } from '@/contexts/AuthContext'
 
 // Lazy loading large components to prevent build memory issues
 const GeneralSettings = lazy(() => import('@/components/settings/GeneralSettings'))
@@ -9,6 +10,7 @@ const AgencySettings = lazy(() => import('@/components/settings/AgencySettings')
 const PermissionsSettings = lazy(() => import('@/components/settings/PermissionsSettings'))
 const SecuritySettings = lazy(() => import('@/components/settings/SecuritySettings'))
 const SharePointMapping = lazy(() => import('@/components/settings/SharePointMapping'))
+const ModulesSettings = lazy(() => import('@/components/settings/ModulesSettings'))
 
 const SettingsFallback = () => (
   <div className="flex h-32 w-full items-center justify-center">
@@ -17,6 +19,9 @@ const SettingsFallback = () => (
 )
 
 const Settings = () => {
+  const { user } = useAuth()
+  const isAdmin = user?.role?.toLowerCase().includes('admin') || user?.role === 'Gerência'
+
   return (
     <div className="space-y-6 max-w-5xl">
       <div>
@@ -28,6 +33,7 @@ const Settings = () => {
 
       <Tabs defaultValue="permissions">
         <TabsList className="mb-4 bg-muted/50 border flex flex-wrap h-auto">
+          {isAdmin && <TabsTrigger value="modules">Módulos</TabsTrigger>}
           <TabsTrigger value="permissions">Permissões de Acesso</TabsTrigger>
           <TabsTrigger value="security">Segurança & Auditoria</TabsTrigger>
           <TabsTrigger value="sharepoint">Integração SharePoint</TabsTrigger>
@@ -36,6 +42,11 @@ const Settings = () => {
           <TabsTrigger value="general">Geral & SLA</TabsTrigger>
         </TabsList>
         <Suspense fallback={<SettingsFallback />}>
+          {isAdmin && (
+            <TabsContent value="modules">
+              <ModulesSettings />
+            </TabsContent>
+          )}
           <TabsContent value="permissions">
             <PermissionsSettings />
           </TabsContent>
