@@ -23,15 +23,17 @@ export type ModulesSettings = typeof defaultModules
 
 let modulesData = { ...defaultModules }
 let loading = true
+let snapshot = { modules: modulesData, loading }
 
 const listeners = new Set<() => void>()
 
 function emit() {
+  snapshot = { modules: modulesData, loading }
   listeners.forEach((l) => l())
 }
 
 export const modulesStore = {
-  getSnapshot: () => ({ modules: modulesData, loading }),
+  getSnapshot: () => snapshot,
   subscribe: (listener: () => void) => {
     listeners.add(listener)
     return () => listeners.delete(listener)

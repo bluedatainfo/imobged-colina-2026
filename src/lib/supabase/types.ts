@@ -48,6 +48,7 @@ export type Database = {
           client_id: string | null
           default_domain: string | null
           id: string
+          module_settings: Json | null
           role_settings: Json | null
           security_settings: Json | null
           tenant_id: string | null
@@ -58,6 +59,7 @@ export type Database = {
           client_id?: string | null
           default_domain?: string | null
           id?: string
+          module_settings?: Json | null
           role_settings?: Json | null
           security_settings?: Json | null
           tenant_id?: string | null
@@ -68,6 +70,7 @@ export type Database = {
           client_id?: string | null
           default_domain?: string | null
           id?: string
+          module_settings?: Json | null
           role_settings?: Json | null
           security_settings?: Json | null
           tenant_id?: string | null
@@ -660,6 +663,7 @@ export const Constants = {
 //   role_settings: jsonb (nullable)
 //   security_settings: jsonb (nullable)
 //   updated_at: timestamp with time zone (nullable, default: now())
+//   module_settings: jsonb (nullable, default: '{}'::jsonb)
 // Table: app_users
 //   id: text (not null)
 //   name: text (nullable)
