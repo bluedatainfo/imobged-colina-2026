@@ -36,7 +36,7 @@ import { checkAccess } from '@/lib/permissions'
 
 const navigation = [
   { title: 'Painel', url: '/', icon: LayoutDashboard },
-  { title: 'Entidades (Prop. / Inq.)', url: '/entities', icon: UsersRound },
+  { title: 'Entidades (Prop. / Loc.)', url: '/entities', icon: UsersRound },
   { title: 'Imóveis', url: '/properties', icon: Home },
   { title: 'Gestão de Modelos', url: '/templates', icon: BookOpen },
   { title: 'Ciclo de Contratos', url: '/contracts', icon: FileSignature },

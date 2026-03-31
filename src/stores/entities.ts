@@ -21,38 +21,64 @@ let state: State = { owners: [], tenants: [] }
 let listeners: Array<() => void> = []
 
 export const initEntitiesStore = async () => {
-  const [{ data: ownersData }, { data: tenantsData }] = await Promise.all([
-    supabase.from('owners').select('*').order('created_at', { ascending: false }),
-    supabase.from('tenants').select('*').order('created_at', { ascending: false }),
-  ])
+  try {
+    // Attempt to fetch from local ERP as requested
+    const [ownersRes, tenantsRes] = await Promise.all([
+      fetch('http://192.168.10.225:9000/proprietarios').catch(() => null),
+      fetch('http://192.168.10.225:9000/locatarios').catch(() => null),
+    ])
 
-  state.owners = ownersData
-    ? ownersData.map((o) => ({
-        id: o.id,
-        code: o.code,
-        fullName: o.full_name,
-        cpf: o.cpf || '',
-        rg: o.rg || '',
-        fullAddress: o.full_address || '',
-        createdAt: o.created_at,
-        updatedAt: o.updated_at,
-      }))
-    : []
+    let oData: any[] = []
+    let tData: any[] = []
 
-  state.tenants = tenantsData
-    ? tenantsData.map((t) => ({
-        id: t.id,
-        code: t.code,
-        fullName: t.full_name,
-        cpf: t.cpf || '',
-        rg: t.rg || '',
-        fullAddress: t.full_address || '',
-        createdAt: t.created_at,
-        updatedAt: t.updated_at,
-      }))
-    : []
+    if (ownersRes && ownersRes.ok) {
+      oData = await ownersRes.json()
+    } else {
+      // Fallback if ERP is unreachable (preview mode)
+      const { data } = await supabase
+        .from('owners')
+        .select('*')
+        .order('created_at', { ascending: false })
+      oData = data || []
+    }
 
-  emit()
+    if (tenantsRes && tenantsRes.ok) {
+      tData = await tenantsRes.json()
+    } else {
+      // Fallback
+      const { data } = await supabase
+        .from('tenants')
+        .select('*')
+        .order('created_at', { ascending: false })
+      tData = data || []
+    }
+
+    state.owners = oData.map((o: any) => ({
+      id: o.id || o.codigo || Math.random().toString(),
+      code: o.code || o.codigo || 'ERP-P',
+      fullName: o.full_name || o.nome || o.fullName || 'Proprietário Desconhecido',
+      cpf: o.cpf || o.documento || '',
+      rg: o.rg || '',
+      fullAddress: o.full_address || o.endereco || '',
+      createdAt: o.created_at || new Date().toISOString(),
+      updatedAt: o.updated_at || new Date().toISOString(),
+    }))
+
+    state.tenants = tData.map((t: any) => ({
+      id: t.id || t.codigo || Math.random().toString(),
+      code: t.code || t.codigo || 'ERP-L',
+      fullName: t.full_name || t.nome || t.fullName || 'Locatário Desconhecido',
+      cpf: t.cpf || t.documento || '',
+      rg: t.rg || '',
+      fullAddress: t.full_address || t.endereco || '',
+      createdAt: t.created_at || new Date().toISOString(),
+      updatedAt: t.updated_at || new Date().toISOString(),
+    }))
+
+    emit()
+  } catch (err) {
+    console.error('Failed to sync entities with local ERP', err)
+  }
 }
 
 const emit = () => listeners.forEach((l) => l())
@@ -65,153 +91,23 @@ export const entitiesStore = {
       listeners = listeners.filter((fn) => fn !== l)
     }
   },
-  addOwner: async (
-    owner: Omit<EntityModel, 'id' | 'createdAt' | 'updatedAt' | 'code'> & { code?: string },
-  ) => {
-    let newCode = owner.code
-    if (!newCode) {
-      const { data } = await supabase.from('owners').select('code')
-      let max = 0
-      data?.forEach((d) => {
-        if (d.code) {
-          const upperCode = d.code.toUpperCase()
-          if (upperCode.startsWith('PROP')) {
-            const num = parseInt(upperCode.substring(4), 10)
-            if (!isNaN(num) && num > max) max = num
-          }
-        }
-      })
-      newCode = `PROP${(max + 1).toString().padStart(6, '0')}`
-    }
-
-    const { data, error } = await supabase
-      .from('owners')
-      .insert({
-        code: newCode,
-        full_name: owner.fullName,
-        cpf: owner.cpf,
-        rg: owner.rg,
-        full_address: owner.fullAddress,
-      })
-      .select('*')
-      .single()
-
-    if (error) throw error
-
-    if (data) {
-      const newOwner: EntityModel = {
-        id: data.id,
-        code: data.code,
-        fullName: data.full_name,
-        cpf: data.cpf || '',
-        rg: data.rg || '',
-        fullAddress: data.full_address || '',
-        createdAt: data.created_at,
-        updatedAt: data.updated_at,
-      }
-      state = { ...state, owners: [newOwner, ...state.owners] }
-      emit()
-    }
+  addOwner: async () => {
+    throw new Error('Cadastro bloqueado. Gerido no ERP local.')
   },
-  updateOwner: async (id: string, owner: Partial<EntityModel>) => {
-    const payload: any = { updated_at: new Date().toISOString() }
-    if (owner.code) payload.code = owner.code
-    if (owner.fullName) payload.full_name = owner.fullName
-    if (owner.cpf !== undefined) payload.cpf = owner.cpf
-    if (owner.rg !== undefined) payload.rg = owner.rg
-    if (owner.fullAddress !== undefined) payload.full_address = owner.fullAddress
-
-    const { error } = await supabase.from('owners').update(payload).eq('id', id)
-    if (error) throw error
-
-    state = {
-      ...state,
-      owners: state.owners.map((o) =>
-        o.id === id ? { ...o, ...owner, updatedAt: payload.updated_at } : o,
-      ),
-    }
-    emit()
+  updateOwner: async () => {
+    throw new Error('Edição bloqueada. Gerida no ERP local.')
   },
-  deleteOwner: async (id: string) => {
-    const { error } = await supabase.from('owners').delete().eq('id', id)
-    if (error) throw error
-
-    state = { ...state, owners: state.owners.filter((o) => o.id !== id) }
-    emit()
+  deleteOwner: async () => {
+    throw new Error('Exclusão bloqueada. Gerida no ERP local.')
   },
-  addTenant: async (
-    tenant: Omit<EntityModel, 'id' | 'createdAt' | 'updatedAt' | 'code'> & { code?: string },
-  ) => {
-    let newCode = tenant.code
-    if (!newCode) {
-      const { data } = await supabase.from('tenants').select('code')
-      let max = 0
-      data?.forEach((d) => {
-        if (d.code) {
-          const upperCode = d.code.toUpperCase()
-          if (upperCode.startsWith('INQ')) {
-            const num = parseInt(upperCode.substring(3), 10)
-            if (!isNaN(num) && num > max) max = num
-          }
-        }
-      })
-      newCode = `INQ${(max + 1).toString().padStart(6, '0')}`
-    }
-
-    const { data, error } = await supabase
-      .from('tenants')
-      .insert({
-        code: newCode,
-        full_name: tenant.fullName,
-        cpf: tenant.cpf,
-        rg: tenant.rg,
-        full_address: tenant.fullAddress,
-      })
-      .select('*')
-      .single()
-
-    if (error) throw error
-
-    if (data) {
-      const newTenant: EntityModel = {
-        id: data.id,
-        code: data.code,
-        fullName: data.full_name,
-        cpf: data.cpf || '',
-        rg: data.rg || '',
-        fullAddress: data.full_address || '',
-        createdAt: data.created_at,
-        updatedAt: data.updated_at,
-      }
-      state = { ...state, tenants: [newTenant, ...state.tenants] }
-      emit()
-    }
+  addTenant: async () => {
+    throw new Error('Cadastro bloqueado. Gerido no ERP local.')
   },
-  updateTenant: async (id: string, tenant: Partial<EntityModel>) => {
-    const payload: any = { updated_at: new Date().toISOString() }
-    if (tenant.code) payload.code = tenant.code
-    if (tenant.fullName) payload.full_name = tenant.fullName
-    if (tenant.cpf !== undefined) payload.cpf = tenant.cpf
-    if (tenant.rg !== undefined) payload.rg = tenant.rg
-    if (tenant.fullAddress !== undefined) payload.full_address = tenant.fullAddress
-
-    const { error } = await supabase.from('tenants').update(payload).eq('id', id)
-    if (error) throw error
-
-    state = {
-      ...state,
-      tenants: state.tenants.map((t) =>
-        t.id === id ? { ...t, ...tenant, updatedAt: payload.updated_at } : t,
-      ),
-    }
-    emit()
+  updateTenant: async () => {
+    throw new Error('Edição bloqueada. Gerida no ERP local.')
   },
-  deleteTenant: async (id: string) => {
-    const { error } = await supabase.from('tenants').delete().eq('id', id)
-    if (error) throw error
-
-    state = { ...state, tenants: state.tenants.filter((t) => t.id !== id) }
-    emit()
+  deleteTenant: async () => {
+    throw new Error('Exclusão bloqueada. Gerida no ERP local.')
   },
 }
 

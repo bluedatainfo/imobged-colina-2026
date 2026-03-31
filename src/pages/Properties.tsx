@@ -43,7 +43,7 @@ export default function Properties() {
           <p className="text-muted-foreground">Catálogo e status do portfólio da imobiliária.</p>
         </div>
         <Button onClick={() => setIsNewOpen(true)} className="gap-2">
-          <Plus className="w-4 h-4" /> Nova Captação
+          <Plus className="w-4 h-4" /> Importar do ERP
         </Button>
       </div>
 

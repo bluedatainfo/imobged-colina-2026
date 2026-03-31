@@ -70,7 +70,7 @@ export default function PropertyDossier() {
                 </div>
                 {property.tenant && (
                   <div className="flex justify-between items-center text-sm">
-                    <span className="text-muted-foreground">Inquilino:</span>
+                    <span className="text-muted-foreground">Locatário:</span>
                     <span className="font-medium">{property.tenant}</span>
                   </div>
                 )}

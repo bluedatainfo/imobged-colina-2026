@@ -307,7 +307,7 @@ const ManagerApproval = () => {
         if (d.reviewNotes) allNotes.push(`- Proprietário (${d.name}): ${d.reviewNotes}`)
       })
       finalTenantDocs.forEach((d) => {
-        if (d.reviewNotes) allNotes.push(`- Inquilino (${d.name}): ${d.reviewNotes}`)
+        if (d.reviewNotes) allNotes.push(`- Locatário (${d.name}): ${d.reviewNotes}`)
       })
       systemContracts.forEach((c) => {
         if (c.reviewNotes) allNotes.push(`- Contrato (${c.documentName}): ${c.reviewNotes}`)
@@ -405,7 +405,7 @@ const ManagerApproval = () => {
           <Card className="shadow-sm">
             <CardHeader className="bg-muted/30 pb-4 border-b">
               <CardTitle className="flex items-center gap-2 text-lg">
-                <Users className="h-5 w-5 text-primary" /> Inquilino
+                <Users className="h-5 w-5 text-primary" /> Locatário
               </CardTitle>
               <CardDescription>
                 Comprovação do locatário ({selectedHub.tenant || 'Não informado'})
@@ -427,7 +427,7 @@ const ManagerApproval = () => {
                 ))
               ) : (
                 <p className="text-sm text-muted-foreground italic text-center p-4">
-                  Nenhum documento de inquilino localizado no GED.
+                  Nenhum documento de locatário localizado no GED.
                 </p>
               )}
             </CardContent>
@@ -596,7 +596,7 @@ const ManagerApproval = () => {
         <h1 className="text-3xl font-bold tracking-tight">Análise do Gerente</h1>
         <p className="text-muted-foreground">
           Abra o Hub de Validação para conferir a documentação completa de proprietários e
-          inquilinos antes da vistoria.
+          locatários antes da vistoria.
         </p>
       </div>
 

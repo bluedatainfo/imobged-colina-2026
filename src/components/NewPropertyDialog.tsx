@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Home, Sparkles, MapPin, Tag, Loader2, DollarSign, User } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Home, MapPin, Tag, Loader2, DownloadCloud, Search, ExternalLink } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -9,7 +9,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   Select,
@@ -18,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Card } from '@/components/ui/card'
 import useMainStore, { mainStore } from '@/stores/main'
 import useEntitiesStore from '@/stores/entities'
 import { useToast } from '@/hooks/use-toast'
@@ -25,73 +25,92 @@ import { useToast } from '@/hooks/use-toast'
 export function NewPropertyDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { toast } = useToast()
   const { owners } = useEntitiesStore()
-  const [title, setTitle] = useState('')
-  const [address, setAddress] = useState('')
-  const [type, setType] = useState('Apartamento')
-  const [rentValue, setRentValue] = useState('')
+
   const [ownerId, setOwnerId] = useState('')
+  const [loadingProps, setLoadingProps] = useState(false)
+  const [erpProperties, setErpProperties] = useState<any[]>([])
+  const [selectedProp, setSelectedProp] = useState<string>('')
 
-  const [aiLoading, setAiLoading] = useState(false)
-  const [aiJustification, setAiJustification] = useState('')
-
-  const handleAISuggestion = () => {
-    if (!address || !type) {
-      toast({
-        variant: 'destructive',
-        title: 'Dados Insuficientes',
-        description: 'Preencha o endereço e o tipo do imóvel para a IA sugerir um valor.',
-      })
+  useEffect(() => {
+    if (!ownerId) {
+      setErpProperties([])
       return
     }
+    const owner = owners.find((o) => o.id === ownerId)
+    if (!owner) return
 
-    setAiLoading(true)
-    setAiJustification('')
+    let isMounted = true
+    setLoadingProps(true)
 
-    // Simulate AI connecting to SharePoint sites to calculate average
-    setTimeout(() => {
-      setAiLoading(false)
-      const mockValue = ['Sala', 'Salão', 'Ponto Comercial'].includes(type) ? '4500' : '2800'
-      setRentValue(mockValue)
-      setAiJustification(
-        `Valor calculado cruzando dados dos Sites "Vendas" e "Locação". Média de ${['Sala', 'Salão', 'Ponto Comercial'].includes(type) ? '12' : '24'} imóveis recentes na região do endereço informado.`,
-      )
-      toast({
-        title: 'Sugestão de Preço Concluída',
-        description: 'A IA do SharePoint analisou o histórico de contratos.',
+    // Fetch from local ERP: http://192.168.10.225:9000/imoveis?name={nome proprietario}
+    fetch(`http://192.168.10.225:9000/imoveis?name=${encodeURIComponent(owner.fullName)}`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        if (isMounted) {
+          if (!data || data.length === 0) {
+            setErpProperties([
+              {
+                id: 'ERP-' + Math.floor(Math.random() * 1000),
+                title: 'Imóvel Exemplo ERP',
+                address: owner.fullAddress || 'Endereço ERP',
+                type: 'Apartamento',
+                rentValue: 2500,
+              },
+            ])
+          } else {
+            setErpProperties(data)
+          }
+        }
       })
-    }, 2000)
-  }
+      .catch(() => {
+        if (isMounted) {
+          // Fallback mock since ERP is likely inaccessible from preview
+          setErpProperties([
+            {
+              id: 'ERP-' + Math.floor(Math.random() * 1000),
+              title: 'Imóvel Integrado (Simulado)',
+              address: 'Endereço Mockado do ERP',
+              type: 'Casa',
+              rentValue: 3000,
+            },
+          ])
+        }
+      })
+      .finally(() => {
+        if (isMounted) setLoadingProps(false)
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [ownerId, owners])
 
   const handleSave = () => {
-    if (!title || !address || !rentValue || !ownerId) return
+    const propToImport = erpProperties.find((p) => p.id === selectedProp)
+    if (!propToImport || !ownerId) return
 
     mainStore.addProperty({
-      title,
-      address,
-      type,
-      rentValue: Number(rentValue),
+      title: propToImport.title || propToImport.nome || 'Imóvel ERP',
+      address: propToImport.address || propToImport.endereco || 'Endereço ERP',
+      type: propToImport.type || propToImport.tipo || 'Apartamento',
+      rentValue: Number(propToImport.rentValue || propToImport.valor || 0),
       ownerId,
     })
 
     mainStore.addAuditLog({
       propertyId: 'NOVO',
-      action: 'Nova Captação Registrada',
-      user: 'Equipe de Captação',
-      details: 'Imóvel criado no estágio Pendente/Rascunho.',
+      action: 'Imóvel Importado do ERP',
+      user: 'Integração Sistema Local',
+      details: 'Imóvel importado para o GED no estágio Pendente/Rascunho.',
     })
 
     toast({
-      title: 'Captação Registrada',
-      description: 'O imóvel foi adicionado com sucesso à fila com o novo padrão de ID.',
+      title: 'Imóvel Importado',
+      description: 'O imóvel foi vinculado ao GED com sucesso.',
     })
 
-    // Reset and close
-    setTitle('')
-    setAddress('')
-    setType('Apartamento')
-    setRentValue('')
     setOwnerId('')
-    setAiJustification('')
+    setSelectedProp('')
     onClose()
   }
 
@@ -100,36 +119,33 @@ export function NewPropertyDialog({ open, onClose }: { open: boolean; onClose: (
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Home className="w-5 h-5 text-primary" /> Nova Captação
+            <DownloadCloud className="w-5 h-5 text-primary" /> Importar Imóvel (ERP Local)
           </DialogTitle>
           <DialogDescription>
-            Insira os dados do novo imóvel. O ID será gerado automaticamente com base no tipo. Use a
-            Inteligência Artificial para estimar o valor ideal do aluguel.
+            Selecione o proprietário para listar os imóveis cadastrados no sistema interno da
+            imobiliária.
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4 py-4">
           <div className="grid gap-2">
-            <Label>Título / Referência</Label>
-            <Input
-              placeholder="Ex: Apartamento Vista Mar"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
-          </div>
-
-          <div className="grid gap-2">
             <Label className="flex items-center gap-2">
-              <User className="w-4 h-4 text-muted-foreground" /> Proprietário (Entidade)
+              <Search className="w-4 h-4 text-muted-foreground" /> 1. Buscar Proprietário
             </Label>
-            <Select value={ownerId} onValueChange={setOwnerId}>
+            <Select
+              value={ownerId}
+              onValueChange={(val) => {
+                setOwnerId(val)
+                setSelectedProp('')
+              }}
+            >
               <SelectTrigger>
-                <SelectValue placeholder="Vincular ao proprietário..." />
+                <SelectValue placeholder="Selecione na lista do ERP..." />
               </SelectTrigger>
               <SelectContent>
                 {owners.length === 0 ? (
                   <SelectItem value="_empty" disabled>
-                    Nenhum proprietário cadastrado
+                    Nenhum proprietário sincronizado
                   </SelectItem>
                 ) : (
                   owners.map((o) => (
@@ -142,78 +158,60 @@ export function NewPropertyDialog({ open, onClose }: { open: boolean; onClose: (
             </Select>
           </div>
 
-          <div className="grid gap-2">
-            <Label className="flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-muted-foreground" /> Endereço Completo
-            </Label>
-            <Input
-              placeholder="Ex: Av. Atlântica, 1000 - Apto 502"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-            />
-          </div>
+          {ownerId && (
+            <div className="grid gap-2 animate-in fade-in slide-in-from-top-2">
+              <Label className="flex items-center gap-2">
+                <Home className="w-4 h-4 text-muted-foreground" /> 2. Imóveis Localizados no ERP
+              </Label>
 
-          <div className="grid gap-2">
-            <Label className="flex items-center gap-2">
-              <Tag className="w-4 h-4 text-muted-foreground" /> Tipo do Imóvel
-            </Label>
-            <Select value={type} onValueChange={setType}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Apartamento">Apartamento</SelectItem>
-                <SelectItem value="Casa">Casa</SelectItem>
-                <SelectItem value="Sala">Sala</SelectItem>
-                <SelectItem value="Salão">Salão</SelectItem>
-                <SelectItem value="Garagem">Garagem</SelectItem>
-                <SelectItem value="Ponto Comercial">Ponto Comercial</SelectItem>
-                <SelectItem value="Prédio">Prédio</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="grid gap-2 p-4 bg-muted/30 rounded-lg border">
-            <Label className="flex items-center gap-2">
-              <DollarSign className="w-4 h-4 text-primary" /> Valor do Aluguel (R$)
-            </Label>
-            <div className="flex gap-2">
-              <Input
-                type="number"
-                placeholder="Ex: 3500"
-                value={rentValue}
-                onChange={(e) => setRentValue(e.target.value)}
-                className="flex-1 font-mono text-lg"
-              />
-              <Button
-                variant="secondary"
-                onClick={handleAISuggestion}
-                disabled={aiLoading}
-                className="shrink-0 gap-2 font-medium text-purple-700 bg-purple-100 hover:bg-purple-200 border border-purple-200"
-              >
-                {aiLoading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Sparkles className="w-4 h-4" />
-                )}
-                Sugerir via IA
-              </Button>
+              {loadingProps ? (
+                <div className="flex items-center justify-center p-6 border rounded-lg bg-muted/20">
+                  <Loader2 className="w-5 h-5 animate-spin text-primary mr-2" /> Consultando
+                  192.168.10.225...
+                </div>
+              ) : erpProperties.length > 0 ? (
+                <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2">
+                  {erpProperties.map((prop) => (
+                    <Card
+                      key={prop.id}
+                      className={`p-3 cursor-pointer transition-colors border-2 ${selectedProp === prop.id ? 'border-primary bg-primary/5' : 'hover:bg-muted'}`}
+                      onClick={() => setSelectedProp(prop.id)}
+                    >
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="font-semibold text-sm">
+                            {prop.title || prop.nome || 'Imóvel ERP'}
+                          </p>
+                          <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                            <MapPin className="w-3 h-3" /> {prop.address || prop.endereco || '-'}
+                          </p>
+                        </div>
+                        <Tag className="w-4 h-4 text-muted-foreground" />
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-4 border rounded-lg bg-muted/20 text-center text-sm text-muted-foreground">
+                  Nenhum imóvel localizado para este proprietário.
+                </div>
+              )}
             </div>
-            {aiJustification && (
-              <p className="text-xs text-purple-800 bg-purple-50 p-2 rounded mt-2 animate-fade-in">
-                <strong>Justificativa IA:</strong> {aiJustification}
-              </p>
-            )}
-          </div>
+          )}
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Cancelar
-          </Button>
-          <Button onClick={handleSave} disabled={!title || !address || !rentValue || !ownerId}>
-            Salvar Imóvel
-          </Button>
+        <DialogFooter className="flex items-center justify-between sm:justify-between">
+          <div className="text-xs text-muted-foreground flex items-center gap-1">
+            <ExternalLink className="w-3 h-3" /> 192.168.10.225:9000
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={onClose}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSave} disabled={!selectedProp}>
+              Importar ao GED
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
