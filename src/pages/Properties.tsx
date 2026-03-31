@@ -1,178 +1,210 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Building, MapPin, Plus, Search, ArrowRight } from 'lucide-react'
-import { Card, CardContent } from '@/components/ui/card'
+import { Building, Search, Loader2, User } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
-import useMainStore, { PropertyStatus } from '@/stores/main'
-import { NewPropertyDialog } from '@/components/NewPropertyDialog'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { useToast } from '@/components/ui/use-toast'
 
-const STATUS_COLUMNS: PropertyStatus[] = [
-  'Pendente/Rascunho',
-  'Análise Gerencial',
-  'Vistoria',
-  'Confecção de Contrato',
-  'Assinatura',
-  'Disponível para Locação',
-]
+interface ERPProperty {
+  id: number
+  tipo: string
+  endereco: string
+  numero: string
+  complemento: string
+  bairro: string
+  cep: string
+  cidade: string
+  uf: string
+  proprietarios?: {
+    nome: string
+    participacao: number
+  }[]
+  servicos?: {
+    descricao: string
+    numero: string
+  }[]
+}
 
 export default function Properties() {
-  const { properties } = useMainStore()
   const [search, setSearch] = useState('')
-  const [isNewOpen, setIsNewOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [results, setResults] = useState<ERPProperty[]>([])
+  const [hasSearched, setHasSearched] = useState(false)
+  const { toast } = useToast()
 
-  const filtered = properties.filter((p) => {
-    const s = search.toLowerCase()
-    const matchBasic =
-      p.title.toLowerCase().includes(s) ||
-      p.address.toLowerCase().includes(s) ||
-      p.id.toLowerCase().includes(s)
-    const matchOwner = p.erpData?.proprietarios?.some((op: any) =>
-      op.nome?.toLowerCase().includes(s),
-    )
-    const matchServ = p.erpData?.servicos?.some(
-      (sv: any) => sv.descricao?.toLowerCase().includes(s) || sv.numero?.toLowerCase().includes(s),
-    )
-    return matchBasic || matchOwner || matchServ
-  })
+  const handleSearch = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    if (!search.trim()) return
 
-  const grouped = STATUS_COLUMNS.map((status) => ({
-    status,
-    items: filtered.filter((p) => p.status === status),
-  }))
+    setLoading(true)
+    setHasSearched(true)
+
+    try {
+      const res = await fetch(
+        `http://192.168.10.225:9000/imoveis?name=${encodeURIComponent(search)}`,
+      )
+      if (!res.ok) throw new Error('Erro na comunicação com o servidor local')
+      const data = await res.json()
+
+      const dataArray = Array.isArray(data) ? data : [data]
+      setResults(dataArray)
+    } catch (err) {
+      console.error(err)
+      toast({
+        title: 'Erro na busca',
+        description:
+          'Não foi possível buscar os imóveis. Verifique a conexão com o servidor local (192.168.10.225) e as políticas de CORS.',
+        variant: 'destructive',
+      })
+      setResults([])
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
-    <div className="space-y-6 flex flex-col h-[calc(100vh-8rem)]">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shrink-0">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Gestão de Imóveis</h1>
-          <p className="text-muted-foreground">Catálogo e status do portfólio da imobiliária.</p>
-        </div>
-        <Button onClick={() => setIsNewOpen(true)} className="gap-2">
-          <Plus className="w-4 h-4" /> Importar do ERP
-        </Button>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Imóveis</h1>
+        <p className="text-muted-foreground">
+          Consulta em tempo real de imóveis integrados ao servidor local.
+        </p>
       </div>
 
-      <div className="flex items-center gap-2 max-w-md shrink-0">
-        <Search className="w-4 h-4 text-muted-foreground absolute ml-3" />
-        <Input
-          placeholder="Buscar imóvel por nome, endereço ou ID..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-9"
-        />
-      </div>
-
-      <ScrollArea className="flex-1 -mx-4 px-4 sm:mx-0 sm:px-0">
-        <div className="flex w-max space-x-4 h-full pb-4">
-          {grouped.map((col) => (
-            <div
-              key={col.status}
-              className="w-[320px] shrink-0 flex flex-col bg-muted/40 rounded-xl border border-border/50"
-            >
-              <div className="p-3 border-b border-border/50 bg-muted/20 flex items-center justify-between rounded-t-xl sticky top-0 z-10">
-                <h3 className="font-semibold text-sm text-foreground/80">{col.status}</h3>
-                <Badge variant="secondary" className="text-xs">
-                  {col.items.length}
-                </Badge>
-              </div>
-              <div className="p-3 space-y-3 flex-1 overflow-y-auto">
-                {col.items.map((property) => (
-                  <Card
-                    key={property.id}
-                    className="overflow-hidden flex flex-col transition-shadow hover:shadow-md whitespace-normal"
-                  >
-                    <div className="aspect-video w-full bg-muted relative">
-                      <img
-                        src={property.image}
-                        alt={property.title}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <CardContent className="p-4 flex flex-col flex-1">
-                      <h3
-                        className="font-semibold text-base line-clamp-1 mb-1"
-                        title={property.title}
-                      >
-                        {property.title}
-                      </h3>
-                      <div className="flex items-start gap-1.5 text-xs text-muted-foreground mb-4">
-                        <MapPin className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                        <span className="line-clamp-2">{property.address}</span>
-                      </div>
-
-                      {property.erpData && (
-                        <div className="space-y-2 mb-4 border-t pt-2 mt-2">
-                          {property.erpData.proprietarios &&
-                            property.erpData.proprietarios.length > 0 && (
-                              <div className="text-[11px]">
-                                <span className="font-semibold text-foreground">
-                                  Proprietários:
-                                </span>
-                                <ul className="list-disc pl-3 text-muted-foreground mt-0.5">
-                                  {property.erpData.proprietarios.map((prop: any, i: number) => (
-                                    <li key={i} className="truncate">
-                                      {prop.nome} ({prop.participacao}%)
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
-                            )}
-                          {property.erpData.servicos && property.erpData.servicos.length > 0 && (
-                            <div className="text-[11px]">
-                              <span className="font-semibold text-foreground">
-                                Serviços Vinculados:
-                              </span>
-                              <div className="flex flex-wrap gap-1 mt-1">
-                                {property.erpData.servicos.map((serv: any, i: number) => (
-                                  <Badge
-                                    key={i}
-                                    variant="outline"
-                                    className="text-[9px] h-4 px-1 py-0"
-                                  >
-                                    {serv.descricao}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      <div className="mt-auto pt-3 border-t flex items-center justify-between">
-                        <span className="text-[10px] font-medium text-muted-foreground bg-muted px-2 py-1 rounded">
-                          {property.id}
-                        </span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          asChild
-                          className="h-8 gap-1 text-primary text-xs px-2"
-                        >
-                          <Link to={`/properties/${property.id}/dossier`}>
-                            Ver Dossiê <ArrowRight className="w-3 h-3" />
-                          </Link>
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-                {col.items.length === 0 && (
-                  <div className="py-8 flex flex-col items-center justify-center text-center border-2 border-dashed border-border/60 rounded-lg bg-background/50">
-                    <Building className="w-8 h-8 mb-2 text-muted-foreground/30" />
-                    <span className="text-xs text-muted-foreground">Vazio nesta etapa</span>
-                  </div>
-                )}
-              </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Buscar Imóveis</CardTitle>
+          <CardDescription>
+            Pesquise pelo nome do proprietário para listar os imóveis vinculados a ele.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSearch} className="flex gap-3">
+            <div className="relative flex-1 max-w-xl">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Ex: MARAM, ANTONIO SALOMAO..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9"
+              />
             </div>
-          ))}
-        </div>
-        <ScrollBar orientation="horizontal" />
-      </ScrollArea>
+            <Button type="submit" disabled={loading || !search.trim()}>
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Buscando...
+                </>
+              ) : (
+                'Buscar'
+              )}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
 
-      <NewPropertyDialog open={isNewOpen} onClose={() => setIsNewOpen(false)} />
+      {hasSearched && !loading && results.length === 0 && (
+        <div className="py-12 flex flex-col items-center justify-center text-center border-2 border-dashed border-border/60 rounded-xl bg-background/50">
+          <Building className="w-12 h-12 mb-4 text-muted-foreground/30" />
+          <h3 className="text-lg font-medium text-foreground">Nenhum imóvel encontrado</h3>
+          <p className="text-sm text-muted-foreground mt-1 max-w-sm">
+            Não encontramos nenhum imóvel vinculado à pesquisa "{search}" no servidor local.
+          </p>
+        </div>
+      )}
+
+      {results.length > 0 && (
+        <Card>
+          <div className="rounded-md border border-border/50 overflow-hidden">
+            <Table>
+              <TableHeader className="bg-muted/50">
+                <TableRow>
+                  <TableHead className="w-[100px]">ID</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Endereço</TableHead>
+                  <TableHead>Bairro / Cidade</TableHead>
+                  <TableHead>Proprietário Principal</TableHead>
+                  <TableHead>Serviços</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {results.map((property) => (
+                  <TableRow key={property.id} className="hover:bg-muted/30">
+                    <TableCell className="font-medium text-xs">#{property.id}</TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className="font-normal">
+                        {property.tipo}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium">
+                          {property.endereco}
+                          {property.numero ? `, ${property.numero}` : ''}
+                        </span>
+                        {property.complemento && (
+                          <span className="text-xs text-muted-foreground">
+                            {property.complemento}
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span className="text-sm">{property.bairro}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {property.cidade} / {property.uf}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {property.proprietarios && property.proprietarios.length > 0 ? (
+                        <div className="flex items-center gap-2">
+                          <User className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                          <span
+                            className="text-sm line-clamp-1 max-w-[200px]"
+                            title={property.proprietarios[0].nome}
+                          >
+                            {property.proprietarios[0].nome}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">Não informado</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {property.servicos && property.servicos.length > 0 ? (
+                          property.servicos.map((serv, i) => (
+                            <Badge
+                              key={i}
+                              variant="outline"
+                              className="text-[10px] px-1.5 py-0 h-5"
+                            >
+                              {serv.descricao}
+                            </Badge>
+                          ))
+                        ) : (
+                          <span className="text-xs text-muted-foreground">-</span>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </Card>
+      )}
     </div>
   )
 }
