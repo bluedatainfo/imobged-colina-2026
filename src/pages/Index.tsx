@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import {
   FileStack,
   ShieldAlert,
@@ -6,6 +7,9 @@ import {
   RefreshCw,
   FileSignature,
   Search,
+  Building,
+  User,
+  ArrowRight,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import {
@@ -16,11 +20,14 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
 import { DashboardChart } from '@/components/DashboardChart'
 import { PerformanceDashboard } from '@/components/PerformanceDashboard'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import useMainStore, { isSlaBreached } from '@/stores/main'
 import useContractsStore from '@/stores/contracts'
+import useEntitiesStore from '@/stores/entities'
 import { useAuth } from '@/contexts/AuthContext'
 import { checkAccess } from '@/lib/permissions'
 
@@ -28,7 +35,10 @@ const Index = () => {
   const navigate = useNavigate()
   const store = useMainStore()
   const { contracts } = useContractsStore()
+  const { owners, tenants } = useEntitiesStore()
   const { user } = useAuth()
+
+  const [globalSearch, setGlobalSearch] = useState('')
 
   const pendingApprovals = store.properties.filter((p) => p.status === 'Análise Gerencial')
   const slaBreachedCount = pendingApprovals.filter((p) =>
@@ -44,13 +54,108 @@ const Index = () => {
   // Hide full dashboard if user is restricted
   const canSeeDashboard = checkAccess('/settings', user?.role) || user?.role === 'Gerente'
 
+  const searchResults =
+    globalSearch.length > 2
+      ? [
+          ...store.properties
+            .filter(
+              (p) =>
+                p.title.toLowerCase().includes(globalSearch.toLowerCase()) ||
+                p.address.toLowerCase().includes(globalSearch.toLowerCase()) ||
+                p.id.toLowerCase().includes(globalSearch.toLowerCase()),
+            )
+            .map((p) => ({
+              id: p.id,
+              type: 'Imóvel',
+              name: p.title,
+              desc: p.address,
+              url: `/properties/${p.id}/dossier`,
+              icon: Building,
+            })),
+          ...owners
+            .filter(
+              (o) =>
+                o.fullName.toLowerCase().includes(globalSearch.toLowerCase()) ||
+                o.cpf.includes(globalSearch),
+            )
+            .map((o) => ({
+              id: o.id,
+              type: 'Proprietário',
+              name: o.fullName,
+              desc: `CPF: ${o.cpf || 'N/A'}`,
+              url: `/entities`,
+              icon: User,
+            })),
+          ...tenants
+            .filter(
+              (t) =>
+                t.fullName.toLowerCase().includes(globalSearch.toLowerCase()) ||
+                t.cpf.includes(globalSearch),
+            )
+            .map((t) => ({
+              id: t.id,
+              type: 'Locatário',
+              name: t.fullName,
+              desc: `CPF: ${t.cpf || 'N/A'}`,
+              url: `/entities`,
+              icon: User,
+            })),
+        ].slice(0, 6)
+      : []
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Painel de Controle</h1>
-        <p className="text-muted-foreground">
-          Visão geral da sua operação digital, contratos e integrações com o Microsoft 365.
-        </p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Painel de Controle</h1>
+          <p className="text-muted-foreground">
+            Visão geral da sua operação digital e integrações ERP/Microsoft 365.
+          </p>
+        </div>
+
+        <div className="relative w-full md:w-96">
+          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Busca global de imóveis, proprietários..."
+            className="pl-9 bg-background/50 backdrop-blur-sm"
+            value={globalSearch}
+            onChange={(e) => setGlobalSearch(e.target.value)}
+          />
+          {searchResults.length > 0 && (
+            <div className="absolute top-12 left-0 right-0 bg-background border rounded-md shadow-lg z-50 overflow-hidden">
+              <div className="p-2 bg-muted/30 text-xs font-medium text-muted-foreground border-b">
+                Resultados da Integração ERP
+              </div>
+              <ul className="max-h-80 overflow-y-auto">
+                {searchResults.map((res, i) => {
+                  const Icon = res.icon
+                  return (
+                    <li key={`${res.id}-${i}`}>
+                      <Link
+                        to={res.url}
+                        className="flex items-start gap-3 p-3 hover:bg-muted/50 transition-colors border-b last:border-0"
+                      >
+                        <div className="mt-0.5 bg-primary/10 p-1.5 rounded-md">
+                          <Icon className="w-4 h-4 text-primary" />
+                        </div>
+                        <div className="flex-1 overflow-hidden">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-sm truncate">{res.name}</span>
+                            <Badge variant="secondary" className="text-[10px] h-4 px-1">
+                              {res.type}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground truncate">{res.desc}</p>
+                        </div>
+                        <ArrowRight className="w-4 h-4 text-muted-foreground self-center" />
+                      </Link>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

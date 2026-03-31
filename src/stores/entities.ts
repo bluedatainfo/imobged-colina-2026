@@ -54,25 +54,33 @@ export const initEntitiesStore = async () => {
     }
 
     state.owners = oData.map((o: any) => ({
-      id: o.id || o.codigo || Math.random().toString(),
-      code: o.code || o.codigo || 'ERP-P',
-      fullName: o.full_name || o.nome || o.fullName || 'Proprietário Desconhecido',
+      id:
+        o.idprop?.toString() ||
+        o.id?.toString() ||
+        o.codigo?.toString() ||
+        Math.random().toString(),
+      code: o.idprop?.toString() || o.id?.toString() || o.code || o.codigo || 'ERP-P',
+      fullName: o.nome || o.full_name || o.fullName || 'Proprietário Desconhecido',
       cpf: o.cpf || o.documento || '',
-      rg: o.rg || '',
-      fullAddress: o.full_address || o.endereco || '',
-      createdAt: o.created_at || new Date().toISOString(),
-      updatedAt: o.updated_at || new Date().toISOString(),
+      rg: o.rg?.trim() || '',
+      fullAddress: o.endereco
+        ? `${o.endereco}${o.numero ? ', ' + o.numero : ''}${o.complemento ? ' - ' + o.complemento : ''} - ${o.bairro || ''} - ${o.cidade || ''}/${o.uf || ''}`
+        : o.full_address || '',
+      createdAt: o.dtinc || o.created_at || new Date().toISOString(),
+      updatedAt: o.dtalt || o.updated_at || new Date().toISOString(),
     }))
 
     state.tenants = tData.map((t: any) => ({
-      id: t.id || t.codigo || Math.random().toString(),
-      code: t.code || t.codigo || 'ERP-L',
-      fullName: t.full_name || t.nome || t.fullName || 'Locatário Desconhecido',
+      id: t.id?.toString() || t.codigo?.toString() || Math.random().toString(),
+      code: t.id?.toString() || t.code || t.codigo || 'ERP-L',
+      fullName: t.nome || t.full_name || t.fullName || 'Locatário Desconhecido',
       cpf: t.cpf || t.documento || '',
-      rg: t.rg || '',
-      fullAddress: t.full_address || t.endereco || '',
-      createdAt: t.created_at || new Date().toISOString(),
-      updatedAt: t.updated_at || new Date().toISOString(),
+      rg: t.rg?.trim() || '',
+      fullAddress: t.endereco
+        ? `${t.endereco}${t.numero ? ', ' + t.numero : ''}${t.complemento ? ' - ' + t.complemento : ''} - ${t.bairro || ''} - ${t.cidade || ''}/${t.uf || ''}`
+        : t.full_address || '',
+      createdAt: t.dtinclusao || t.created_at || new Date().toISOString(),
+      updatedAt: t.dtalteracao || t.updated_at || new Date().toISOString(),
     }))
 
     emit()

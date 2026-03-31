@@ -83,6 +83,7 @@ export type Property = {
   location?: { x: number; y: number }
   ownerId?: string
   isResubmission?: boolean
+  erpData?: any
 }
 
 export type MaintenanceStatus = 'Pendente' | 'Em Andamento' | 'Concluído'
@@ -301,9 +302,21 @@ export const initMainStore = async () => {
     }
   }
 
+  let erpProperties: any[] = []
+  try {
+    const res = await fetch('http://192.168.10.225:9000/imoveis').catch(() => null)
+    if (res && res.ok) {
+      erpProperties = await res.json()
+    }
+  } catch (err) {
+    console.error('Failed to fetch imoveis from ERP', err)
+  }
+
   const { data: properties } = await supabase.from('properties').select('*')
+  let combinedProperties: Property[] = []
+
   if (properties && properties.length > 0) {
-    state.properties = properties.map((p) => ({
+    combinedProperties = properties.map((p) => ({
       id: p.id,
       title: p.title,
       address: p.address,
@@ -321,6 +334,42 @@ export const initMainStore = async () => {
       isResubmission: (p as any).is_resubmission || false,
     }))
   }
+
+  if (erpProperties && erpProperties.length > 0) {
+    const mappedErp = erpProperties.map((p: any) => {
+      const address = `${p.endereco || ''}${p.numero ? ', ' + p.numero : ''}${p.complemento ? ' - ' + p.complemento : ''} - ${p.bairro || ''} - ${p.cidade || ''}/${p.uf || ''}`
+      const firstOwner =
+        p.proprietarios && p.proprietarios.length > 0 ? p.proprietarios[0].nome : undefined
+      return {
+        id: p.id?.toString() || Math.random().toString(),
+        title: `${p.tipo || 'Imóvel'} - ${p.bairro || ''}`,
+        address,
+        type: p.tipo || 'Outro',
+        status: 'Disponível para Locação' as PropertyStatus,
+        image: 'https://img.usecurling.com/p/400/300?q=house',
+        ownerId: firstOwner,
+        erpData: p,
+      }
+    })
+
+    const existingIds = new Set(combinedProperties.map((p) => p.id))
+    mappedErp.forEach((erpP) => {
+      if (!existingIds.has(erpP.id)) {
+        combinedProperties.push(erpP)
+      } else {
+        const idx = combinedProperties.findIndex((p) => p.id === erpP.id)
+        if (idx >= 0) {
+          combinedProperties[idx] = {
+            ...combinedProperties[idx],
+            ...erpP,
+            status: combinedProperties[idx].status,
+          }
+        }
+      }
+    })
+  }
+
+  state.properties = combinedProperties
 
   const { data: auditLogs } = await supabase
     .from('app_audit_logs')

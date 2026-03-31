@@ -23,12 +23,20 @@ export default function Properties() {
   const [search, setSearch] = useState('')
   const [isNewOpen, setIsNewOpen] = useState(false)
 
-  const filtered = properties.filter(
-    (p) =>
-      p.title.toLowerCase().includes(search.toLowerCase()) ||
-      p.address.toLowerCase().includes(search.toLowerCase()) ||
-      p.id.toLowerCase().includes(search.toLowerCase()),
-  )
+  const filtered = properties.filter((p) => {
+    const s = search.toLowerCase()
+    const matchBasic =
+      p.title.toLowerCase().includes(s) ||
+      p.address.toLowerCase().includes(s) ||
+      p.id.toLowerCase().includes(s)
+    const matchOwner = p.erpData?.proprietarios?.some((op: any) =>
+      op.nome?.toLowerCase().includes(s),
+    )
+    const matchServ = p.erpData?.servicos?.some(
+      (sv: any) => sv.descricao?.toLowerCase().includes(s) || sv.numero?.toLowerCase().includes(s),
+    )
+    return matchBasic || matchOwner || matchServ
+  })
 
   const grouped = STATUS_COLUMNS.map((status) => ({
     status,
@@ -94,6 +102,45 @@ export default function Properties() {
                         <MapPin className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                         <span className="line-clamp-2">{property.address}</span>
                       </div>
+
+                      {property.erpData && (
+                        <div className="space-y-2 mb-4 border-t pt-2 mt-2">
+                          {property.erpData.proprietarios &&
+                            property.erpData.proprietarios.length > 0 && (
+                              <div className="text-[11px]">
+                                <span className="font-semibold text-foreground">
+                                  Proprietários:
+                                </span>
+                                <ul className="list-disc pl-3 text-muted-foreground mt-0.5">
+                                  {property.erpData.proprietarios.map((prop: any, i: number) => (
+                                    <li key={i} className="truncate">
+                                      {prop.nome} ({prop.participacao}%)
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                          {property.erpData.servicos && property.erpData.servicos.length > 0 && (
+                            <div className="text-[11px]">
+                              <span className="font-semibold text-foreground">
+                                Serviços Vinculados:
+                              </span>
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {property.erpData.servicos.map((serv: any, i: number) => (
+                                  <Badge
+                                    key={i}
+                                    variant="outline"
+                                    className="text-[9px] h-4 px-1 py-0"
+                                  >
+                                    {serv.descricao}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       <div className="mt-auto pt-3 border-t flex items-center justify-between">
                         <span className="text-[10px] font-medium text-muted-foreground bg-muted px-2 py-1 rounded">
                           {property.id}
