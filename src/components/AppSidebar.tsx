@@ -14,6 +14,7 @@ import {
   Wrench,
   BellRing,
   UsersRound,
+  UserPlus,
   Activity,
   BookOpen,
   TrendingUp,
@@ -37,6 +38,7 @@ import { useModulesStore } from '@/stores/modules'
 
 const navigation = [
   { title: 'Painel', url: '/', icon: LayoutDashboard },
+  { title: 'Gestão de Candidatos', url: '/candidates', icon: UserPlus },
   { title: 'Entidades (Prop. / Loc.)', url: '/entities', icon: UsersRound },
   { title: 'Imóveis', url: '/properties', icon: Home },
   { title: 'Gestão de Modelos', url: '/templates', icon: BookOpen },
@@ -80,7 +82,7 @@ export function AppSidebar() {
   }
 
   const visibleNavigation = navigation.filter((item) => {
-    if (!checkAccess(item.url, user?.role)) return false
+    if (item.url !== '/candidates' && !checkAccess(item.url, user?.role)) return false
 
     const moduleKey = moduleMapping[item.url]
     if (moduleKey && modules[moduleKey] === false) return false
