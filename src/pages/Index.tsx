@@ -23,7 +23,6 @@ import {
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { DashboardChart } from '@/components/DashboardChart'
-import { PerformanceDashboard } from '@/components/PerformanceDashboard'
 import { useNavigate, Link } from 'react-router-dom'
 import useMainStore, { isSlaBreached } from '@/stores/main'
 import useContractsStore from '@/stores/contracts'
@@ -215,8 +214,6 @@ const Index = () => {
           </CardContent>
         </Card>
       </div>
-
-      {canSeeDashboard && <PerformanceDashboard />}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
         <div className="lg:col-span-4 space-y-4">
