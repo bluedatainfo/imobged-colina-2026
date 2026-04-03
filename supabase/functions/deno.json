@@ -1,5 +1,6 @@
 {
   "_versions": {
-    "send-teams-notification": 1
+    "send-teams-notification": 1,
+    "receive-pre-registration": 1
   }
 }
