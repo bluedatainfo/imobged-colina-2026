@@ -326,6 +326,45 @@ export type Database = {
         }
         Relationships: []
       }
+      pre_registrations: {
+        Row: {
+          cpf: string | null
+          created_at: string
+          documents_link: string | null
+          email: string | null
+          form_data: Json | null
+          full_name: string
+          id: string
+          phone: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          cpf?: string | null
+          created_at?: string
+          documents_link?: string | null
+          email?: string | null
+          form_data?: Json | null
+          full_name: string
+          id?: string
+          phone?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          cpf?: string | null
+          created_at?: string
+          documents_link?: string | null
+          email?: string | null
+          form_data?: Json | null
+          full_name?: string
+          id?: string
+          phone?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       properties: {
         Row: {
           address: string
@@ -730,6 +769,17 @@ export const Constants = {
 //   full_address: text (nullable)
 //   created_at: timestamp with time zone (not null, default: now())
 //   updated_at: timestamp with time zone (not null, default: now())
+// Table: pre_registrations
+//   id: uuid (not null, default: gen_random_uuid())
+//   full_name: text (not null)
+//   cpf: text (nullable)
+//   email: text (nullable)
+//   phone: text (nullable)
+//   status: text (not null, default: 'Novo'::text)
+//   documents_link: text (nullable)
+//   form_data: jsonb (nullable, default: '{}'::jsonb)
+//   created_at: timestamp with time zone (not null, default: now())
+//   updated_at: timestamp with time zone (not null, default: now())
 // Table: properties
 //   id: text (not null)
 //   title: text (not null)
@@ -796,6 +846,8 @@ export const Constants = {
 // Table: owners
 //   UNIQUE owners_code_key: UNIQUE (code)
 //   PRIMARY KEY owners_pkey: PRIMARY KEY (id)
+// Table: pre_registrations
+//   PRIMARY KEY pre_registrations_pkey: PRIMARY KEY (id)
 // Table: properties
 //   FOREIGN KEY properties_owner_id_fkey: FOREIGN KEY (owner_id) REFERENCES owners(id) ON DELETE SET NULL
 //   PRIMARY KEY properties_pkey: PRIMARY KEY (id)
@@ -848,6 +900,10 @@ export const Constants = {
 //   Policy "authenticated_all_owners" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
 //     WITH CHECK: true
+// Table: pre_registrations
+//   Policy "authenticated_all_pre_registrations" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 // Table: properties
 //   Policy "authenticated_all_properties" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
@@ -864,6 +920,23 @@ export const Constants = {
 //   Policy "authenticated_all_tenants" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
 //     WITH CHECK: true
+
+// --- DATABASE FUNCTIONS ---
+// FUNCTION set_pre_registrations_updated_at()
+//   CREATE OR REPLACE FUNCTION public.set_pre_registrations_updated_at()
+//    RETURNS trigger
+//    LANGUAGE plpgsql
+//   AS $function$
+//   BEGIN
+//     NEW.updated_at = NOW();
+//     RETURN NEW;
+//   END;
+//   $function$
+//
+
+// --- TRIGGERS ---
+// Table: pre_registrations
+//   trg_pre_registrations_updated_at: CREATE TRIGGER trg_pre_registrations_updated_at BEFORE UPDATE ON public.pre_registrations FOR EACH ROW EXECUTE FUNCTION set_pre_registrations_updated_at()
 
 // --- INDEXES ---
 // Table: owners

@@ -39,12 +39,12 @@ import { useModulesStore } from '@/stores/modules'
 const navigation = [
   { title: 'Painel', url: '/', icon: LayoutDashboard },
   { title: 'Gestão de Candidatos', url: '/candidates', icon: UserPlus },
+  { title: 'Documentos GED', url: '/documents', icon: FolderOpen },
   { title: 'Entidades (Prop. / Loc.)', url: '/entities', icon: UsersRound },
   { title: 'Imóveis', url: '/properties', icon: Home },
   { title: 'Gestão de Modelos', url: '/templates', icon: BookOpen },
   { title: 'Ciclo de Contratos', url: '/contracts', icon: FileSignature },
   { title: 'Análise da Gerencia', url: '/manager-approval', icon: UserCheck },
-  { title: 'Documentos GED', url: '/documents', icon: FolderOpen },
   { title: 'Vistorias', url: '/inspections', icon: ClipboardCheck },
   { title: 'Controle de Chaves', url: '/keys', icon: KeyRound },
   { title: 'Alertas GED', url: '/document-alerts', icon: BellRing },
