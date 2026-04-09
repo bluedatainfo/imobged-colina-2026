@@ -28,7 +28,6 @@ import { documentsStore } from '@/stores/documents'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
-import { supabase } from '@/lib/supabase/client'
 
 interface GedUploadProps {
   preselectedPropertyId?: string
@@ -47,7 +46,7 @@ const DOCUMENT_TYPES = [
 ]
 
 export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }: GedUploadProps) {
-  const { settings } = useMainStore()
+  const { settings, properties } = useMainStore()
   const { owners, tenants } = useEntitiesStore()
   const { user } = useAuth()
   const { toast } = useToast()
@@ -58,10 +57,6 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
   )
   const [propertyOpen, setPropertyOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [localServerProperties, setLocalServerProperties] = useState<
-    { id: string; title: string }[]
-  >([])
-  const [loadingProperties, setLoadingProperties] = useState(false)
 
   const [docType, setDocType] = useState(preselectedType || '')
   const [entityCode, setEntityCode] = useState('')
@@ -69,15 +64,12 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
 
   const [ownerOpen, setOwnerOpen] = useState(false)
   const [ownerSearchQuery, setOwnerSearchQuery] = useState('')
-  const [localServerOwners, setLocalServerOwners] = useState<any[]>([])
-  const [loadingOwners, setLoadingOwners] = useState(false)
   const [selectedOwner, setSelectedOwner] = useState<any | null>(null)
 
   const [tenantOpen, setTenantOpen] = useState(false)
   const [tenantSearchQuery, setTenantSearchQuery] = useState('')
-  const [localServerTenants, setLocalServerTenants] = useState<any[]>([])
-  const [loadingTenants, setLoadingTenants] = useState(false)
   const [selectedTenant, setSelectedTenant] = useState<any | null>(null)
+
   const [uploading, setUploading] = useState(false)
   const [sendToManager, setSendToManager] = useState(false)
   const [leaseNumber, setLeaseNumber] = useState('')
@@ -88,141 +80,47 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
     return settings.spIntegrationRoles?.includes(user.role) ?? false
   }, [user, settings.spIntegrationRoles])
 
-  useEffect(() => {
-    const fetchProperties = async () => {
-      setLoadingProperties(true)
-      try {
-        let data
-        try {
-          const controller = new AbortController()
-          const timeoutId = setTimeout(() => controller.abort(), 2000)
-          const res = await fetch(
-            `http://192.168.10.225/api/properties?q=${encodeURIComponent(searchQuery)}`,
-            { signal: controller.signal },
-          )
-          clearTimeout(timeoutId)
-          if (res.ok) {
-            data = await res.json()
-          } else {
-            throw new Error('Local server error')
-          }
-        } catch (err) {
-          let queryBuilder = supabase.from('properties').select('id, title')
-          if (searchQuery) {
-            queryBuilder = queryBuilder.or(`id.ilike.%${searchQuery}%,title.ilike.%${searchQuery}%`)
-          }
-          const { data: sbData } = await queryBuilder.limit(20)
-          data = sbData || []
-        }
-        setLocalServerProperties(data || [])
-      } catch (err) {
-        console.error('Erro ao buscar imóveis', err)
-        setLocalServerProperties([])
-      } finally {
-        setLoadingProperties(false)
-      }
-    }
+  const localServerProperties = useMemo(() => {
+    if (!properties) return []
+    const lowerQuery = searchQuery.toLowerCase()
+    return properties
+      .filter(
+        (p: any) =>
+          !lowerQuery ||
+          (p.id && p.id.toLowerCase().includes(lowerQuery)) ||
+          (p.title && p.title.toLowerCase().includes(lowerQuery)) ||
+          (p.address && p.address.toLowerCase().includes(lowerQuery)),
+      )
+      .slice(0, 50)
+  }, [properties, searchQuery])
 
-    const timer = setTimeout(() => {
-      if (propertyOpen) {
-        fetchProperties()
-      }
-    }, 400)
+  const localServerOwners = useMemo(() => {
+    if (!owners) return []
+    const lowerQuery = ownerSearchQuery.toLowerCase()
+    return owners
+      .filter(
+        (o: any) =>
+          !lowerQuery ||
+          (o.code && o.code.toLowerCase().includes(lowerQuery)) ||
+          (o.fullName && o.fullName.toLowerCase().includes(lowerQuery)) ||
+          (o.name && o.name.toLowerCase().includes(lowerQuery)),
+      )
+      .slice(0, 50)
+  }, [owners, ownerSearchQuery])
 
-    return () => clearTimeout(timer)
-  }, [searchQuery, propertyOpen])
-
-  useEffect(() => {
-    const fetchOwners = async () => {
-      setLoadingOwners(true)
-      try {
-        let data
-        try {
-          const controller = new AbortController()
-          const timeoutId = setTimeout(() => controller.abort(), 2000)
-          const res = await fetch(
-            `http://192.168.10.225/api/owners?q=${encodeURIComponent(ownerSearchQuery)}`,
-            { signal: controller.signal },
-          )
-          clearTimeout(timeoutId)
-          if (res.ok) {
-            data = await res.json()
-          } else {
-            throw new Error('Local server error')
-          }
-        } catch (err) {
-          let queryBuilder = supabase.from('owners').select('id, code, full_name')
-          if (ownerSearchQuery) {
-            queryBuilder = queryBuilder.or(
-              `code.ilike.%${ownerSearchQuery}%,full_name.ilike.%${ownerSearchQuery}%`,
-            )
-          }
-          const { data: sbData } = await queryBuilder.limit(20)
-          if (sbData) {
-            data = sbData.map((o: any) => ({ id: o.id, code: o.code, name: o.full_name }))
-          } else {
-            data = []
-          }
-        }
-        setLocalServerOwners(data || [])
-      } catch (err) {
-        console.error('Erro ao buscar proprietários', err)
-        setLocalServerOwners([])
-      } finally {
-        setLoadingOwners(false)
-      }
-    }
-    const timer = setTimeout(() => {
-      if (ownerOpen) fetchOwners()
-    }, 400)
-    return () => clearTimeout(timer)
-  }, [ownerSearchQuery, ownerOpen])
-
-  useEffect(() => {
-    const fetchTenants = async () => {
-      setLoadingTenants(true)
-      try {
-        let data
-        try {
-          const controller = new AbortController()
-          const timeoutId = setTimeout(() => controller.abort(), 2000)
-          const res = await fetch(
-            `http://192.168.10.225/api/tenants?q=${encodeURIComponent(tenantSearchQuery)}`,
-            { signal: controller.signal },
-          )
-          clearTimeout(timeoutId)
-          if (res.ok) {
-            data = await res.json()
-          } else {
-            throw new Error('Local server error')
-          }
-        } catch (err) {
-          let queryBuilder = supabase.from('tenants').select('id, code, full_name')
-          if (tenantSearchQuery) {
-            queryBuilder = queryBuilder.or(
-              `code.ilike.%${tenantSearchQuery}%,full_name.ilike.%${tenantSearchQuery}%`,
-            )
-          }
-          const { data: sbData } = await queryBuilder.limit(20)
-          if (sbData) {
-            data = sbData.map((t: any) => ({ id: t.id, code: t.code, name: t.full_name }))
-          } else {
-            data = []
-          }
-        }
-        setLocalServerTenants(data || [])
-      } catch (err) {
-        console.error('Erro ao buscar locatários', err)
-        setLocalServerTenants([])
-      } finally {
-        setLoadingTenants(false)
-      }
-    }
-    const timer = setTimeout(() => {
-      if (tenantOpen) fetchTenants()
-    }, 400)
-    return () => clearTimeout(timer)
-  }, [tenantSearchQuery, tenantOpen])
+  const localServerTenants = useMemo(() => {
+    if (!tenants) return []
+    const lowerQuery = tenantSearchQuery.toLowerCase()
+    return tenants
+      .filter(
+        (t: any) =>
+          !lowerQuery ||
+          (t.code && t.code.toLowerCase().includes(lowerQuery)) ||
+          (t.fullName && t.fullName.toLowerCase().includes(lowerQuery)) ||
+          (t.name && t.name.toLowerCase().includes(lowerQuery)),
+      )
+      .slice(0, 50)
+  }, [tenants, tenantSearchQuery])
 
   useEffect(() => {
     if (preselectedPropertyId && !selectedProperty) {
@@ -344,11 +242,7 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
                 onValueChange={setSearchQuery}
               />
               <CommandList>
-                <CommandEmpty>
-                  {loadingProperties
-                    ? 'Buscando imóveis no servidor...'
-                    : 'Nenhum imóvel encontrado.'}
-                </CommandEmpty>
+                <CommandEmpty>Nenhum imóvel encontrado no servidor local.</CommandEmpty>
                 <CommandGroup>
                   {localServerProperties.map((p) => (
                     <CommandItem
@@ -429,9 +323,7 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
                   onValueChange={setOwnerSearchQuery}
                 />
                 <CommandList>
-                  <CommandEmpty>
-                    {loadingOwners ? 'Buscando no servidor...' : 'Nenhum proprietário encontrado.'}
-                  </CommandEmpty>
+                  <CommandEmpty>Nenhum proprietário encontrado no servidor local.</CommandEmpty>
                   <CommandGroup>
                     {localServerOwners.map((o) => (
                       <CommandItem
@@ -496,9 +388,7 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
                   onValueChange={setTenantSearchQuery}
                 />
                 <CommandList>
-                  <CommandEmpty>
-                    {loadingTenants ? 'Buscando no servidor...' : 'Nenhum locatário encontrado.'}
-                  </CommandEmpty>
+                  <CommandEmpty>Nenhum locatário encontrado no servidor local.</CommandEmpty>
                   <CommandGroup>
                     {localServerTenants.map((t) => (
                       <CommandItem
