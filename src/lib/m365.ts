@@ -459,6 +459,7 @@ export const m365Service = {
 
     const isEntityDoc = ['OWNER_DOCUMENT', 'TENANT_DOCUMENT'].includes(documentType)
     const isInspection = ['INSPECTION_MOVE_IN', 'INSPECTION_MOVE_OUT'].includes(documentType)
+    const isLease = documentType === 'LEASES'
     const date = new Date()
 
     let folderPath = ''
@@ -470,6 +471,8 @@ export const m365Service = {
       folderPath = [config.base_path, propertyId, 'Locacao', leaseNumber, inspectionSubFolder]
         .filter(Boolean)
         .join('/')
+    } else if (isLease && leaseNumber) {
+      folderPath = [config.base_path, propertyId, 'Locacao', leaseNumber].filter(Boolean).join('/')
     } else {
       folderPath = [config.base_path, propertyId].filter(Boolean).join('/')
     }

@@ -30,6 +30,7 @@ const docTypeLabels: Record<string, string> = {
   OWNER_DOCUMENT: 'Doc Proprietário',
   TENANT_DOCUMENT: 'Doc Inquilino',
   GUARANTEE_DOCUMENT: 'Documentos de Garantia',
+  LEASES: 'Locações',
 }
 
 export default function SharePointMapping() {

@@ -44,6 +44,7 @@ const DOCUMENT_TYPES = [
   { id: 'CONTRACT_TERMINATED', label: 'Contrato Encerrado' },
   { id: 'INSPECTION_MOVE_IN', label: 'Vistoria de Entrada' },
   { id: 'INSPECTION_MOVE_OUT', label: 'Vistoria de Saída' },
+  { id: 'LEASES', label: 'Locações' },
 ]
 
 const getOwnerName = (property: any) => {
@@ -529,7 +530,7 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
         </div>
       )}
 
-      {['INSPECTION_MOVE_IN', 'INSPECTION_MOVE_OUT'].includes(docType) && (
+      {['INSPECTION_MOVE_IN', 'INSPECTION_MOVE_OUT', 'LEASES'].includes(docType) && (
         <div className="grid gap-2 animate-fade-in">
           <Label>Número da Locação</Label>
           <Input
@@ -586,7 +587,8 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
           !hasSpAccess ||
           (docType === 'OWNER_DOCUMENT' && !selectedOwner) ||
           (docType === 'TENANT_DOCUMENT' && !selectedTenant) ||
-          (['INSPECTION_MOVE_IN', 'INSPECTION_MOVE_OUT'].includes(docType) && !leaseNumber) ||
+          (['INSPECTION_MOVE_IN', 'INSPECTION_MOVE_OUT', 'LEASES'].includes(docType) &&
+            !leaseNumber) ||
           (['CONTRACT_ACTIVE', 'CONTRACT_TERMINATED'].includes(docType) && !folderNumber)
         }
       >
