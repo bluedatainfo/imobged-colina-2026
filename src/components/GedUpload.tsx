@@ -46,15 +46,13 @@ const DOCUMENT_TYPES = [
 ]
 
 export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }: GedUploadProps) {
-  const { settings, properties } = useMainStore()
-  const { owners, tenants } = useEntitiesStore()
+  const { settings, properties: mainProperties } = useMainStore()
+  const { owners, tenants, properties: localProperties } = useEntitiesStore()
   const { user } = useAuth()
   const { toast } = useToast()
 
   const [propertyId, setPropertyId] = useState(preselectedPropertyId || '')
-  const [selectedProperty, setSelectedProperty] = useState<{ id: string; title: string } | null>(
-    null,
-  )
+  const [selectedProperty, setSelectedProperty] = useState<any | null>(null)
   const [propertyOpen, setPropertyOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -81,18 +79,20 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
   }, [user, settings.spIntegrationRoles])
 
   const localServerProperties = useMemo(() => {
-    if (!properties) return []
+    const sourceProperties =
+      localProperties && localProperties.length > 0 ? localProperties : mainProperties || []
     const lowerQuery = searchQuery.toLowerCase()
-    return properties
+    return sourceProperties
       .filter(
         (p: any) =>
           !lowerQuery ||
+          (p.code && p.code.toLowerCase().includes(lowerQuery)) ||
           (p.id && p.id.toLowerCase().includes(lowerQuery)) ||
           (p.title && p.title.toLowerCase().includes(lowerQuery)) ||
           (p.address && p.address.toLowerCase().includes(lowerQuery)),
       )
       .slice(0, 50)
-  }, [properties, searchQuery])
+  }, [localProperties, mainProperties, searchQuery])
 
   const localServerOwners = useMemo(() => {
     if (!owners) return []
@@ -151,13 +151,16 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
         finalEntityCode = selectedTenant.code || selectedTenant.id || ''
       }
 
+      const propId = selectedProperty.code || selectedProperty.id
+      const propTitle = selectedProperty.title || selectedProperty.address || 'Imóvel'
+
       // @ts-expect-error - folderNumber parameter might not be typed yet in m365Service
       const result = await m365Service.uploadStructuredDocument(
         file,
         file.name,
         docType,
-        selectedProperty.id,
-        selectedProperty.title,
+        propId,
+        propTitle,
         user?.name || 'Sistema',
         finalEntityCode,
         finalEntityName,
@@ -166,7 +169,7 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
       )
 
       await documentsStore.addDocument({
-        propertyId: selectedProperty.id,
+        propertyId: propId,
         name: file.name,
         category: docType,
         entityCode: finalEntityCode || undefined,
@@ -175,7 +178,7 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
       })
 
       if (sendToManager) {
-        mainStore.updateProperty(selectedProperty.id, { status: 'Análise Gerencial' })
+        mainStore.updateProperty(propId, { status: 'Análise Gerencial' })
       }
 
       toast({
@@ -224,7 +227,8 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
             >
               {selectedProperty ? (
                 <span className="truncate">
-                  <strong className="mr-1">{selectedProperty.id}</strong> - {selectedProperty.title}
+                  <strong className="mr-1">{selectedProperty.code || selectedProperty.id}</strong> -{' '}
+                  {selectedProperty.title || selectedProperty.address}
                 </span>
               ) : (
                 <span className="text-muted-foreground">
@@ -244,12 +248,12 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
               <CommandList>
                 <CommandEmpty>Nenhum imóvel encontrado no servidor local.</CommandEmpty>
                 <CommandGroup>
-                  {localServerProperties.map((p) => (
+                  {localServerProperties.map((p: any) => (
                     <CommandItem
-                      key={p.id}
-                      value={p.id}
+                      key={p.code || p.id}
+                      value={p.code || p.id}
                       onSelect={() => {
-                        setPropertyId(p.id)
+                        setPropertyId(p.code || p.id)
                         setSelectedProperty(p)
                         setPropertyOpen(false)
                       }}
@@ -257,11 +261,11 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
                       <Check
                         className={cn(
                           'mr-2 h-4 w-4',
-                          propertyId === p.id ? 'opacity-100' : 'opacity-0',
+                          propertyId === (p.code || p.id) ? 'opacity-100' : 'opacity-0',
                         )}
                       />
                       <span className="truncate">
-                        <strong className="mr-1">{p.id}</strong> - {p.title}
+                        <strong className="mr-1">{p.code || p.id}</strong> - {p.title || p.address}
                       </span>
                     </CommandItem>
                   ))}
