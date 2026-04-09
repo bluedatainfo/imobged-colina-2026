@@ -37,7 +37,7 @@ interface GedUploadProps {
 
 const DOCUMENT_TYPES = [
   { id: 'OWNER_DOCUMENT', label: 'Documento de Proprietário' },
-  { id: 'TENANT_DOCUMENT', label: 'Documento de Inquilino' },
+  { id: 'TENANT_DOCUMENT', label: 'Documento de Locatário' },
   { id: 'GUARANTEE_DOCUMENT', label: 'Documentos de Garantia' },
   { id: 'CONTRACT_ACTIVE', label: 'Contrato Ativo (Importar Legado)' },
   { id: 'CONTRACT_TERMINATED', label: 'Contrato Encerrado' },
@@ -65,6 +65,18 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
   const [docType, setDocType] = useState(preselectedType || '')
   const [entityCode, setEntityCode] = useState('')
   const [file, setFile] = useState<File | null>(null)
+
+  const [ownerOpen, setOwnerOpen] = useState(false)
+  const [ownerSearchQuery, setOwnerSearchQuery] = useState('')
+  const [localServerOwners, setLocalServerOwners] = useState<any[]>([])
+  const [loadingOwners, setLoadingOwners] = useState(false)
+  const [selectedOwner, setSelectedOwner] = useState<any | null>(null)
+
+  const [tenantOpen, setTenantOpen] = useState(false)
+  const [tenantSearchQuery, setTenantSearchQuery] = useState('')
+  const [localServerTenants, setLocalServerTenants] = useState<any[]>([])
+  const [loadingTenants, setLoadingTenants] = useState(false)
+  const [selectedTenant, setSelectedTenant] = useState<any | null>(null)
   const [uploading, setUploading] = useState(false)
   const [sendToManager, setSendToManager] = useState(false)
   const [leaseNumber, setLeaseNumber] = useState('')
@@ -114,6 +126,66 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
   }, [searchQuery, propertyOpen])
 
   useEffect(() => {
+    const fetchOwners = async () => {
+      setLoadingOwners(true)
+      try {
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 5000)
+        const res = await fetch(
+          `http://192.168.10.225/api/owners?q=${encodeURIComponent(ownerSearchQuery)}`,
+          { signal: controller.signal },
+        )
+        clearTimeout(timeoutId)
+        if (res.ok) {
+          const data = await res.json()
+          setLocalServerOwners(data)
+        } else {
+          setLocalServerOwners([])
+        }
+      } catch (err) {
+        console.error('Erro ao buscar proprietários', err)
+        setLocalServerOwners([])
+      } finally {
+        setLoadingOwners(false)
+      }
+    }
+    const timer = setTimeout(() => {
+      if (ownerOpen) fetchOwners()
+    }, 400)
+    return () => clearTimeout(timer)
+  }, [ownerSearchQuery, ownerOpen])
+
+  useEffect(() => {
+    const fetchTenants = async () => {
+      setLoadingTenants(true)
+      try {
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 5000)
+        const res = await fetch(
+          `http://192.168.10.225/api/tenants?q=${encodeURIComponent(tenantSearchQuery)}`,
+          { signal: controller.signal },
+        )
+        clearTimeout(timeoutId)
+        if (res.ok) {
+          const data = await res.json()
+          setLocalServerTenants(data)
+        } else {
+          setLocalServerTenants([])
+        }
+      } catch (err) {
+        console.error('Erro ao buscar locatários', err)
+        setLocalServerTenants([])
+      } finally {
+        setLoadingTenants(false)
+      }
+    }
+    const timer = setTimeout(() => {
+      if (tenantOpen) fetchTenants()
+    }, 400)
+    return () => clearTimeout(timer)
+  }, [tenantSearchQuery, tenantOpen])
+
+  useEffect(() => {
     if (preselectedPropertyId && !selectedProperty) {
       setSelectedProperty({ id: preselectedPropertyId, title: 'Imóvel Selecionado' })
     }
@@ -130,11 +202,16 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
 
     setUploading(true)
     try {
-      let entityName = ''
-      if (docType === 'OWNER_DOCUMENT') {
-        entityName = owners.find((o) => o.code === entityCode)?.fullName || ''
-      } else if (docType === 'TENANT_DOCUMENT') {
-        entityName = tenants.find((t) => t.code === entityCode)?.fullName || ''
+      let finalEntityName = ''
+      let finalEntityCode = entityCode
+
+      if (docType === 'OWNER_DOCUMENT' && selectedOwner) {
+        finalEntityName = selectedOwner.name || selectedOwner.fullName || selectedOwner.title || ''
+        finalEntityCode = selectedOwner.code || selectedOwner.id || ''
+      } else if (docType === 'TENANT_DOCUMENT' && selectedTenant) {
+        finalEntityName =
+          selectedTenant.name || selectedTenant.fullName || selectedTenant.title || ''
+        finalEntityCode = selectedTenant.code || selectedTenant.id || ''
       }
 
       // @ts-expect-error - folderNumber parameter might not be typed yet in m365Service
@@ -145,8 +222,8 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
         selectedProperty.id,
         selectedProperty.title,
         user?.name || 'Sistema',
-        entityCode,
-        entityName,
+        finalEntityCode,
+        finalEntityName,
         leaseNumber,
         folderNumber,
       )
@@ -155,8 +232,8 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
         propertyId: selectedProperty.id,
         name: file.name,
         category: docType,
-        entityCode: entityCode || undefined,
-        entityName: entityName || undefined,
+        entityCode: finalEntityCode || undefined,
+        entityName: finalEntityName || undefined,
         filePath: result?.path || undefined,
       })
 
@@ -170,6 +247,8 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
       })
       setFile(null)
       setEntityCode('')
+      setSelectedOwner(null)
+      setSelectedTenant(null)
       setLeaseNumber('')
       setFolderNumber('')
       const fileInput = document.getElementById('file-upload') as HTMLInputElement
@@ -282,37 +361,135 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
 
       {docType === 'OWNER_DOCUMENT' && (
         <div className="grid gap-2 animate-fade-in">
-          <Label>Código do Proprietário</Label>
-          <Select value={entityCode} onValueChange={setEntityCode} disabled={!hasSpAccess}>
-            <SelectTrigger>
-              <SelectValue placeholder="Selecione o proprietário..." />
-            </SelectTrigger>
-            <SelectContent>
-              {owners.map((o) => (
-                <SelectItem key={o.code} value={o.code}>
-                  {o.fullName} ({o.code})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Label>Proprietário (Servidor Local)</Label>
+          <Popover open={ownerOpen} onOpenChange={setOwnerOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={ownerOpen}
+                disabled={!hasSpAccess}
+                className="w-full justify-between font-normal"
+              >
+                {selectedOwner ? (
+                  <span className="truncate">
+                    <strong className="mr-1">{selectedOwner.code || selectedOwner.id}</strong> -{' '}
+                    {selectedOwner.name || selectedOwner.fullName || selectedOwner.title}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">Buscar proprietário no servidor...</span>
+                )}
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+              <Command shouldFilter={false}>
+                <CommandInput
+                  placeholder="Buscar proprietário..."
+                  value={ownerSearchQuery}
+                  onValueChange={setOwnerSearchQuery}
+                />
+                <CommandList>
+                  <CommandEmpty>
+                    {loadingOwners ? 'Buscando no servidor...' : 'Nenhum proprietário encontrado.'}
+                  </CommandEmpty>
+                  <CommandGroup>
+                    {localServerOwners.map((o) => (
+                      <CommandItem
+                        key={o.id || o.code}
+                        value={o.id || o.code}
+                        onSelect={() => {
+                          setSelectedOwner(o)
+                          setEntityCode(o.code || o.id)
+                          setOwnerOpen(false)
+                        }}
+                      >
+                        <Check
+                          className={cn(
+                            'mr-2 h-4 w-4',
+                            selectedOwner?.id === o.id || selectedOwner?.code === o.code
+                              ? 'opacity-100'
+                              : 'opacity-0',
+                          )}
+                        />
+                        <span className="truncate">
+                          <strong className="mr-1">{o.code || o.id}</strong> -{' '}
+                          {o.name || o.fullName || o.title}
+                        </span>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
         </div>
       )}
 
       {docType === 'TENANT_DOCUMENT' && (
         <div className="grid gap-2 animate-fade-in">
-          <Label>Código do Inquilino</Label>
-          <Select value={entityCode} onValueChange={setEntityCode} disabled={!hasSpAccess}>
-            <SelectTrigger>
-              <SelectValue placeholder="Selecione o inquilino..." />
-            </SelectTrigger>
-            <SelectContent>
-              {tenants.map((t) => (
-                <SelectItem key={t.code} value={t.code}>
-                  {t.fullName} ({t.code})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Label>Locatário (Servidor Local)</Label>
+          <Popover open={tenantOpen} onOpenChange={setTenantOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={tenantOpen}
+                disabled={!hasSpAccess}
+                className="w-full justify-between font-normal"
+              >
+                {selectedTenant ? (
+                  <span className="truncate">
+                    <strong className="mr-1">{selectedTenant.code || selectedTenant.id}</strong> -{' '}
+                    {selectedTenant.name || selectedTenant.fullName || selectedTenant.title}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">Buscar locatário no servidor...</span>
+                )}
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+              <Command shouldFilter={false}>
+                <CommandInput
+                  placeholder="Buscar locatário..."
+                  value={tenantSearchQuery}
+                  onValueChange={setTenantSearchQuery}
+                />
+                <CommandList>
+                  <CommandEmpty>
+                    {loadingTenants ? 'Buscando no servidor...' : 'Nenhum locatário encontrado.'}
+                  </CommandEmpty>
+                  <CommandGroup>
+                    {localServerTenants.map((t) => (
+                      <CommandItem
+                        key={t.id || t.code}
+                        value={t.id || t.code}
+                        onSelect={() => {
+                          setSelectedTenant(t)
+                          setEntityCode(t.code || t.id)
+                          setTenantOpen(false)
+                        }}
+                      >
+                        <Check
+                          className={cn(
+                            'mr-2 h-4 w-4',
+                            selectedTenant?.id === t.id || selectedTenant?.code === t.code
+                              ? 'opacity-100'
+                              : 'opacity-0',
+                          )}
+                        />
+                        <span className="truncate">
+                          <strong className="mr-1">{t.code || t.id}</strong> -{' '}
+                          {t.name || t.fullName || t.title}
+                        </span>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
         </div>
       )}
 
@@ -371,8 +548,8 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
           !docType ||
           uploading ||
           !hasSpAccess ||
-          (docType === 'OWNER_DOCUMENT' && !entityCode) ||
-          (docType === 'TENANT_DOCUMENT' && !entityCode) ||
+          (docType === 'OWNER_DOCUMENT' && !selectedOwner) ||
+          (docType === 'TENANT_DOCUMENT' && !selectedTenant) ||
           (['INSPECTION_MOVE_IN', 'INSPECTION_MOVE_OUT'].includes(docType) && !leaseNumber) ||
           (['CONTRACT_ACTIVE', 'CONTRACT_TERMINATED'].includes(docType) && !folderNumber)
         }
