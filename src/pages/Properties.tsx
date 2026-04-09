@@ -66,6 +66,7 @@ export default function Properties() {
   const [loading, setLoading] = useState(false)
   const [open, setOpen] = useState(false)
   const [options, setOptions] = useState<ERPProperty[]>([])
+  const [selectedProperty, setSelectedProperty] = useState<ERPProperty | null>(null)
 
   const [results, setResults] = useState<ERPProperty[]>([])
   const [hasSearched, setHasSearched] = useState(false)
@@ -74,9 +75,12 @@ export default function Properties() {
   const getOwnerName = (property: ERPProperty) => {
     if (!property) return 'Não informado'
     if (property.proprietario) return property.proprietario
+    if ((property as any).Proprietario) return (property as any).Proprietario
     if (property.nomeProprietario) return property.nomeProprietario
     if (property.proprietario_nome) return property.proprietario_nome
     if (property.cliente) return property.cliente
+    if ((property as any).ownerName) return (property as any).ownerName
+    if ((property as any).title) return (property as any).title
     if (
       property.proprietarios &&
       Array.isArray(property.proprietarios) &&
@@ -194,8 +198,15 @@ export default function Properties() {
                   aria-expanded={open}
                   className="flex-1 justify-between h-12 text-base font-normal bg-background w-full"
                 >
-                  <span className={cn('truncate', !search && 'text-muted-foreground')}>
-                    {search || 'Selecione ou busque o imóvel no servidor...'}
+                  <span
+                    className={cn(
+                      'truncate',
+                      !search && !selectedProperty && 'text-muted-foreground',
+                    )}
+                  >
+                    {selectedProperty
+                      ? `${selectedProperty.id} - ${getOwnerName(selectedProperty)}`
+                      : search || 'Selecione ou busque o imóvel no servidor...'}
                   </span>
                   {loading && !open ? (
                     <Loader2 className="ml-2 h-4 w-4 shrink-0 animate-spin opacity-50" />
@@ -209,7 +220,10 @@ export default function Properties() {
                   <CommandInput
                     placeholder="Digite o nome do proprietário (ex: MARAM)..."
                     value={search}
-                    onValueChange={setSearch}
+                    onValueChange={(val) => {
+                      setSearch(val)
+                      setSelectedProperty(null)
+                    }}
                   />
                   <CommandList>
                     <CommandEmpty className="py-6 text-center text-sm">
@@ -231,6 +245,7 @@ export default function Properties() {
                           value={String(property.id)}
                           onSelect={() => {
                             setSearch(getOwnerName(property))
+                            setSelectedProperty(property)
                             setResults([property])
                             setHasSearched(true)
                             setOpen(false)
@@ -238,14 +253,8 @@ export default function Properties() {
                           className="flex flex-col items-start py-3 px-4 gap-1.5 cursor-pointer border-b border-border/40 last:border-0"
                         >
                           <div className="flex items-center gap-2 w-full">
-                            <Badge
-                              variant="secondary"
-                              className="shrink-0 rounded-sm px-1.5 font-medium"
-                            >
-                              #{property.id}
-                            </Badge>
-                            <span className="font-semibold text-sm truncate text-foreground">
-                              {getOwnerName(property)}
+                            <span className="font-medium text-sm truncate text-foreground">
+                              {property.id} - {getOwnerName(property)}
                             </span>
                           </div>
                           <div className="flex items-center text-xs text-muted-foreground gap-1.5 w-full">
