@@ -29,40 +29,7 @@ export const mockActivity = [
   },
 ]
 
-export const mockProperties = [
-  {
-    id: '101',
-    title: 'Apartamento Centro',
-    address: 'Rua das Flores, 123 - Apto 402',
-    type: 'Residencial',
-    status: 'Análise Gerencial',
-    image: 'https://img.usecurling.com/p/400/300?q=apartment',
-  },
-  {
-    id: '102',
-    title: 'Sala Comercial',
-    address: 'Av. Paulista, 1000 - Sala 50',
-    type: 'Comercial',
-    status: 'Vistoria Pendente',
-    image: 'https://img.usecurling.com/p/400/300?q=office',
-  },
-  {
-    id: '103',
-    title: 'Casa Jardim',
-    address: 'Rua dos Ipês, 45',
-    type: 'Residencial',
-    status: 'Confecção de Contrato',
-    image: 'https://img.usecurling.com/p/400/300?q=house',
-  },
-  {
-    id: '104',
-    title: 'Cobertura Vista Mar',
-    address: 'Av. Atlântica, 500',
-    type: 'Residencial',
-    status: 'Em Assinatura',
-    image: 'https://img.usecurling.com/p/400/300?q=penthouse',
-  },
-]
+export const mockProperties: any[] = []
 
 export const mockDocuments = [
   {

@@ -78,21 +78,54 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
     return settings.spIntegrationRoles?.includes(user.role) ?? false
   }, [user, settings.spIntegrationRoles])
 
+  const [serverProperties, setServerProperties] = useState<any[]>([])
+  const [loadingProperties, setLoadingProperties] = useState(false)
+
+  useEffect(() => {
+    const fetchProperties = async () => {
+      setLoadingProperties(true)
+      try {
+        const url = searchQuery
+          ? `http://192.168.10.225:9000/imoveis?q=${encodeURIComponent(searchQuery)}`
+          : 'http://192.168.10.225:9000/imoveis'
+
+        const response = await fetch(url)
+        if (response.ok) {
+          const data = await response.json()
+          setServerProperties(Array.isArray(data) ? data : [])
+        } else {
+          setServerProperties([])
+        }
+      } catch (error) {
+        console.error('Erro ao buscar imóveis do servidor local', error)
+        setServerProperties([])
+      } finally {
+        setLoadingProperties(false)
+      }
+    }
+
+    const timer = setTimeout(() => {
+      if (propertyOpen) {
+        fetchProperties()
+      }
+    }, 300)
+
+    return () => clearTimeout(timer)
+  }, [searchQuery, propertyOpen])
+
   const localServerProperties = useMemo(() => {
-    const sourceProperties =
-      localProperties && localProperties.length > 0 ? localProperties : mainProperties || []
     const lowerQuery = searchQuery.toLowerCase()
-    return sourceProperties
+    return serverProperties
       .filter(
         (p: any) =>
           !lowerQuery ||
-          (p.code && p.code.toLowerCase().includes(lowerQuery)) ||
-          (p.id && p.id.toLowerCase().includes(lowerQuery)) ||
-          (p.title && p.title.toLowerCase().includes(lowerQuery)) ||
-          (p.address && p.address.toLowerCase().includes(lowerQuery)),
+          (p.code && String(p.code).toLowerCase().includes(lowerQuery)) ||
+          (p.id && String(p.id).toLowerCase().includes(lowerQuery)) ||
+          (p.title && String(p.title).toLowerCase().includes(lowerQuery)) ||
+          (p.address && String(p.address).toLowerCase().includes(lowerQuery)),
       )
       .slice(0, 50)
-  }, [localProperties, mainProperties, searchQuery])
+  }, [serverProperties, searchQuery])
 
   const localServerOwners = useMemo(() => {
     if (!owners) return []
@@ -246,7 +279,16 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
                 onValueChange={setSearchQuery}
               />
               <CommandList>
-                <CommandEmpty>Nenhum imóvel encontrado no servidor local.</CommandEmpty>
+                <CommandEmpty>
+                  {loadingProperties ? (
+                    <div className="flex items-center justify-center py-2 text-sm text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Buscando no servidor local...
+                    </div>
+                  ) : (
+                    'Nenhum imóvel encontrado no servidor local.'
+                  )}
+                </CommandEmpty>
                 <CommandGroup>
                   {localServerProperties.map((p: any) => (
                     <CommandItem
