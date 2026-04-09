@@ -19,6 +19,16 @@ import { m365Service } from '@/lib/m365'
 import { useToast } from '@/hooks/use-toast'
 import { DocumentViewer } from '@/components/DocumentViewer'
 
+const DOCUMENT_TYPES: Record<string, string> = {
+  OWNER_DOCUMENT: 'Documento de Proprietário',
+  TENANT_DOCUMENT: 'Documento de Locatário',
+  GUARANTEE_DOCUMENT: 'Documentos de Garantia',
+  CONTRACT_ACTIVE: 'Contrato Ativo (Importar Legado)',
+  CONTRACT_TERMINATED: 'Contrato Encerrado',
+  INSPECTION_MOVE_IN: 'Vistoria de Entrada',
+  INSPECTION_MOVE_OUT: 'Vistoria de Saída',
+}
+
 export default function SentDocuments() {
   const [documents, setDocuments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -39,6 +49,8 @@ export default function SentDocuments() {
           *,
           properties ( title )
         `)
+        .not('file_path', 'is', null)
+        .neq('file_path', '')
         .order('created_at', { ascending: false })
 
       if (error) throw error
@@ -78,12 +90,14 @@ export default function SentDocuments() {
     }
   }
 
-  const filteredDocs = documents.filter(
-    (doc) =>
+  const filteredDocs = documents.filter((doc) => {
+    const categoryLabel = DOCUMENT_TYPES[doc.category] || doc.category
+    return (
       doc.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      doc.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (doc.properties?.title || '').toLowerCase().includes(searchTerm.toLowerCase()),
-  )
+      categoryLabel.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (doc.properties?.title || '').toLowerCase().includes(searchTerm.toLowerCase())
+    )
+  })
 
   return (
     <div className="space-y-6 h-full flex flex-col">
@@ -160,7 +174,7 @@ export default function SentDocuments() {
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline" className="bg-background">
-                        {doc.category}
+                        {DOCUMENT_TYPES[doc.category] || doc.category}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-muted-foreground whitespace-nowrap">
