@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Save, Users, Clock, Mail, AlertCircle } from 'lucide-react'
+import { Save, Users, Clock, Mail, AlertCircle, Printer } from 'lucide-react'
 import {
   Card,
   CardContent,
@@ -156,6 +156,34 @@ export default function GeneralSettings() {
                 className="w-32"
               />
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Printer className="w-5 h-5 text-primary" /> Hardware & Dispositivos
+          </CardTitle>
+          <CardDescription>
+            Configure equipamentos locais integrados à rede da imobiliária.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-2">
+            <Label>Scanner Local (Epson ES-580W)</Label>
+            <div className="flex items-center gap-4">
+              <Printer className="w-5 h-5 text-muted-foreground shrink-0" />
+              <Input
+                placeholder="Ex: 192.168.0.150"
+                value={formData.scannerIp || ''}
+                onChange={(e) => handleChange('scannerIp', e.target.value)}
+                className="w-full md:w-64"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Endereço IP para conexão direta com o scanner na aba de Digitalização do GED.
+            </p>
           </div>
         </CardContent>
         <CardFooter className="bg-muted/50 py-4 flex justify-end">

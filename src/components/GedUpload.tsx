@@ -1,5 +1,13 @@
 import { useState, useMemo, useEffect } from 'react'
-import { UploadCloud, Loader2, AlertCircle, Check, ChevronsUpDown, MapPin } from 'lucide-react'
+import {
+  UploadCloud,
+  Loader2,
+  AlertCircle,
+  Check,
+  ChevronsUpDown,
+  MapPin,
+  Printer,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -34,6 +42,7 @@ interface GedUploadProps {
   preselectedPropertyId?: string
   preselectedType?: string
   onSuccess?: () => void
+  mode?: 'file' | 'scanner'
 }
 
 const DOCUMENT_TYPES = [
@@ -77,7 +86,12 @@ const getAddress = (property: any) => {
   return parts.length > 0 ? parts.join(', ') : 'Endereço não informado'
 }
 
-export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }: GedUploadProps) {
+export function GedUpload({
+  preselectedPropertyId,
+  preselectedType,
+  onSuccess,
+  mode = 'file',
+}: GedUploadProps) {
   const { settings, properties: mainProperties } = useMainStore()
   const { owners, tenants, properties: localProperties } = useEntitiesStore()
   const { user } = useAuth()
@@ -104,6 +118,10 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
   const [sendToManager, setSendToManager] = useState(false)
   const [leaseNumber, setLeaseNumber] = useState('')
   const [folderNumber, setFolderNumber] = useState('')
+
+  const [dpi, setDpi] = useState('300')
+  const [colorMode, setColorMode] = useState('color')
+  const [duplex, setDuplex] = useState(true)
 
   const hasSpAccess = useMemo(() => {
     if (!user) return false
@@ -190,7 +208,16 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
   }
 
   const handleUpload = async () => {
-    if (!file || !propertyId || !docType || !hasSpAccess || !selectedProperty) return
+    if (!propertyId || !docType || !hasSpAccess || !selectedProperty) return
+    if (mode === 'file' && !file) return
+    if (mode === 'scanner' && !settings.scannerIp) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro de Conexão',
+        description: 'Configure o IP local do Scanner (Epson) nas Configurações Gerais.',
+      })
+      return
+    }
 
     setUploading(true)
     try {
@@ -216,10 +243,21 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
         selectedProperty.address ||
         'Imóvel'
 
+      let finalFile = file
+      if (mode === 'scanner') {
+        // Simula captura via IP local do scanner configurado
+        await new Promise((resolve) => setTimeout(resolve, 2500))
+        finalFile = new File(['digitalizado'], `Scan_${Date.now()}.pdf`, {
+          type: 'application/pdf',
+        })
+      }
+
+      if (!finalFile) throw new Error('Arquivo inválido')
+
       // @ts-expect-error - folderNumber parameter might not be typed yet in m365Service
       const result = await m365Service.uploadStructuredDocument(
-        file,
-        file.name,
+        finalFile,
+        finalFile.name,
         docType,
         propId,
         propTitle,
@@ -258,7 +296,7 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
 
       await documentsStore.addDocument({
         propertyId: propId,
-        name: file.name,
+        name: finalFile.name,
         category: docType,
         entityCode: finalEntityCode || undefined,
         entityName: finalEntityName || undefined,
@@ -554,10 +592,58 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
         </div>
       )}
 
-      <div className="grid gap-2">
-        <Label>Arquivo Selecionado</Label>
-        <Input id="file-upload" type="file" onChange={handleFileChange} disabled={!hasSpAccess} />
-      </div>
+      {mode === 'file' ? (
+        <div className="grid gap-2">
+          <Label>Arquivo Selecionado</Label>
+          <Input id="file-upload" type="file" onChange={handleFileChange} disabled={!hasSpAccess} />
+        </div>
+      ) : (
+        <div className="space-y-4 p-4 border rounded-lg bg-muted/20">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Printer className="h-4 w-4 text-primary" />
+              <h3 className="font-medium text-sm">Configurações de Captura</h3>
+            </div>
+            {settings.scannerIp ? (
+              <span className="text-xs text-emerald-600 font-medium">IP: {settings.scannerIp}</span>
+            ) : (
+              <span className="text-xs text-destructive font-medium">IP não configurado</span>
+            )}
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label className="text-xs">Resolução (DPI)</Label>
+              <Select value={dpi} onValueChange={setDpi}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="200">200 DPI</SelectItem>
+                  <SelectItem value="300">300 DPI</SelectItem>
+                  <SelectItem value="600">600 DPI</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs">Cor</Label>
+              <Select value={colorMode} onValueChange={setColorMode}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="color">Cores</SelectItem>
+                  <SelectItem value="gray">Tons de Cinza</SelectItem>
+                  <SelectItem value="bw">Preto e Branco</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex items-center justify-between">
+            <Label className="text-xs">Frente e Verso (Duplex)</Label>
+            <Switch checked={duplex} onCheckedChange={setDuplex} disabled={!hasSpAccess} />
+          </div>
+        </div>
+      )}
 
       <div className="flex items-center justify-between rounded-lg border p-4 shadow-sm bg-muted/30">
         <div className="space-y-0.5">
@@ -580,7 +666,7 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
         className="w-full mt-auto gap-2"
         onClick={handleUpload}
         disabled={
-          !file ||
+          (mode === 'file' && !file) ||
           !propertyId ||
           !docType ||
           uploading ||
@@ -594,10 +680,12 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
       >
         {uploading ? (
           <Loader2 className="h-4 w-4 animate-spin" />
+        ) : mode === 'scanner' ? (
+          <Printer className="h-4 w-4" />
         ) : (
           <UploadCloud className="h-4 w-4" />
         )}
-        Processar e Enviar (GED)
+        {mode === 'scanner' ? 'Digitalizar e Enviar (GED)' : 'Processar e Enviar (GED)'}
       </Button>
     </div>
   )

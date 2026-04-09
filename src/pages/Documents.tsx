@@ -1,5 +1,14 @@
 import { useState } from 'react'
-import { UploadCloud, File, Search, FolderSync, Loader2, Eye, Building2 } from 'lucide-react'
+import {
+  UploadCloud,
+  File,
+  Search,
+  FolderSync,
+  Loader2,
+  Eye,
+  Building2,
+  Printer,
+} from 'lucide-react'
 import { Card, CardDescription, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
@@ -20,7 +29,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { ScannerPanel } from '@/components/ScannerPanel'
 import { OCRReviewDialog } from '@/components/OCRReviewDialog'
 import { DocumentViewer } from '@/components/DocumentViewer'
 import { GedUpload } from '@/components/GedUpload'
@@ -42,23 +50,9 @@ const Documents = () => {
   const { toast } = useToast()
   const { user } = useAuth()
   const store = useMainStore()
-  const [ocrLoading, setOcrLoading] = useState(false)
   const [ocrData, setOcrData] = useState<any>(null)
   const [viewDoc, setViewDoc] = useState<string | null>(null)
   const [selectedSite, setSelectedSite] = useState<SiteKey>('locacao')
-
-  const handleFileUpload = () => {
-    setOcrLoading(true)
-    setTimeout(() => {
-      setOcrLoading(false)
-      setOcrData({
-        name: 'Carlos Eduardo',
-        documentId: '123.456.789-00',
-        address: 'Av. Atlântica, 500',
-        value: '4.500,00',
-      })
-    }, 2000)
-  }
 
   const handleOcrConfirm = (data: any, library: string) => {
     setOcrData(null)
@@ -148,19 +142,33 @@ const Documents = () => {
 
         <TabsContent value="scan" className="flex-1">
           <div className="grid md:grid-cols-2 gap-6 h-full min-h-[400px]">
-            <ScannerPanel onScan={handleFileUpload} />
+            <Card className="border-primary/20 shadow-sm flex flex-col h-full">
+              <CardHeader className="bg-muted/50 border-b pb-4">
+                <div className="flex items-center gap-2">
+                  <Printer className="h-5 w-5 text-primary" />
+                  <CardTitle className="text-lg">Digitalização Direta (Epson)</CardTitle>
+                </div>
+                <CardDescription>
+                  Capture documentos físicos do scanner e indexe automaticamente.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6 flex-1 flex flex-col">
+                <GedUpload mode="scanner" />
+              </CardContent>
+            </Card>
+
             <Card className="border-primary/20 shadow-sm flex flex-col h-full">
               <CardHeader className="bg-muted/50 border-b pb-4">
                 <div className="flex items-center gap-2">
                   <UploadCloud className="h-5 w-5 text-primary" />
-                  <CardTitle className="text-lg">Upload Estruturado</CardTitle>
+                  <CardTitle className="text-lg">Upload Estruturado (Arquivo)</CardTitle>
                 </div>
                 <CardDescription>
-                  Envie arquivos diretamente para a estrutura taxônomica no SharePoint.
+                  Envie arquivos locais diretamente para a estrutura taxônomica.
                 </CardDescription>
               </CardHeader>
               <CardContent className="pt-6 flex-1 flex flex-col">
-                <GedUpload />
+                <GedUpload mode="file" />
               </CardContent>
             </Card>
           </div>
