@@ -68,6 +68,7 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
   const [uploading, setUploading] = useState(false)
   const [sendToManager, setSendToManager] = useState(false)
   const [leaseNumber, setLeaseNumber] = useState('')
+  const [folderNumber, setFolderNumber] = useState('')
 
   const hasSpAccess = useMemo(() => {
     if (!user) return false
@@ -136,6 +137,7 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
         entityName = tenants.find((t) => t.code === entityCode)?.fullName || ''
       }
 
+      // @ts-expect-error - folderNumber parameter might not be typed yet in m365Service
       const result = await m365Service.uploadStructuredDocument(
         file,
         file.name,
@@ -146,6 +148,7 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
         entityCode,
         entityName,
         leaseNumber,
+        folderNumber,
       )
 
       await documentsStore.addDocument({
@@ -168,6 +171,7 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
       setFile(null)
       setEntityCode('')
       setLeaseNumber('')
+      setFolderNumber('')
       const fileInput = document.getElementById('file-upload') as HTMLInputElement
       if (fileInput) fileInput.value = ''
 
@@ -324,6 +328,18 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
         </div>
       )}
 
+      {['CONTRACT_ACTIVE', 'CONTRACT_TERMINATED'].includes(docType) && (
+        <div className="grid gap-2 animate-fade-in">
+          <Label>Número da Pasta</Label>
+          <Input
+            value={folderNumber}
+            onChange={(e) => setFolderNumber(e.target.value)}
+            placeholder="Ex: 00123"
+            disabled={!hasSpAccess}
+          />
+        </div>
+      )}
+
       <div className="grid gap-2">
         <Label>Arquivo Selecionado</Label>
         <Input id="file-upload" type="file" onChange={handleFileChange} disabled={!hasSpAccess} />
@@ -357,7 +373,8 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
           !hasSpAccess ||
           (docType === 'OWNER_DOCUMENT' && !entityCode) ||
           (docType === 'TENANT_DOCUMENT' && !entityCode) ||
-          (['INSPECTION_MOVE_IN', 'INSPECTION_MOVE_OUT'].includes(docType) && !leaseNumber)
+          (['INSPECTION_MOVE_IN', 'INSPECTION_MOVE_OUT'].includes(docType) && !leaseNumber) ||
+          (['CONTRACT_ACTIVE', 'CONTRACT_TERMINATED'].includes(docType) && !folderNumber)
         }
       >
         {uploading ? (
