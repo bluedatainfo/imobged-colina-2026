@@ -32,9 +32,9 @@ import {
 import { OCRReviewDialog } from '@/components/OCRReviewDialog'
 import { DocumentViewer } from '@/components/DocumentViewer'
 import { GedUpload } from '@/components/GedUpload'
-import { mockDocuments } from '@/lib/data'
 import { useToast } from '@/hooks/use-toast'
 import useMainStore, { mainStore, SiteKey } from '@/stores/main'
+import useDocumentsStore from '@/stores/documents'
 import { useAuth } from '@/contexts/AuthContext'
 import { m365Service } from '@/lib/m365'
 
@@ -54,6 +54,8 @@ const Documents = () => {
   const [viewDoc, setViewDoc] = useState<string | null>(null)
   const [selectedSite, setSelectedSite] = useState<SiteKey>('locacao')
 
+  const { documents } = useDocumentsStore()
+
   const handleOcrConfirm = (data: any, library: string) => {
     setOcrData(null)
     const propertyId = '104'
@@ -62,12 +64,7 @@ const Documents = () => {
       action: `Upload via OCR para SharePoint [${siteNames[selectedSite]}]: ${library}`,
       user: user?.name || 'Sistema',
     })
-    m365Service.saveToLibrary(
-      library,
-      `${data.name || 'Doc'}_Digitalizado.pdf`,
-      'File Data Mock',
-      selectedSite,
-    )
+    m365Service.saveToLibrary(library, data.name || 'Documento.pdf', 'File Data Mock', selectedSite)
     m365Service.syncToList(store.sharepoint.lists.processControl, JSON.stringify(data))
 
     toast({
@@ -76,25 +73,20 @@ const Documents = () => {
     })
   }
 
-  const siteDocuments = mockDocuments.map((d, i) => ({
-    ...d,
-    name:
-      selectedSite === 'juridico'
-        ? `Processo_Legal_0${i + 1}.pdf`
-        : selectedSite === 'vendas'
-          ? `Proposta_Venda_${i + 1}.pdf`
-          : selectedSite === 'captacao'
-            ? `Lead_Captacao_${i + 1}.pdf`
-            : selectedSite === 'financeiro'
-              ? `Comprovante_Pagamento_${i + 1}.pdf`
-              : d.name,
-    type:
-      selectedSite === 'juridico'
-        ? 'Ação Judicial'
-        : selectedSite === 'financeiro'
-          ? 'Fiscal/Recibo'
-          : d.type,
-  }))
+  const siteDocuments = documents
+    .filter(
+      (d) =>
+        !d.category ||
+        d.category.toLowerCase().includes(selectedSite.toLowerCase()) ||
+        selectedSite === 'locacao',
+    )
+    .map((d) => ({
+      id: d.id,
+      name: d.name,
+      type: d.category || 'Geral',
+      status: 'Processado',
+      filePath: d.filePath,
+    }))
 
   return (
     <div className="space-y-6 h-full flex flex-col">
@@ -205,7 +197,11 @@ const Documents = () => {
                       <Badge variant="outline">{doc.status}</Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button size="sm" variant="ghost" onClick={() => setViewDoc(doc.name)}>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setViewDoc(doc.filePath || doc.name)}
+                      >
                         <Eye className="h-4 w-4 mr-2" /> Visualizar
                       </Button>
                     </TableCell>
