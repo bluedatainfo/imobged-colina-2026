@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { UploadCloud, Loader2, AlertCircle, Check, ChevronsUpDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -38,6 +38,7 @@ interface GedUploadProps {
 const DOCUMENT_TYPES = [
   { id: 'OWNER_DOCUMENT', label: 'Documento de Proprietário' },
   { id: 'TENANT_DOCUMENT', label: 'Documento de Inquilino' },
+  { id: 'GUARANTEE_DOCUMENT', label: 'Documentos de Garantia' },
   { id: 'CONTRACT_ACTIVE', label: 'Contrato Ativo (Importar Legado)' },
   { id: 'CONTRACT_TERMINATED', label: 'Contrato Encerrado' },
   { id: 'INSPECTION_MOVE_IN', label: 'Vistoria de Entrada' },
@@ -45,13 +46,22 @@ const DOCUMENT_TYPES = [
 ]
 
 export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }: GedUploadProps) {
-  const { properties, settings } = useMainStore()
+  const { settings } = useMainStore()
   const { owners, tenants } = useEntitiesStore()
   const { user } = useAuth()
   const { toast } = useToast()
 
   const [propertyId, setPropertyId] = useState(preselectedPropertyId || '')
+  const [selectedProperty, setSelectedProperty] = useState<{ id: string; title: string } | null>(
+    null,
+  )
   const [propertyOpen, setPropertyOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [localServerProperties, setLocalServerProperties] = useState<
+    { id: string; title: string }[]
+  >([])
+  const [loadingProperties, setLoadingProperties] = useState(false)
+
   const [docType, setDocType] = useState(preselectedType || '')
   const [entityCode, setEntityCode] = useState('')
   const [file, setFile] = useState<File | null>(null)
@@ -63,7 +73,49 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
     return settings.spIntegrationRoles?.includes(user.role) ?? false
   }, [user, settings.spIntegrationRoles])
 
-  const selectedProperty = properties.find((p) => p.id === propertyId)
+  useEffect(() => {
+    const fetchProperties = async () => {
+      setLoadingProperties(true)
+      try {
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 5000)
+
+        const res = await fetch(
+          `http://192.168.10.225/api/properties?q=${encodeURIComponent(searchQuery)}`,
+          {
+            signal: controller.signal,
+          },
+        )
+        clearTimeout(timeoutId)
+
+        if (res.ok) {
+          const data = await res.json()
+          setLocalServerProperties(data)
+        } else {
+          setLocalServerProperties([])
+        }
+      } catch (err) {
+        console.error('Erro ao buscar imóveis do servidor local', err)
+        setLocalServerProperties([])
+      } finally {
+        setLoadingProperties(false)
+      }
+    }
+
+    const timer = setTimeout(() => {
+      if (propertyOpen) {
+        fetchProperties()
+      }
+    }, 400)
+
+    return () => clearTimeout(timer)
+  }, [searchQuery, propertyOpen])
+
+  useEffect(() => {
+    if (preselectedPropertyId && !selectedProperty) {
+      setSelectedProperty({ id: preselectedPropertyId, title: 'Imóvel Selecionado' })
+    }
+  }, [preselectedPropertyId, selectedProperty])
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -72,10 +124,7 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
   }
 
   const handleUpload = async () => {
-    if (!file || !propertyId || !docType || !hasSpAccess) return
-
-    const property = properties.find((p) => p.id === propertyId)
-    if (!property) return
+    if (!file || !propertyId || !docType || !hasSpAccess || !selectedProperty) return
 
     setUploading(true)
     try {
@@ -90,15 +139,15 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
         file,
         file.name,
         docType,
-        property.id,
-        property.title,
+        selectedProperty.id,
+        selectedProperty.title,
         user?.name || 'Sistema',
         entityCode,
         entityName,
       )
 
       await documentsStore.addDocument({
-        propertyId: property.id,
+        propertyId: selectedProperty.id,
         name: file.name,
         category: docType,
         entityCode: entityCode || undefined,
@@ -107,7 +156,7 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
       })
 
       if (sendToManager) {
-        mainStore.updateProperty(property.id, { status: 'Análise Gerencial' })
+        mainStore.updateProperty(selectedProperty.id, { status: 'Análise Gerencial' })
       }
 
       toast({
@@ -155,23 +204,34 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
                   <strong className="mr-1">{selectedProperty.id}</strong> - {selectedProperty.title}
                 </span>
               ) : (
-                <span className="text-muted-foreground">Selecione ou busque o imóvel...</span>
+                <span className="text-muted-foreground">
+                  Selecione ou busque o imóvel no servidor...
+                </span>
               )}
               <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-            <Command>
-              <CommandInput placeholder="Buscar por ID ou título..." />
+            <Command shouldFilter={false}>
+              <CommandInput
+                placeholder="Buscar por ID ou título..."
+                value={searchQuery}
+                onValueChange={setSearchQuery}
+              />
               <CommandList>
-                <CommandEmpty>Nenhum imóvel encontrado.</CommandEmpty>
+                <CommandEmpty>
+                  {loadingProperties
+                    ? 'Buscando imóveis no servidor...'
+                    : 'Nenhum imóvel encontrado.'}
+                </CommandEmpty>
                 <CommandGroup>
-                  {properties.map((p) => (
+                  {localServerProperties.map((p) => (
                     <CommandItem
                       key={p.id}
-                      value={`${p.id} ${p.title}`}
+                      value={p.id}
                       onSelect={() => {
                         setPropertyId(p.id)
+                        setSelectedProperty(p)
                         setPropertyOpen(false)
                       }}
                     >
