@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react'
-import { candidatesService, PreRegistration, PreRegistrationStatus } from '@/services/candidates'
+import {
+  candidatesService,
+  PreRegistration,
+  PreRegistrationStatus,
+  PreRegistrationCategory,
+} from '@/services/candidates'
 import {
   Table,
   TableBody,
@@ -26,8 +31,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
-import { Download, ExternalLink, Loader2 } from 'lucide-react'
+import { Download, ExternalLink, Loader2, RefreshCw } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
@@ -52,9 +58,11 @@ const STATUS_OPTIONS: PreRegistrationStatus[] = [
 export default function Candidates() {
   const [candidates, setCandidates] = useState<PreRegistration[]>([])
   const [loading, setLoading] = useState(true)
+  const [syncing, setSyncing] = useState(false)
   const [selectedCandidate, setSelectedCandidate] = useState<PreRegistration | null>(null)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [updating, setUpdating] = useState(false)
+  const [activeTab, setActiveTab] = useState<PreRegistrationCategory>('PF')
 
   const fetchCandidates = async () => {
     try {
@@ -63,7 +71,7 @@ export default function Candidates() {
       setCandidates(data)
     } catch (error) {
       console.error(error)
-      toast.error('Erro ao carregar candidatos')
+      toast.error('Erro ao carregar interessados')
     } finally {
       setLoading(false)
     }
@@ -72,6 +80,24 @@ export default function Candidates() {
   useEffect(() => {
     fetchCandidates()
   }, [])
+
+  const handleSync = async () => {
+    try {
+      setSyncing(true)
+      const count = await candidatesService.syncFromSharePoint()
+      if (count > 0) {
+        toast.success(`${count} novos interessados sincronizados com sucesso!`)
+      } else {
+        toast.info('Nenhum novo registro encontrado no SharePoint.')
+      }
+      await fetchCandidates()
+    } catch (error) {
+      console.error(error)
+      toast.error('Erro ao sincronizar com o SharePoint.')
+    } finally {
+      setSyncing(false)
+    }
+  }
 
   const handleStatusChange = async (id: string, newStatus: PreRegistrationStatus) => {
     try {
@@ -95,8 +121,11 @@ export default function Candidates() {
       id: candidate.id,
       nome: candidate.full_name,
       cpf: candidate.cpf,
+      cnpj: candidate.cnpj,
+      endereco: candidate.address,
       email: candidate.email,
       telefone: candidate.phone,
+      categoria: candidate.category,
       status: candidate.status,
       dados_adicionais: candidate.form_data,
       data_cadastro: candidate.created_at,
@@ -106,7 +135,7 @@ export default function Candidates() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `candidato_${candidate.cpf?.replace(/\D/g, '') || candidate.id}.json`
+    a.download = `interessado_${candidate.cpf?.replace(/\D/g, '') || candidate.cnpj?.replace(/\D/g, '') || candidate.id}.json`
     a.click()
     URL.revokeObjectURL(url)
     toast.success('Arquivo JSON gerado com sucesso')
@@ -117,7 +146,9 @@ export default function Candidates() {
     setIsDrawerOpen(true)
   }
 
-  if (loading) {
+  const filteredCandidates = candidates.filter((c) => (c.category || 'PF') === activeTab)
+
+  if (loading && candidates.length === 0) {
     return (
       <div className="flex h-full w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -127,55 +158,89 @@ export default function Candidates() {
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-3xl font-bold tracking-tight text-slate-800">Gestão de Candidatos</h2>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <h2 className="text-3xl font-bold tracking-tight text-slate-800">Gestão de Interessados</h2>
+        <Button onClick={handleSync} disabled={syncing || loading} className="w-full sm:w-auto">
+          {syncing ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <RefreshCw className="mr-2 h-4 w-4" />
+          )}
+          Sincronizar SharePoint
+        </Button>
       </div>
 
-      <div className="rounded-md border bg-card">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Data de Entrada</TableHead>
-              <TableHead>Nome do Candidato</TableHead>
-              <TableHead>CPF</TableHead>
-              <TableHead>Contato</TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {candidates.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                  Nenhum candidato na fila no momento.
-                </TableCell>
-              </TableRow>
-            ) : (
-              candidates.map((candidate) => (
-                <TableRow
-                  key={candidate.id}
-                  className="cursor-pointer hover:bg-muted/50 transition-colors"
-                  onClick={() => openCandidateDetails(candidate)}
-                >
-                  <TableCell className="whitespace-nowrap">
-                    {format(new Date(candidate.created_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
-                  </TableCell>
-                  <TableCell className="font-medium">{candidate.full_name}</TableCell>
-                  <TableCell>{candidate.cpf || '-'}</TableCell>
-                  <TableCell>
-                    <div className="flex flex-col text-sm">
-                      <span>{candidate.email}</span>
-                      <span className="text-muted-foreground">{candidate.phone}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={STATUS_COLORS[candidate.status]}>{candidate.status}</Badge>
-                  </TableCell>
+      <Tabs
+        value={activeTab}
+        onValueChange={(v) => setActiveTab(v as PreRegistrationCategory)}
+        className="space-y-4"
+      >
+        <TabsList>
+          <TabsTrigger value="PF">Pessoa Física</TabsTrigger>
+          <TabsTrigger value="PJ">Pessoa Jurídica</TabsTrigger>
+          <TabsTrigger value="Fiador">Fiador</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value={activeTab} className="space-y-4">
+          <div className="rounded-md border bg-card">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Data de Entrada</TableHead>
+                  <TableHead>{activeTab === 'PJ' ? 'Razão Social' : 'Nome'}</TableHead>
+                  <TableHead>{activeTab === 'PJ' ? 'CNPJ' : 'CPF'}</TableHead>
+                  <TableHead>{activeTab === 'PJ' ? 'Endereço' : 'Contato'}</TableHead>
+                  <TableHead>Status</TableHead>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+              </TableHeader>
+              <TableBody>
+                {filteredCandidates.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                      Nenhum registro encontrado nesta categoria.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredCandidates.map((candidate) => (
+                    <TableRow
+                      key={candidate.id}
+                      className="cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => openCandidateDetails(candidate)}
+                    >
+                      <TableCell className="whitespace-nowrap">
+                        {format(new Date(candidate.created_at), 'dd/MM/yyyy HH:mm', {
+                          locale: ptBR,
+                        })}
+                      </TableCell>
+                      <TableCell className="font-medium">{candidate.full_name}</TableCell>
+                      <TableCell>
+                        {activeTab === 'PJ' ? candidate.cnpj || '-' : candidate.cpf || '-'}
+                      </TableCell>
+                      <TableCell>
+                        {activeTab === 'PJ' ? (
+                          <span className="text-sm truncate max-w-[200px] block">
+                            {candidate.address || '-'}
+                          </span>
+                        ) : (
+                          <div className="flex flex-col text-sm">
+                            <span>{candidate.email || '-'}</span>
+                            <span className="text-muted-foreground">{candidate.phone || '-'}</span>
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={STATUS_COLORS[candidate.status]}>
+                          {candidate.status}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
+      </Tabs>
 
       <Drawer open={isDrawerOpen} onOpenChange={setIsDrawerOpen}>
         <DrawerContent className="max-h-[95vh]">
@@ -183,33 +248,66 @@ export default function Candidates() {
             <DrawerHeader>
               <DrawerTitle className="text-2xl">{selectedCandidate?.full_name}</DrawerTitle>
               <DrawerDescription>
-                Ficha detalhada do pré-cadastro recebido via Microsoft Forms
+                Ficha detalhada do registro importado (Categoria: {selectedCandidate?.category})
               </DrawerDescription>
             </DrawerHeader>
             <div className="p-4 space-y-6 overflow-y-auto max-h-[65vh]">
               {selectedCandidate && (
                 <>
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 bg-muted/20 p-4 rounded-lg border">
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium text-muted-foreground">CPF</p>
-                      <p className="font-medium">{selectedCandidate.cpf || 'Não informado'}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium text-muted-foreground">E-mail</p>
-                      <p className="font-medium">{selectedCandidate.email || 'Não informado'}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium text-muted-foreground">Telefone</p>
-                      <p className="font-medium">{selectedCandidate.phone || 'Não informado'}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium text-muted-foreground">Data do Cadastro</p>
-                      <p className="font-medium">
-                        {format(new Date(selectedCandidate.created_at), "dd/MM/yyyy 'às' HH:mm", {
-                          locale: ptBR,
-                        })}
-                      </p>
-                    </div>
+                    {selectedCandidate.category === 'PJ' ? (
+                      <>
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium text-muted-foreground">CNPJ</p>
+                          <p className="font-medium">{selectedCandidate.cnpj || 'Não informado'}</p>
+                        </div>
+                        <div className="space-y-1 md:col-span-2">
+                          <p className="text-sm font-medium text-muted-foreground">Endereço</p>
+                          <p className="font-medium">
+                            {selectedCandidate.address || 'Não informado'}
+                          </p>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium text-muted-foreground">E-mail</p>
+                          <p className="font-medium">
+                            {selectedCandidate.email || 'Não informado'}
+                          </p>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium text-muted-foreground">CPF</p>
+                          <p className="font-medium">{selectedCandidate.cpf || 'Não informado'}</p>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium text-muted-foreground">E-mail</p>
+                          <p className="font-medium">
+                            {selectedCandidate.email || 'Não informado'}
+                          </p>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium text-muted-foreground">Telefone</p>
+                          <p className="font-medium">
+                            {selectedCandidate.phone || 'Não informado'}
+                          </p>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium text-muted-foreground">
+                            Data do Cadastro
+                          </p>
+                          <p className="font-medium">
+                            {format(
+                              new Date(selectedCandidate.created_at),
+                              "dd/MM/yyyy 'às' HH:mm",
+                              {
+                                locale: ptBR,
+                              },
+                            )}
+                          </p>
+                        </div>
+                      </>
+                    )}
                   </div>
 
                   <div className="space-y-4 bg-white p-5 rounded-lg border shadow-sm">
@@ -244,7 +342,7 @@ export default function Candidates() {
                           className="bg-green-600 hover:bg-green-700 text-white w-full sm:w-auto"
                         >
                           <Download className="mr-2 h-4 w-4" />
-                          Gerar JSON para Sistema Local
+                          Gerar JSON
                         </Button>
                       )}
                     </div>
@@ -254,7 +352,7 @@ export default function Candidates() {
                     <div className="space-y-2 p-5 bg-blue-50/50 rounded-lg border border-blue-100">
                       <p className="text-sm font-semibold text-blue-900">Análise Documental</p>
                       <p className="text-sm text-blue-700 mb-3">
-                        Acesse os arquivos enviados pelo candidato diretamente na nuvem.
+                        Acesse os arquivos enviados diretamente na nuvem.
                       </p>
                       <Button
                         variant="outline"
@@ -276,7 +374,7 @@ export default function Candidates() {
 
                   <div className="space-y-2">
                     <p className="text-sm font-semibold text-slate-800">
-                      Respostas Adicionais do Formulário
+                      Dados Adicionais do Formulário
                     </p>
                     <pre className="bg-slate-900 text-slate-50 p-4 rounded-md text-xs overflow-x-auto whitespace-pre-wrap">
                       {JSON.stringify(selectedCandidate.form_data, null, 2)}

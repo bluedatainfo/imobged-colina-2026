@@ -436,6 +436,88 @@ export const m365Service = {
     })
   },
 
+  fetchListItems: async (sitePath: string, listName: string): Promise<any[]> => {
+    const token = getGraphToken()
+    const { sharepointDomain, clientId, tenantId } = mainStore.getState().sharepoint
+
+    if (!token || !clientId || !tenantId) {
+      if (listName.includes('PF') || listName.includes('Locat') || listName.includes('Locatrios')) {
+        return [
+          {
+            id: 'mock-1',
+            fields: {
+              Title: 'João Silva',
+              CPF: '111.222.333-44',
+              Celular: '(11) 99999-1111',
+              Email: 'joao@email.com',
+            },
+          },
+        ]
+      }
+      if (listName.includes('PJ')) {
+        return [
+          {
+            id: 'mock-2',
+            fields: {
+              Title: 'Empresa Fictícia LTDA',
+              CNPJ: '12.345.678/0001-99',
+              Endereco: 'Rua das Flores, 123',
+              Email: 'contato@empresa.com',
+            },
+          },
+        ]
+      }
+      if (listName.includes('Fiador')) {
+        return [
+          {
+            id: 'mock-3',
+            fields: {
+              Title: 'Maria Oliveira',
+              CPF: '555.666.777-88',
+              Celular: '(11) 98888-2222',
+              Email: 'maria@email.com',
+            },
+          },
+        ]
+      }
+      return []
+    }
+
+    try {
+      const siteId = await resolveSiteId(sharepointDomain, sitePath)
+      if (!siteId) return []
+
+      const listsRes = await fetchWithAuth(`https://graph.microsoft.com/v1.0/sites/${siteId}/lists`)
+      if (!listsRes.ok) return []
+      const listsData = await listsRes.json()
+
+      const list = listsData.value.find(
+        (l: any) =>
+          l.name === listName ||
+          l.displayName === listName ||
+          (l.name &&
+            l.name.replace(/\s+/g, '').toLowerCase() ===
+              listName.replace(/\s+/g, '').toLowerCase()) ||
+          (l.displayName &&
+            l.displayName.replace(/\s+/g, '').toLowerCase() ===
+              listName.replace(/\s+/g, '').toLowerCase()),
+      )
+
+      if (!list) return []
+
+      const itemsRes = await fetchWithAuth(
+        `https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${list.id}/items?expand=fields`,
+      )
+      if (!itemsRes.ok) return []
+      const itemsData = await itemsRes.json()
+
+      return itemsData.value || []
+    } catch (e) {
+      console.warn(`Failed to fetch items from list ${listName}`, e)
+      return []
+    }
+  },
+
   uploadStructuredDocument: async (
     file: File | Blob,
     fileName: string,

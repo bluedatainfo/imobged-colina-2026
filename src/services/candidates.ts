@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase/client'
+import { m365Service } from '@/lib/m365'
 
 export type PreRegistrationStatus =
   | 'Novo'
@@ -8,12 +9,18 @@ export type PreRegistrationStatus =
   | 'Aprovado'
   | 'Reprovado'
 
+export type PreRegistrationCategory = 'PF' | 'PJ' | 'Fiador'
+
 export interface PreRegistration {
   id: string
   full_name: string
   cpf: string | null
+  cnpj: string | null
   email: string | null
   phone: string | null
+  address: string | null
+  category: PreRegistrationCategory
+  sp_list_id: string | null
   status: PreRegistrationStatus
   documents_link: string | null
   form_data: any
@@ -26,7 +33,7 @@ export const candidatesService = {
     const { data, error } = await supabase
       .from('pre_registrations')
       .select('*')
-      .order('created_at', { ascending: true })
+      .order('created_at', { ascending: false })
 
     if (error) throw error
     return data as PreRegistration[]
@@ -42,5 +49,55 @@ export const candidatesService = {
 
     if (error) throw error
     return data as PreRegistration
+  },
+
+  async syncFromSharePoint() {
+    const lists = [
+      { name: 'Fichas Cadastrais  Locatrios', category: 'PF' as PreRegistrationCategory },
+      { name: 'Fichas Cadastrais Candidatos PJ', category: 'PJ' as PreRegistrationCategory },
+      { name: 'Fichas Cadastrais  Fiador', category: 'Fiador' as PreRegistrationCategory },
+    ]
+
+    let syncedCount = 0
+
+    for (const list of lists) {
+      const items = await m365Service.fetchListItems('locacoes', list.name)
+
+      if (items && items.length > 0) {
+        for (const item of items) {
+          const fields = item.fields || {}
+          const sp_list_id = `${list.category}-${item.id}`
+
+          let full_name = fields.Title || fields.Nome || fields.RazaoSocial || 'Sem Nome'
+          let email =
+            fields.Email || fields.EMail || fields.eMail || fields.EmailCorporativo || null
+          let phone = fields.Celular || fields.Telefone || fields.Contato || null
+          let cpf = fields.CPF || null
+          let cnpj = fields.CNPJ || null
+          let address = fields.Endereco || fields.Endereço || null
+
+          const payload: any = {
+            full_name,
+            email,
+            phone,
+            cpf,
+            cnpj,
+            address,
+            category: list.category,
+            sp_list_id,
+            status: 'Novo',
+            form_data: fields,
+          }
+
+          // Try to insert directly, if sp_list_id already exists it will fail with unique violation constraint which we safely ignore.
+          const { error } = await supabase.from('pre_registrations').insert(payload)
+
+          if (!error) {
+            syncedCount++
+          }
+        }
+      }
+    }
+    return syncedCount
   },
 }

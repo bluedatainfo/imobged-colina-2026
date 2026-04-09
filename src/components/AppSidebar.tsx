@@ -39,7 +39,7 @@ import { useModulesStore } from '@/stores/modules'
 
 const navigation = [
   { title: 'Painel', url: '/', icon: LayoutDashboard },
-  { title: 'Gestão de Candidatos', url: '/candidates', icon: UserPlus },
+  { title: 'Gestão de Interessados', url: '/candidates', icon: UserPlus },
   { title: 'Documentos GED', url: '/documents', icon: FolderOpen },
   { title: 'Documentos Enviados ao SharePoint', url: '/sent-documents', icon: FileUp },
   { title: 'Entidades (Prop. / Loc.)', url: '/entities', icon: UsersRound },
