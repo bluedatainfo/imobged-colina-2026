@@ -84,8 +84,8 @@ export default function SharePointMapping() {
         </CardTitle>
         <CardDescription>
           Configure o Site, Biblioteca e Caminho Base (Base Path) para cada tipo de documento. O
-          sistema organizará as pastas seguindo a hierarquia: [Caminho Base]/[Imóvel]/[Categoria] ou
-          [Caminho Base]/[Imóvel]/Locacao/[Locação]/[Vistoria] na nuvem M365.
+          sistema organizará as pastas seguindo a hierarquia: [Caminho Base]/[Imóvel] ou [Caminho
+          Base]/[Imóvel]/Locacao/[Locação] na nuvem M365.
         </CardDescription>
       </CardHeader>
       <CardContent>
