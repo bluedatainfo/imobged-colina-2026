@@ -140,7 +140,17 @@ export const m365Service = {
     const token = getGraphToken()
     if (!token) return null
 
-    const { sharepointDomain, sites } = mainStore.getState().sharepoint
+    const storeSpConfig = mainStore.getState().sharepoint
+    const envBaseUrl = import.meta.env.VITE_SHAREPOINT_BASE_URL as string
+    let sharepointDomain = storeSpConfig.sharepointDomain
+
+    if (envBaseUrl) {
+      try {
+        sharepointDomain = new URL(envBaseUrl).hostname
+      } catch (e) {}
+    }
+
+    const { sites } = storeSpConfig
     if (!sharepointDomain || !sites.locacao) return null
 
     try {
@@ -187,7 +197,17 @@ export const m365Service = {
     const token = getGraphToken()
     if (!token) return []
 
-    const { sharepointDomain, sites } = mainStore.getState().sharepoint
+    const storeSpConfig = mainStore.getState().sharepoint
+    const envBaseUrl = import.meta.env.VITE_SHAREPOINT_BASE_URL as string
+    let sharepointDomain = storeSpConfig.sharepointDomain
+
+    if (envBaseUrl) {
+      try {
+        sharepointDomain = new URL(envBaseUrl).hostname
+      } catch (e) {}
+    }
+
+    const { sites } = storeSpConfig
     if (!sharepointDomain || !sites.locacao) return []
 
     try {
@@ -229,7 +249,16 @@ export const m365Service = {
     if (!config) return null
 
     const token = getGraphToken()
-    const { sharepointDomain, clientId, tenantId } = mainStore.getState().sharepoint
+    const storeSpConfig = mainStore.getState().sharepoint
+    const envBaseUrl = import.meta.env.VITE_SHAREPOINT_BASE_URL as string
+    let sharepointDomain = storeSpConfig.sharepointDomain
+    const { clientId, tenantId } = storeSpConfig
+
+    if (envBaseUrl) {
+      try {
+        sharepointDomain = new URL(envBaseUrl).hostname
+      } catch (e) {}
+    }
 
     if (!token || !clientId || !tenantId) return null
 
@@ -277,7 +306,14 @@ export const m365Service = {
     if (!config) throw new Error('Mapeamento GED não encontrado para esta categoria de documento.')
 
     const token = getGraphToken()
-    const { sharepointDomain } = mainStore.getState().sharepoint
+    const envBaseUrl = import.meta.env.VITE_SHAREPOINT_BASE_URL as string
+    let { sharepointDomain } = mainStore.getState().sharepoint
+
+    if (envBaseUrl) {
+      try {
+        sharepointDomain = new URL(envBaseUrl).hostname
+      } catch (e) {}
+    }
 
     if (!token) throw new Error('Sessão do Microsoft 365 ausente ou expirada.')
 
@@ -308,18 +344,33 @@ export const m365Service = {
     let safePath = filePath
     if (safePath.startsWith('/')) safePath = safePath.substring(1)
 
-    const fileName = safePath.split('/').pop() || safePath
-    const searchUrl = `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/root/search(q='${encodeURIComponent(fileName)}')`
-    const searchRes = await fetchWithAuth(searchUrl)
-
     let itemData: any = null
-    if (searchRes.ok) {
-      const searchData = await searchRes.json()
-      itemData = searchData.value?.find((v: any) => v.name === fileName)
+
+    // Attempt 1: Get directly by path
+    const itemUrl = `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/root:/${safePath}`
+    const itemRes = await fetchWithAuth(itemUrl)
+    if (itemRes.ok) {
+      itemData = await itemRes.json()
     }
 
+    // Attempt 2: Fallback to search
     if (!itemData) {
-      throw new Error(`Arquivo não encontrado no SharePoint no caminho: ${safePath}`)
+      const fileName = safePath.split('/').pop() || safePath
+      const searchUrl = `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/root/search(q='${encodeURIComponent(fileName)}')`
+      const searchRes = await fetchWithAuth(searchUrl)
+      if (searchRes.ok) {
+        const searchData = await searchRes.json()
+        itemData = searchData.value?.find((v: any) => v.name === fileName)
+      }
+    }
+
+    const expectedDomain = envBaseUrl
+      ? envBaseUrl.replace(/\/$/, '')
+      : `https://${sharepointDomain}/sites/${config.site_name}`
+    const fullExpectedUrl = `${expectedDomain}/${config.library_name}/${safePath}`
+
+    if (!itemData) {
+      throw new Error(`Arquivo não encontrado no SharePoint. Caminho buscado: ${fullExpectedUrl}`)
     }
 
     try {
@@ -332,10 +383,10 @@ export const m365Service = {
         if (previewData.getUrl) return previewData.getUrl
       }
     } catch (e) {
-      console.warn('Falha ao gerar link de preview, caindo para webUrl original', e)
+      console.warn('Falha ao gerar link de preview, caindo para link de fallback', e)
     }
 
-    return itemData.webUrl
+    return itemData.webUrl || fullExpectedUrl
   },
 
   saveToLibrary: async (
@@ -345,7 +396,16 @@ export const m365Service = {
     sitePath: string = 'locacao',
   ) => {
     const token = getGraphToken()
-    const { sharepointDomain, clientId, tenantId } = mainStore.getState().sharepoint
+    const storeSpConfig = mainStore.getState().sharepoint
+    const envBaseUrl = import.meta.env.VITE_SHAREPOINT_BASE_URL as string
+    let sharepointDomain = storeSpConfig.sharepointDomain
+    const { clientId, tenantId } = storeSpConfig
+
+    if (envBaseUrl) {
+      try {
+        sharepointDomain = new URL(envBaseUrl).hostname
+      } catch (e) {}
+    }
 
     if (!token || !clientId || !tenantId) {
       toast({
@@ -438,7 +498,16 @@ export const m365Service = {
 
   fetchListItems: async (sitePath: string, listName: string): Promise<any[]> => {
     const token = getGraphToken()
-    const { sharepointDomain, clientId, tenantId } = mainStore.getState().sharepoint
+    const storeSpConfig = mainStore.getState().sharepoint
+    const envBaseUrl = import.meta.env.VITE_SHAREPOINT_BASE_URL as string
+    let sharepointDomain = storeSpConfig.sharepointDomain
+    const { clientId, tenantId } = storeSpConfig
+
+    if (envBaseUrl) {
+      try {
+        sharepointDomain = new URL(envBaseUrl).hostname
+      } catch (e) {}
+    }
 
     if (!token || !clientId || !tenantId) {
       if (listName.includes('PF') || listName.includes('Locat') || listName.includes('Locatrios')) {
@@ -562,7 +631,16 @@ export const m365Service = {
     const fullPath = `${folderPath}/${fileName}`
 
     const token = getGraphToken()
-    const { sharepointDomain, clientId, tenantId } = mainStore.getState().sharepoint
+    const storeSpConfig = mainStore.getState().sharepoint
+    const envBaseUrl = import.meta.env.VITE_SHAREPOINT_BASE_URL as string
+    let sharepointDomain = storeSpConfig.sharepointDomain
+    const { clientId, tenantId } = storeSpConfig
+
+    if (envBaseUrl) {
+      try {
+        sharepointDomain = new URL(envBaseUrl).hostname
+      } catch (e) {}
+    }
 
     try {
       if (!token || !clientId || !tenantId) {

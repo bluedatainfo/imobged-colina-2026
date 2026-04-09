@@ -56,21 +56,35 @@ const Documents = () => {
 
   const { documents } = useDocumentsStore()
 
-  const handleOcrConfirm = (data: any, library: string) => {
+  const handleOcrConfirm = async (data: any, library: string) => {
     setOcrData(null)
-    const propertyId = '104'
+    const propertyId = data.propertyId || 'GERAL'
     mainStore.addAuditLog({
       propertyId,
       action: `Upload via OCR para SharePoint [${siteNames[selectedSite]}]: ${library}`,
       user: user?.name || 'Sistema',
     })
-    m365Service.saveToLibrary(library, data.name || 'Documento.pdf', 'File Data Mock', selectedSite)
-    m365Service.syncToList(store.sharepoint.lists.processControl, JSON.stringify(data))
 
-    toast({
-      title: 'Ação Processada',
-      description: `Requisição encaminhada para o site ${siteNames[selectedSite]}.`,
-    })
+    try {
+      await m365Service.saveToLibrary(
+        library,
+        data.name || 'Documento_Digitalizado.pdf',
+        data.file || new Blob(['Conteúdo processado via OCR'], { type: 'application/pdf' }),
+        selectedSite,
+      )
+      await m365Service.syncToList(store.sharepoint.lists.processControl, JSON.stringify(data))
+
+      toast({
+        title: 'Ação Processada',
+        description: `Requisição encaminhada para o site ${siteNames[selectedSite]}.`,
+      })
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro no Envio',
+        description: error.message || 'Falha ao sincronizar com o SharePoint.',
+      })
+    }
   }
 
   const siteDocuments = documents
@@ -173,7 +187,8 @@ const Documents = () => {
               <Input placeholder={`Buscar em ${siteNames[selectedSite]}...`} className="pl-8" />
             </div>
             <div className="text-sm text-muted-foreground hidden md:block">
-              URL: {store.sharepoint.sites[selectedSite]}
+              URL:{' '}
+              {import.meta.env.VITE_SHAREPOINT_BASE_URL || store.sharepoint.sites[selectedSite]}
             </div>
           </div>
           <Card>
@@ -197,11 +212,7 @@ const Documents = () => {
                       <Badge variant="outline">{doc.status}</Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => setViewDoc(doc.filePath || doc.name)}
-                      >
+                      <Button size="sm" variant="ghost" onClick={() => setViewDoc(doc.id)}>
                         <Eye className="h-4 w-4 mr-2" /> Visualizar
                       </Button>
                     </TableCell>
@@ -220,7 +231,11 @@ const Documents = () => {
         initialData={ocrData}
         contextSite={siteNames[selectedSite]}
       />
-      <DocumentViewer open={!!viewDoc} onClose={() => setViewDoc(null)} docName={viewDoc} />
+      <DocumentViewer
+        open={!!viewDoc}
+        onClose={() => setViewDoc(null)}
+        viewItem={viewDoc ? { type: 'document', id: viewDoc } : undefined}
+      />
     </div>
   )
 }
