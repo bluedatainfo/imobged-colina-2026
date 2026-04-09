@@ -175,7 +175,14 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
       }
 
       const propId = selectedProperty.code || selectedProperty.id
-      const propTitle = selectedProperty.title || selectedProperty.address || 'Imóvel'
+      const propTitle =
+        selectedProperty.proprietario ||
+        selectedProperty.Proprietario ||
+        selectedProperty.nomeProprietario ||
+        selectedProperty.ownerName ||
+        selectedProperty.title ||
+        selectedProperty.address ||
+        'Imóvel'
 
       // @ts-expect-error - folderNumber parameter might not be typed yet in m365Service
       const result = await m365Service.uploadStructuredDocument(
@@ -251,7 +258,12 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
               {selectedProperty ? (
                 <span className="truncate">
                   <strong className="mr-1">{selectedProperty.code || selectedProperty.id}</strong> -{' '}
-                  {selectedProperty.title || selectedProperty.address}
+                  {selectedProperty.proprietario ||
+                    selectedProperty.Proprietario ||
+                    selectedProperty.nomeProprietario ||
+                    selectedProperty.ownerName ||
+                    selectedProperty.title ||
+                    selectedProperty.address}
                 </span>
               ) : (
                 <span className="text-muted-foreground">
@@ -297,7 +309,13 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
                         )}
                       />
                       <span className="truncate">
-                        <strong className="mr-1">{p.code || p.id}</strong> - {p.title || p.address}
+                        <strong className="mr-1">{p.code || p.id}</strong> -{' '}
+                        {p.proprietario ||
+                          p.Proprietario ||
+                          p.nomeProprietario ||
+                          p.ownerName ||
+                          p.title ||
+                          p.address}
                       </span>
                     </CommandItem>
                   ))}
