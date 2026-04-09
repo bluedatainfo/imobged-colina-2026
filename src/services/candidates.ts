@@ -68,9 +68,14 @@ export const candidatesService = {
           const fields = item.fields || {}
           const sp_list_id = `${list.category}-${item.id}`
 
-          let full_name = fields.Title || fields.Nome || fields.RazaoSocial || 'Sem Nome'
+          let full_name = fields.Nome || fields.RazaoSocial || fields.Title || 'Sem Nome'
           let email =
-            fields.Email || fields.EMail || fields.eMail || fields.EmailCorporativo || null
+            fields.E_x002d_mail ||
+            fields.Email ||
+            fields.EMail ||
+            fields.eMail ||
+            fields.EmailCorporativo ||
+            null
           let phone = fields.Celular || fields.Telefone || fields.Contato || null
           let cpf = fields.CPF || null
           let cnpj = fields.CNPJ || null

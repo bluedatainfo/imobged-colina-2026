@@ -328,6 +328,9 @@ export type Database = {
       }
       pre_registrations: {
         Row: {
+          address: string | null
+          category: string | null
+          cnpj: string | null
           cpf: string | null
           created_at: string
           documents_link: string | null
@@ -336,10 +339,14 @@ export type Database = {
           full_name: string
           id: string
           phone: string | null
+          sp_list_id: string | null
           status: string
           updated_at: string
         }
         Insert: {
+          address?: string | null
+          category?: string | null
+          cnpj?: string | null
           cpf?: string | null
           created_at?: string
           documents_link?: string | null
@@ -348,10 +355,14 @@ export type Database = {
           full_name: string
           id?: string
           phone?: string | null
+          sp_list_id?: string | null
           status?: string
           updated_at?: string
         }
         Update: {
+          address?: string | null
+          category?: string | null
+          cnpj?: string | null
           cpf?: string | null
           created_at?: string
           documents_link?: string | null
@@ -360,6 +371,7 @@ export type Database = {
           full_name?: string
           id?: string
           phone?: string | null
+          sp_list_id?: string | null
           status?: string
           updated_at?: string
         }
@@ -780,6 +792,10 @@ export const Constants = {
 //   form_data: jsonb (nullable, default: '{}'::jsonb)
 //   created_at: timestamp with time zone (not null, default: now())
 //   updated_at: timestamp with time zone (not null, default: now())
+//   category: text (nullable, default: 'PF'::text)
+//   cnpj: text (nullable)
+//   address: text (nullable)
+//   sp_list_id: text (nullable)
 // Table: properties
 //   id: text (not null)
 //   title: text (not null)
@@ -941,6 +957,8 @@ export const Constants = {
 // --- INDEXES ---
 // Table: owners
 //   CREATE UNIQUE INDEX owners_code_key ON public.owners USING btree (code)
+// Table: pre_registrations
+//   CREATE UNIQUE INDEX pre_registrations_sp_list_id_idx ON public.pre_registrations USING btree (sp_list_id) WHERE (sp_list_id IS NOT NULL)
 // Table: sharepoint_configs
 //   CREATE UNIQUE INDEX sharepoint_configs_document_type_key ON public.sharepoint_configs USING btree (document_type)
 // Table: tenants
