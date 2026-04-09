@@ -445,6 +445,7 @@ export const m365Service = {
     userName: string,
     entityCode?: string,
     entityName?: string,
+    leaseNumber?: string,
   ) => {
     const { data: config, error } = await supabase
       .from('sharepoint_configs')
@@ -457,15 +458,40 @@ export const m365Service = {
     }
 
     const isEntityDoc = ['OWNER_DOCUMENT', 'TENANT_DOCUMENT'].includes(documentType)
+    const isInspection = ['INSPECTION_MOVE_IN', 'INSPECTION_MOVE_OUT'].includes(documentType)
     const date = new Date()
-    const year = date.getFullYear().toString()
-    const month = (date.getMonth() + 1).toString().padStart(2, '0')
+
+    let categoryName = ''
+    switch (documentType) {
+      case 'CONTRACT_ACTIVE':
+        categoryName = 'Contrato Ativo'
+        break
+      case 'CONTRACT_TERMINATED':
+        categoryName = 'Contrato Encerrado'
+        break
+      case 'INSPECTION_MOVE_IN':
+        categoryName = 'Vistoria de Entrada'
+        break
+      case 'INSPECTION_MOVE_OUT':
+        categoryName = 'Vistoria de Saida'
+        break
+      case 'GUARANTEE_DOCUMENT':
+        categoryName = 'Documentos de Garantia'
+        break
+      default:
+        categoryName = documentType
+        break
+    }
 
     let folderPath = ''
     if (isEntityDoc && entityCode) {
       folderPath = [config.base_path, entityCode].filter(Boolean).join('/')
+    } else if (isInspection && leaseNumber) {
+      folderPath = [config.base_path, propertyId, 'Locacao', leaseNumber, categoryName]
+        .filter(Boolean)
+        .join('/')
     } else {
-      folderPath = [config.base_path, year, month, propertyId].filter(Boolean).join('/')
+      folderPath = [config.base_path, propertyId, categoryName].filter(Boolean).join('/')
     }
 
     const extIndex = fileName.lastIndexOf('.')

@@ -67,6 +67,7 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
   const [file, setFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
   const [sendToManager, setSendToManager] = useState(false)
+  const [leaseNumber, setLeaseNumber] = useState('')
 
   const hasSpAccess = useMemo(() => {
     if (!user) return false
@@ -144,6 +145,7 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
         user?.name || 'Sistema',
         entityCode,
         entityName,
+        leaseNumber,
       )
 
       await documentsStore.addDocument({
@@ -165,6 +167,7 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
       })
       setFile(null)
       setEntityCode('')
+      setLeaseNumber('')
       const fileInput = document.getElementById('file-upload') as HTMLInputElement
       if (fileInput) fileInput.value = ''
 
@@ -309,6 +312,18 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
         </div>
       )}
 
+      {['INSPECTION_MOVE_IN', 'INSPECTION_MOVE_OUT'].includes(docType) && (
+        <div className="grid gap-2 animate-fade-in">
+          <Label>Número da Locação</Label>
+          <Input
+            value={leaseNumber}
+            onChange={(e) => setLeaseNumber(e.target.value)}
+            placeholder="Ex: LOC-12345"
+            disabled={!hasSpAccess}
+          />
+        </div>
+      )}
+
       <div className="grid gap-2">
         <Label>Arquivo Selecionado</Label>
         <Input id="file-upload" type="file" onChange={handleFileChange} disabled={!hasSpAccess} />
@@ -341,7 +356,8 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
           uploading ||
           !hasSpAccess ||
           (docType === 'OWNER_DOCUMENT' && !entityCode) ||
-          (docType === 'TENANT_DOCUMENT' && !entityCode)
+          (docType === 'TENANT_DOCUMENT' && !entityCode) ||
+          (['INSPECTION_MOVE_IN', 'INSPECTION_MOVE_OUT'].includes(docType) && !leaseNumber)
         }
       >
         {uploading ? (
