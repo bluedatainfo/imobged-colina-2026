@@ -76,7 +76,7 @@ const resolveSiteId = async (hostname: string, sitePath: string): Promise<string
     try {
       spPath = new URL(spPath).pathname
     } catch (e) {
-      // Ignore URL parsing error
+      console.warn('URL parsing error', e)
     }
   }
 
@@ -85,7 +85,7 @@ const resolveSiteId = async (hostname: string, sitePath: string): Promise<string
       const res = await fetchWithAuth(`https://graph.microsoft.com/v1.0/sites/${hostname}`)
       if (res.ok) return (await res.json()).id
     } catch (e) {
-      // Ignore site root fetch error
+      console.warn('Site root fetch error', e)
     }
     return null
   }
@@ -96,6 +96,19 @@ const resolveSiteId = async (hostname: string, sitePath: string): Promise<string
     } else {
       spPath = `/${spPath}`
     }
+  }
+
+  // Attempt direct resolution by path
+  try {
+    const directRes = await fetchWithAuth(
+      `https://graph.microsoft.com/v1.0/sites/${hostname}:${spPath}`,
+    )
+    if (directRes.ok) {
+      const data = await directRes.json()
+      if (data.id) return data.id
+    }
+  } catch (e) {
+    console.warn('Direct fetch error', e)
   }
 
   const siteName = spPath.split('/').filter(Boolean).pop()
@@ -120,7 +133,7 @@ const resolveSiteId = async (hostname: string, sitePath: string): Promise<string
         if (fallbackSite && fallbackSite.id) return fallbackSite.id
       }
     } catch (e) {
-      // Ignore search site error
+      console.warn('Search site error', e)
     }
   }
 
@@ -148,7 +161,7 @@ export const m365Service = {
       try {
         sharepointDomain = new URL(envBaseUrl).hostname
       } catch (e) {
-        /* ignore */
+        console.warn('Invalid VITE_SHAREPOINT_BASE_URL', e)
       }
     }
 
@@ -183,7 +196,7 @@ export const m365Service = {
                 if (previewData.getUrl) return previewData.getUrl
               }
             } catch (e) {
-              /* Ignore preview fetch error */
+              console.warn('Preview fetch error', e)
             }
             return item.webUrl
           }
@@ -207,7 +220,7 @@ export const m365Service = {
       try {
         sharepointDomain = new URL(envBaseUrl).hostname
       } catch (e) {
-        /* ignore */
+        console.warn('Invalid VITE_SHAREPOINT_BASE_URL', e)
       }
     }
 
@@ -262,7 +275,7 @@ export const m365Service = {
       try {
         sharepointDomain = new URL(envBaseUrl).hostname
       } catch (e) {
-        /* ignore */
+        console.warn('Invalid VITE_SHAREPOINT_BASE_URL', e)
       }
     }
 
@@ -319,7 +332,7 @@ export const m365Service = {
       try {
         sharepointDomain = new URL(envBaseUrl).hostname
       } catch (e) {
-        /* ignore */
+        console.warn('Invalid VITE_SHAREPOINT_BASE_URL', e)
       }
     }
 
@@ -372,10 +385,19 @@ export const m365Service = {
       }
     }
 
-    const expectedDomain = envBaseUrl
-      ? envBaseUrl.replace(/\/$/, '')
-      : `https://${sharepointDomain}/sites/${config.site_name}`
-    const fullExpectedUrl = `${expectedDomain}/${config.library_name}/${safePath}`
+    let spPath = config.site_name.trim()
+    if (spPath.startsWith('http')) {
+      try {
+        spPath = new URL(spPath).pathname
+      } catch (e) {
+        console.warn('URL parsing error', e)
+      }
+    }
+    if (!spPath.startsWith('/')) {
+      if (!spPath.startsWith('sites/') && !spPath.startsWith('teams/')) spPath = `/sites/${spPath}`
+      else spPath = `/${spPath}`
+    }
+    const fullExpectedUrl = `https://${sharepointDomain}${spPath}/${config.library_name}/${safePath}`
 
     if (!itemData) {
       throw new Error(`Arquivo não encontrado no SharePoint. Caminho buscado: ${fullExpectedUrl}`)
@@ -413,16 +435,14 @@ export const m365Service = {
       try {
         sharepointDomain = new URL(envBaseUrl).hostname
       } catch (e) {
-        /* ignore */
+        console.warn('Invalid VITE_SHAREPOINT_BASE_URL', e)
       }
     }
 
     if (!token || !clientId || !tenantId) {
-      toast({
-        title: `SharePoint: ${library} [Mock]`,
-        description: `Arquivo ${fileName} salvo localmente. Configure as credenciais no painel de Integração SharePoint para envio real.`,
-      })
-      return
+      throw new Error(
+        'Sessão ou credenciais M365 ausentes. Configure a Integração SharePoint e faça login.',
+      )
     }
 
     try {
@@ -474,14 +494,12 @@ export const m365Service = {
 
   syncToList: async (listName: string, itemData: string) => {
     const token = getGraphToken()
-    const { sharepointDomain, clientId, tenantId } = mainStore.getState().sharepoint
+    const { clientId, tenantId } = mainStore.getState().sharepoint
 
     if (!token || !clientId || !tenantId) {
-      toast({
-        title: `Lista SharePoint: ${listName} [Mock]`,
-        description: 'Sincronizado com sucesso (Modo de simulação).',
-      })
-      return
+      throw new Error(
+        'Sessão ou credenciais M365 ausentes. Configure a Integração SharePoint e faça login.',
+      )
     }
 
     toast({
@@ -517,51 +535,12 @@ export const m365Service = {
       try {
         sharepointDomain = new URL(envBaseUrl).hostname
       } catch (e) {
-        /* ignore */
+        console.warn('Invalid VITE_SHAREPOINT_BASE_URL', e)
       }
     }
 
     if (!token || !clientId || !tenantId) {
-      if (listName.includes('PF') || listName.includes('Locat') || listName.includes('Locatrios')) {
-        return [
-          {
-            id: 'mock-1',
-            fields: {
-              Title: 'João Silva',
-              CPF: '111.222.333-44',
-              Celular: '(11) 99999-1111',
-              Email: 'joao@email.com',
-            },
-          },
-        ]
-      }
-      if (listName.includes('PJ')) {
-        return [
-          {
-            id: 'mock-2',
-            fields: {
-              Title: 'Empresa Fictícia LTDA',
-              CNPJ: '12.345.678/0001-99',
-              Endereco: 'Rua das Flores, 123',
-              Email: 'contato@empresa.com',
-            },
-          },
-        ]
-      }
-      if (listName.includes('Fiador')) {
-        return [
-          {
-            id: 'mock-3',
-            fields: {
-              Title: 'Maria Oliveira',
-              CPF: '555.666.777-88',
-              Celular: '(11) 98888-2222',
-              Email: 'maria@email.com',
-            },
-          },
-        ]
-      }
-      return []
+      throw new Error('Sessão ou credenciais M365 ausentes.')
     }
 
     try {
@@ -652,97 +631,89 @@ export const m365Service = {
       try {
         sharepointDomain = new URL(envBaseUrl).hostname
       } catch (e) {
-        /* ignore */
+        console.warn('Invalid VITE_SHAREPOINT_BASE_URL', e)
       }
     }
 
     try {
       if (!token || !clientId || !tenantId) {
-        toast({
-          title: `Upload GED Simulado: ${config.site_name}`,
-          description: `Salvo em: /${config.library_name}/${fullPath}`,
-        })
-        mainStore.addAuditLog({
-          propertyId,
-          action: 'SHAREPOINT_UPLOAD',
-          user: userName,
-          details: `[Mock] Arquivo ${fileName} salvo em ${config.site_name}/${config.library_name}/${folderPath}`,
-        })
-      } else {
-        const siteId = await resolveSiteId(sharepointDomain, config.site_name)
-
-        if (!siteId) {
-          throw new Error(
-            `Site M365 "${config.site_name}" não encontrado. Verifique o mapeamento GED.`,
-          )
-        }
-
-        const drivesRes = await fetchWithAuth(
-          `https://graph.microsoft.com/v1.0/sites/${siteId}/drives`,
+        throw new Error(
+          'Sessão ou credenciais M365 ausentes. Configure a Integração SharePoint e faça login.',
         )
-        if (!drivesRes.ok)
-          throw new Error(`Não foi possível listar as bibliotecas do site "${config.site_name}".`)
-        const drivesData = await drivesRes.json()
-        const drive = drivesData.value.find(
-          (d: any) =>
-            d.name === config.library_name ||
-            (d.name &&
-              config.library_name &&
-              d.name.toLowerCase() === config.library_name.toLowerCase()),
-        )
-
-        if (!drive)
-          throw new Error(
-            `Biblioteca "${config.library_name}" não encontrada no site "${config.site_name}".`,
-          )
-        const driveId = drive.id
-
-        const url = `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/root:/${fullPath}:/content`
-
-        const res = await fetchWithAuth(url, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': file instanceof File ? file.type : 'application/octet-stream',
-          },
-          body: file,
-        })
-
-        if (!res.ok) {
-          throw new Error('Erro de permissão no SharePoint ou caminho de upload inválido.')
-        }
-
-        const uploadedItem = await res.json()
-
-        if (isEntityDoc && entityCode) {
-          try {
-            await fetchWithAuth(
-              `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${uploadedItem.id}/listItem/fields`,
-              {
-                method: 'PATCH',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  IdentificationCode: entityCode,
-                  EntityName: entityName || '',
-                }),
-              },
-            )
-          } catch (metaErr) {
-            console.warn(
-              'Failed to update SharePoint metadata. Make sure the columns exist in the library.',
-              metaErr,
-            )
-          }
-        }
-
-        mainStore.addAuditLog({
-          propertyId,
-          action: 'SHAREPOINT_UPLOAD',
-          user: userName,
-          details: `Arquivo ${fileName} salvo com sucesso em ${config.site_name}/${config.library_name}/${folderPath}`,
-        })
       }
+      const siteId = await resolveSiteId(sharepointDomain, config.site_name)
+
+      if (!siteId) {
+        throw new Error(
+          `Site M365 "${config.site_name}" não encontrado. Verifique o mapeamento GED.`,
+        )
+      }
+
+      const drivesRes = await fetchWithAuth(
+        `https://graph.microsoft.com/v1.0/sites/${siteId}/drives`,
+      )
+      if (!drivesRes.ok)
+        throw new Error(`Não foi possível listar as bibliotecas do site "${config.site_name}".`)
+      const drivesData = await drivesRes.json()
+      const drive = drivesData.value.find(
+        (d: any) =>
+          d.name === config.library_name ||
+          (d.name &&
+            config.library_name &&
+            d.name.toLowerCase() === config.library_name.toLowerCase()),
+      )
+
+      if (!drive)
+        throw new Error(
+          `Biblioteca "${config.library_name}" não encontrada no site "${config.site_name}".`,
+        )
+      const driveId = drive.id
+
+      const url = `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/root:/${fullPath}:/content`
+
+      const res = await fetchWithAuth(url, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': file instanceof File ? file.type : 'application/octet-stream',
+        },
+        body: file,
+      })
+
+      if (!res.ok) {
+        throw new Error('Erro de permissão no SharePoint ou caminho de upload inválido.')
+      }
+
+      const uploadedItem = await res.json()
+
+      if (isEntityDoc && entityCode) {
+        try {
+          await fetchWithAuth(
+            `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${uploadedItem.id}/listItem/fields`,
+            {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                IdentificationCode: entityCode,
+                EntityName: entityName || '',
+              }),
+            },
+          )
+        } catch (metaErr) {
+          console.warn(
+            'Failed to update SharePoint metadata. Make sure the columns exist in the library.',
+            metaErr,
+          )
+        }
+      }
+
+      mainStore.addAuditLog({
+        propertyId,
+        action: 'SHAREPOINT_UPLOAD',
+        user: userName,
+        details: `Arquivo ${fileName} salvo com sucesso em ${config.site_name}/${config.library_name}/${folderPath}`,
+      })
 
       return { success: true, path: fullPath }
     } catch (e: any) {

@@ -362,7 +362,7 @@ export function GedUpload({
 
       if (onSuccess) onSuccess()
     } catch (e: any) {
-      // Error handled in m365Service
+      console.warn('Upload error:', e)
     } finally {
       setUploading(false)
     }
