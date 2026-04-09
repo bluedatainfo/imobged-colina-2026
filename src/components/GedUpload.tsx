@@ -86,7 +86,7 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
       setLoadingProperties(true)
       try {
         const url = searchQuery
-          ? `http://192.168.10.225:9000/imoveis?q=${encodeURIComponent(searchQuery)}`
+          ? `http://192.168.10.225:9000/imoveis?name=${encodeURIComponent(searchQuery)}`
           : 'http://192.168.10.225:9000/imoveis'
 
         const response = await fetch(url)
@@ -114,18 +114,8 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
   }, [searchQuery, propertyOpen])
 
   const localServerProperties = useMemo(() => {
-    const lowerQuery = searchQuery.toLowerCase()
-    return serverProperties
-      .filter(
-        (p: any) =>
-          !lowerQuery ||
-          (p.code && String(p.code).toLowerCase().includes(lowerQuery)) ||
-          (p.id && String(p.id).toLowerCase().includes(lowerQuery)) ||
-          (p.title && String(p.title).toLowerCase().includes(lowerQuery)) ||
-          (p.address && String(p.address).toLowerCase().includes(lowerQuery)),
-      )
-      .slice(0, 50)
-  }, [serverProperties, searchQuery])
+    return serverProperties.slice(0, 50)
+  }, [serverProperties])
 
   const localServerOwners = useMemo(() => {
     if (!owners) return []
@@ -274,7 +264,7 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
           <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
             <Command shouldFilter={false}>
               <CommandInput
-                placeholder="Buscar por ID ou título..."
+                placeholder="Buscar imóvel pelo nome do proprietário..."
                 value={searchQuery}
                 onValueChange={setSearchQuery}
               />
