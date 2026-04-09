@@ -19,6 +19,7 @@ import {
   BookOpen,
   TrendingUp,
   Wallet,
+  FileUp,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -40,6 +41,7 @@ const navigation = [
   { title: 'Painel', url: '/', icon: LayoutDashboard },
   { title: 'Gestão de Candidatos', url: '/candidates', icon: UserPlus },
   { title: 'Documentos GED', url: '/documents', icon: FolderOpen },
+  { title: 'Documentos Enviados ao SharePoint', url: '/sent-documents', icon: FileUp },
   { title: 'Entidades (Prop. / Loc.)', url: '/entities', icon: UsersRound },
   { title: 'Imóveis', url: '/properties', icon: Home },
   { title: 'Gestão de Modelos', url: '/templates', icon: BookOpen },
@@ -70,6 +72,7 @@ export function AppSidebar() {
     '/contracts': 'contracts',
     '/manager-approval': 'manager_approval',
     '/documents': 'documents',
+    '/sent-documents': 'documents',
     '/inspections': 'inspections',
     '/keys': 'keys',
     '/document-alerts': 'document_alerts',
