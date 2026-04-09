@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { UploadCloud, Loader2, AlertCircle, Check, ChevronsUpDown } from 'lucide-react'
+import { UploadCloud, Loader2, AlertCircle, Check, ChevronsUpDown, MapPin } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -45,6 +45,36 @@ const DOCUMENT_TYPES = [
   { id: 'INSPECTION_MOVE_IN', label: 'Vistoria de Entrada' },
   { id: 'INSPECTION_MOVE_OUT', label: 'Vistoria de Saída' },
 ]
+
+const getOwnerName = (property: any) => {
+  if (!property) return 'Não informado'
+  if (property.proprietario) return property.proprietario
+  if ((property as any).Proprietario) return (property as any).Proprietario
+  if (property.nomeProprietario) return property.nomeProprietario
+  if (property.proprietario_nome) return property.proprietario_nome
+  if (property.cliente) return property.cliente
+  if ((property as any).ownerName) return (property as any).ownerName
+  if ((property as any).title) return (property as any).title
+  if (
+    property.proprietarios &&
+    Array.isArray(property.proprietarios) &&
+    property.proprietarios.length > 0
+  ) {
+    return property.proprietarios[0].nome
+  }
+  return 'Proprietário não informado'
+}
+
+const getAddress = (property: any) => {
+  if (!property) return 'Endereço não informado'
+  const parts = []
+  if (property.endereco) parts.push(property.endereco)
+  if (property.numero) parts.push(property.numero)
+  if (property.bairro) parts.push(property.bairro)
+  if (property.cidade) parts.push(property.cidade)
+  if (property.uf) parts.push(property.uf)
+  return parts.length > 0 ? parts.join(', ') : 'Endereço não informado'
+}
 
 export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }: GedUploadProps) {
   const { settings, properties: mainProperties } = useMainStore()
@@ -280,17 +310,12 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
               role="combobox"
               aria-expanded={propertyOpen}
               disabled={!!preselectedPropertyId || !hasSpAccess}
-              className="w-full justify-between font-normal"
+              className="w-full justify-between font-normal h-auto min-h-10 py-2"
             >
               {selectedProperty ? (
-                <span className="truncate">
+                <span className="truncate flex items-center text-left">
                   <strong className="mr-1">{selectedProperty.code || selectedProperty.id}</strong> -{' '}
-                  {selectedProperty.proprietario ||
-                    selectedProperty.Proprietario ||
-                    selectedProperty.nomeProprietario ||
-                    selectedProperty.ownerName ||
-                    selectedProperty.title ||
-                    selectedProperty.address}
+                  {getOwnerName(selectedProperty)}
                 </span>
               ) : (
                 <span className="text-muted-foreground">
@@ -322,28 +347,29 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
                   {localServerProperties.map((p: any) => (
                     <CommandItem
                       key={p.code || p.id}
-                      value={p.code || p.id}
+                      value={String(p.code || p.id)}
                       onSelect={() => {
                         setPropertyId(p.code || p.id)
                         setSelectedProperty(p)
                         setPropertyOpen(false)
                       }}
+                      className="flex flex-col items-start py-3 px-4 gap-1.5 cursor-pointer border-b border-border/40 last:border-0"
                     >
-                      <Check
-                        className={cn(
-                          'mr-2 h-4 w-4',
-                          propertyId === (p.code || p.id) ? 'opacity-100' : 'opacity-0',
-                        )}
-                      />
-                      <span className="truncate">
-                        <strong className="mr-1">{p.code || p.id}</strong> -{' '}
-                        {p.proprietario ||
-                          p.Proprietario ||
-                          p.nomeProprietario ||
-                          p.ownerName ||
-                          p.title ||
-                          p.address}
-                      </span>
+                      <div className="flex items-center gap-2 w-full">
+                        <Check
+                          className={cn(
+                            'h-4 w-4 shrink-0',
+                            propertyId === (p.code || p.id) ? 'opacity-100' : 'opacity-0',
+                          )}
+                        />
+                        <span className="font-medium text-sm truncate text-foreground">
+                          {p.code || p.id} - {getOwnerName(p)}
+                        </span>
+                      </div>
+                      <div className="flex items-center text-xs text-muted-foreground gap-1.5 w-full pl-6">
+                        <MapPin className="w-3.5 h-3.5 shrink-0 opacity-70" />
+                        <span className="truncate">{getAddress(p)}</span>
+                      </div>
                     </CommandItem>
                   ))}
                 </CommandGroup>
