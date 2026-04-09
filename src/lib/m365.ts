@@ -147,7 +147,9 @@ export const m365Service = {
     if (envBaseUrl) {
       try {
         sharepointDomain = new URL(envBaseUrl).hostname
-      } catch (e) {}
+      } catch (e) {
+        /* ignore */
+      }
     }
 
     const { sites } = storeSpConfig
@@ -204,7 +206,9 @@ export const m365Service = {
     if (envBaseUrl) {
       try {
         sharepointDomain = new URL(envBaseUrl).hostname
-      } catch (e) {}
+      } catch (e) {
+        /* ignore */
+      }
     }
 
     const { sites } = storeSpConfig
@@ -257,7 +261,9 @@ export const m365Service = {
     if (envBaseUrl) {
       try {
         sharepointDomain = new URL(envBaseUrl).hostname
-      } catch (e) {}
+      } catch (e) {
+        /* ignore */
+      }
     }
 
     if (!token || !clientId || !tenantId) return null
@@ -312,7 +318,9 @@ export const m365Service = {
     if (envBaseUrl) {
       try {
         sharepointDomain = new URL(envBaseUrl).hostname
-      } catch (e) {}
+      } catch (e) {
+        /* ignore */
+      }
     }
 
     if (!token) throw new Error('Sessão do Microsoft 365 ausente ou expirada.')
@@ -404,7 +412,9 @@ export const m365Service = {
     if (envBaseUrl) {
       try {
         sharepointDomain = new URL(envBaseUrl).hostname
-      } catch (e) {}
+      } catch (e) {
+        /* ignore */
+      }
     }
 
     if (!token || !clientId || !tenantId) {
@@ -506,7 +516,9 @@ export const m365Service = {
     if (envBaseUrl) {
       try {
         sharepointDomain = new URL(envBaseUrl).hostname
-      } catch (e) {}
+      } catch (e) {
+        /* ignore */
+      }
     }
 
     if (!token || !clientId || !tenantId) {
@@ -639,7 +651,9 @@ export const m365Service = {
     if (envBaseUrl) {
       try {
         sharepointDomain = new URL(envBaseUrl).hostname
-      } catch (e) {}
+      } catch (e) {
+        /* ignore */
+      }
     }
 
     try {
