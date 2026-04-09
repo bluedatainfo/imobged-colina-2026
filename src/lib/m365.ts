@@ -465,7 +465,11 @@ export const m365Service = {
     if (isEntityDoc && entityCode) {
       folderPath = [config.base_path, entityCode].filter(Boolean).join('/')
     } else if (isInspection && leaseNumber) {
-      folderPath = [config.base_path, propertyId, 'Locacao', leaseNumber].filter(Boolean).join('/')
+      const inspectionSubFolder =
+        documentType === 'INSPECTION_MOVE_IN' ? 'Vistoria de Entrada' : 'Vistoria de Saida'
+      folderPath = [config.base_path, propertyId, 'Locacao', leaseNumber, inspectionSubFolder]
+        .filter(Boolean)
+        .join('/')
     } else {
       folderPath = [config.base_path, propertyId].filter(Boolean).join('/')
     }
