@@ -68,8 +68,6 @@ export default function SentDocuments() {
           *,
           properties ( title )
         `)
-        .not('file_path', 'is', null)
-        .neq('file_path', '')
         .order('created_at', { ascending: false })
 
       if (error) throw error

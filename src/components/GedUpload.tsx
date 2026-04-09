@@ -28,6 +28,7 @@ import { documentsStore } from '@/stores/documents'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
+import { supabase } from '@/lib/supabase/client'
 
 interface GedUploadProps {
   preselectedPropertyId?: string
@@ -198,13 +199,39 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
         folderNumber,
       )
 
+      // Garantir que o imóvel exista no Supabase para evitar erro de violação de Foreign Key
+      const { data: existingProp } = await supabase
+        .from('properties')
+        .select('id')
+        .eq('id', propId)
+        .maybeSingle()
+
+      if (!existingProp) {
+        await supabase.from('properties').insert({
+          id: propId,
+          title: propTitle,
+          address: propTitle,
+          type: 'Importado',
+          status: 'Ativo',
+        })
+      }
+
+      const path =
+        typeof result === 'string'
+          ? result
+          : result?.path ||
+            result?.serverRelativeUrl ||
+            result?.webUrl ||
+            result?.url ||
+            `sharepoint:/${docType}/${file.name}`
+
       await documentsStore.addDocument({
         propertyId: propId,
         name: file.name,
         category: docType,
         entityCode: finalEntityCode || undefined,
         entityName: finalEntityName || undefined,
-        filePath: result?.path || undefined,
+        filePath: path,
       })
 
       if (sendToManager) {
