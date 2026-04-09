@@ -1,5 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { Search, ExternalLink, FileText, Loader2, RefreshCw } from 'lucide-react'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Card, CardHeader, CardContent } from '@/components/ui/card'
 import {
   Table,
@@ -33,8 +40,20 @@ export default function SentDocuments() {
   const [documents, setDocuments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState<string>('all')
+  const [selectedProperty, setSelectedProperty] = useState<string>('all')
   const [viewDoc, setViewDoc] = useState<string | null>(null)
   const { toast } = useToast()
+
+  const uniqueCategories = useMemo(() => {
+    const categories = new Set(documents.map((doc) => doc.category).filter(Boolean))
+    return Array.from(categories)
+  }, [documents])
+
+  const uniqueProperties = useMemo(() => {
+    const properties = new Set(documents.map((doc) => doc.properties?.title).filter(Boolean))
+    return Array.from(properties)
+  }, [documents])
 
   useEffect(() => {
     fetchDocuments()
@@ -92,11 +111,16 @@ export default function SentDocuments() {
 
   const filteredDocs = documents.filter((doc) => {
     const categoryLabel = DOCUMENT_TYPES[doc.category] || doc.category
-    return (
+
+    const matchesSearch =
       doc.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       categoryLabel.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (doc.properties?.title || '').toLowerCase().includes(searchTerm.toLowerCase())
-    )
+
+    const matchesCategory = selectedCategory === 'all' || doc.category === selectedCategory
+    const matchesProperty = selectedProperty === 'all' || doc.properties?.title === selectedProperty
+
+    return matchesSearch && matchesCategory && matchesProperty
   })
 
   return (
@@ -116,17 +140,45 @@ export default function SentDocuments() {
 
       <Card className="flex-1 flex flex-col min-h-[500px] overflow-hidden">
         <CardHeader className="pb-4 border-b">
-          <div className="flex items-center justify-between">
-            <div className="relative w-full max-w-sm">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por nome, categoria ou imóvel..."
-                className="pl-8 bg-background"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar documento..."
+                  className="pl-8 bg-background"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                <SelectTrigger className="w-full sm:w-48 bg-background">
+                  <SelectValue placeholder="Categoria" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas Categorias</SelectItem>
+                  {uniqueCategories.map((cat) => (
+                    <SelectItem key={cat as string} value={cat as string}>
+                      {DOCUMENT_TYPES[cat as string] || (cat as string)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={selectedProperty} onValueChange={setSelectedProperty}>
+                <SelectTrigger className="w-full sm:w-48 bg-background">
+                  <SelectValue placeholder="Imóvel" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos Imóveis</SelectItem>
+                  {uniqueProperties.map((prop) => (
+                    <SelectItem key={prop as string} value={prop as string}>
+                      {prop as string}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <Badge variant="secondary" className="hidden md:flex text-sm py-1">
+            <Badge variant="secondary" className="hidden lg:flex text-sm py-1 whitespace-nowrap">
               {filteredDocs.length} documentos
             </Badge>
           </div>
