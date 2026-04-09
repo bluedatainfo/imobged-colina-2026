@@ -28,6 +28,7 @@ import { documentsStore } from '@/stores/documents'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
+import { supabase } from '@/lib/supabase/client'
 
 interface GedUploadProps {
   preselectedPropertyId?: string
@@ -91,25 +92,31 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
     const fetchProperties = async () => {
       setLoadingProperties(true)
       try {
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 5000)
-
-        const res = await fetch(
-          `http://192.168.10.225/api/properties?q=${encodeURIComponent(searchQuery)}`,
-          {
-            signal: controller.signal,
-          },
-        )
-        clearTimeout(timeoutId)
-
-        if (res.ok) {
-          const data = await res.json()
-          setLocalServerProperties(data)
-        } else {
-          setLocalServerProperties([])
+        let data
+        try {
+          const controller = new AbortController()
+          const timeoutId = setTimeout(() => controller.abort(), 2000)
+          const res = await fetch(
+            `http://192.168.10.225/api/properties?q=${encodeURIComponent(searchQuery)}`,
+            { signal: controller.signal },
+          )
+          clearTimeout(timeoutId)
+          if (res.ok) {
+            data = await res.json()
+          } else {
+            throw new Error('Local server error')
+          }
+        } catch (err) {
+          let queryBuilder = supabase.from('properties').select('id, title')
+          if (searchQuery) {
+            queryBuilder = queryBuilder.or(`id.ilike.%${searchQuery}%,title.ilike.%${searchQuery}%`)
+          }
+          const { data: sbData } = await queryBuilder.limit(20)
+          data = sbData || []
         }
+        setLocalServerProperties(data || [])
       } catch (err) {
-        console.error('Erro ao buscar imóveis do servidor local', err)
+        console.error('Erro ao buscar imóveis', err)
         setLocalServerProperties([])
       } finally {
         setLoadingProperties(false)
@@ -129,19 +136,35 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
     const fetchOwners = async () => {
       setLoadingOwners(true)
       try {
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 5000)
-        const res = await fetch(
-          `http://192.168.10.225/api/owners?q=${encodeURIComponent(ownerSearchQuery)}`,
-          { signal: controller.signal },
-        )
-        clearTimeout(timeoutId)
-        if (res.ok) {
-          const data = await res.json()
-          setLocalServerOwners(data)
-        } else {
-          setLocalServerOwners([])
+        let data
+        try {
+          const controller = new AbortController()
+          const timeoutId = setTimeout(() => controller.abort(), 2000)
+          const res = await fetch(
+            `http://192.168.10.225/api/owners?q=${encodeURIComponent(ownerSearchQuery)}`,
+            { signal: controller.signal },
+          )
+          clearTimeout(timeoutId)
+          if (res.ok) {
+            data = await res.json()
+          } else {
+            throw new Error('Local server error')
+          }
+        } catch (err) {
+          let queryBuilder = supabase.from('owners').select('id, code, full_name')
+          if (ownerSearchQuery) {
+            queryBuilder = queryBuilder.or(
+              `code.ilike.%${ownerSearchQuery}%,full_name.ilike.%${ownerSearchQuery}%`,
+            )
+          }
+          const { data: sbData } = await queryBuilder.limit(20)
+          if (sbData) {
+            data = sbData.map((o: any) => ({ id: o.id, code: o.code, name: o.full_name }))
+          } else {
+            data = []
+          }
         }
+        setLocalServerOwners(data || [])
       } catch (err) {
         console.error('Erro ao buscar proprietários', err)
         setLocalServerOwners([])
@@ -159,19 +182,35 @@ export function GedUpload({ preselectedPropertyId, preselectedType, onSuccess }:
     const fetchTenants = async () => {
       setLoadingTenants(true)
       try {
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 5000)
-        const res = await fetch(
-          `http://192.168.10.225/api/tenants?q=${encodeURIComponent(tenantSearchQuery)}`,
-          { signal: controller.signal },
-        )
-        clearTimeout(timeoutId)
-        if (res.ok) {
-          const data = await res.json()
-          setLocalServerTenants(data)
-        } else {
-          setLocalServerTenants([])
+        let data
+        try {
+          const controller = new AbortController()
+          const timeoutId = setTimeout(() => controller.abort(), 2000)
+          const res = await fetch(
+            `http://192.168.10.225/api/tenants?q=${encodeURIComponent(tenantSearchQuery)}`,
+            { signal: controller.signal },
+          )
+          clearTimeout(timeoutId)
+          if (res.ok) {
+            data = await res.json()
+          } else {
+            throw new Error('Local server error')
+          }
+        } catch (err) {
+          let queryBuilder = supabase.from('tenants').select('id, code, full_name')
+          if (tenantSearchQuery) {
+            queryBuilder = queryBuilder.or(
+              `code.ilike.%${tenantSearchQuery}%,full_name.ilike.%${tenantSearchQuery}%`,
+            )
+          }
+          const { data: sbData } = await queryBuilder.limit(20)
+          if (sbData) {
+            data = sbData.map((t: any) => ({ id: t.id, code: t.code, name: t.full_name }))
+          } else {
+            data = []
+          }
         }
+        setLocalServerTenants(data || [])
       } catch (err) {
         console.error('Erro ao buscar locatários', err)
         setLocalServerTenants([])
