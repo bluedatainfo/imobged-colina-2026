@@ -559,12 +559,7 @@ export const m365Service = {
       folderPath = [config.base_path, propertyId].filter(Boolean).join('/')
     }
 
-    const extIndex = fileName.lastIndexOf('.')
-    const nameWithoutExt = extIndex !== -1 ? fileName.substring(0, extIndex) : fileName
-    const ext = extIndex !== -1 ? fileName.substring(extIndex) : ''
-    const uniqueFileName = `${nameWithoutExt}_${date.getTime()}${ext}`
-
-    const fullPath = `${folderPath}/${uniqueFileName}`
+    const fullPath = `${folderPath}/${fileName}`
 
     const token = getGraphToken()
     const { sharepointDomain, clientId, tenantId } = mainStore.getState().sharepoint
@@ -579,7 +574,7 @@ export const m365Service = {
           propertyId,
           action: 'SHAREPOINT_UPLOAD',
           user: userName,
-          details: `[Mock] Arquivo ${uniqueFileName} salvo em ${config.site_name}/${config.library_name}/${folderPath}`,
+          details: `[Mock] Arquivo ${fileName} salvo em ${config.site_name}/${config.library_name}/${folderPath}`,
         })
       } else {
         const siteId = await resolveSiteId(sharepointDomain, config.site_name)
@@ -653,7 +648,7 @@ export const m365Service = {
           propertyId,
           action: 'SHAREPOINT_UPLOAD',
           user: userName,
-          details: `Arquivo ${uniqueFileName} salvo com sucesso em ${config.site_name}/${config.library_name}/${folderPath}`,
+          details: `Arquivo ${fileName} salvo com sucesso em ${config.site_name}/${config.library_name}/${folderPath}`,
         })
       }
 
@@ -666,7 +661,7 @@ export const m365Service = {
         propertyId,
         action: 'SHAREPOINT_UPLOAD_ERROR',
         user: userName,
-        details: `Erro ao subir ${uniqueFileName}: ${msg}`,
+        details: `Erro ao subir ${fileName}: ${msg}`,
       })
 
       toast({ variant: 'destructive', title: 'Falha no Upload GED', description: msg })
