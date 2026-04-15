@@ -71,16 +71,20 @@ const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
 }
 
 const resolveSiteId = async (hostname: string, sitePath: string): Promise<string | null> => {
-  let spPath = sitePath.trim()
+  if (!hostname || !sitePath) return null
+
+  let spPath = sitePath.trim().replace(/\/+$/g, '').replace(/^\/+/g, '')
+
   if (spPath.startsWith('http')) {
     try {
-      spPath = new URL(spPath).pathname
+      const url = new URL(spPath)
+      spPath = url.pathname.replace(/\/+$/g, '').replace(/^\/+/g, '')
     } catch (e) {
       console.warn('URL parsing error', e)
     }
   }
 
-  if (!spPath || spPath === '/') {
+  if (!spPath) {
     try {
       const res = await fetchWithAuth(`https://graph.microsoft.com/v1.0/sites/${hostname}`)
       if (res.ok) return (await res.json()).id
@@ -90,13 +94,11 @@ const resolveSiteId = async (hostname: string, sitePath: string): Promise<string
     return null
   }
 
-  if (!spPath.startsWith('/')) {
-    if (!spPath.startsWith('sites/') && !spPath.startsWith('teams/')) {
-      spPath = `/sites/${spPath}`
-    } else {
-      spPath = `/${spPath}`
-    }
+  if (!spPath.startsWith('sites/') && !spPath.startsWith('teams/')) {
+    spPath = `sites/${spPath}`
   }
+
+  spPath = `/${spPath}`
 
   // Attempt direct resolution by path
   try {
@@ -154,16 +156,7 @@ export const m365Service = {
     if (!token) return null
 
     const storeSpConfig = mainStore.getState().sharepoint
-    const envBaseUrl = import.meta.env.VITE_SHAREPOINT_BASE_URL as string
     let sharepointDomain = storeSpConfig.sharepointDomain
-
-    if (envBaseUrl) {
-      try {
-        sharepointDomain = new URL(envBaseUrl).hostname
-      } catch (e) {
-        console.warn('Invalid VITE_SHAREPOINT_BASE_URL', e)
-      }
-    }
 
     const { sites } = storeSpConfig
     if (!sharepointDomain || !sites.locacao) return null
@@ -213,16 +206,7 @@ export const m365Service = {
     if (!token) return []
 
     const storeSpConfig = mainStore.getState().sharepoint
-    const envBaseUrl = import.meta.env.VITE_SHAREPOINT_BASE_URL as string
     let sharepointDomain = storeSpConfig.sharepointDomain
-
-    if (envBaseUrl) {
-      try {
-        sharepointDomain = new URL(envBaseUrl).hostname
-      } catch (e) {
-        console.warn('Invalid VITE_SHAREPOINT_BASE_URL', e)
-      }
-    }
 
     const { sites } = storeSpConfig
     if (!sharepointDomain || !sites.locacao) return []
@@ -267,17 +251,8 @@ export const m365Service = {
 
     const token = getGraphToken()
     const storeSpConfig = mainStore.getState().sharepoint
-    const envBaseUrl = import.meta.env.VITE_SHAREPOINT_BASE_URL as string
     let sharepointDomain = storeSpConfig.sharepointDomain
     const { clientId, tenantId } = storeSpConfig
-
-    if (envBaseUrl) {
-      try {
-        sharepointDomain = new URL(envBaseUrl).hostname
-      } catch (e) {
-        console.warn('Invalid VITE_SHAREPOINT_BASE_URL', e)
-      }
-    }
 
     if (!token || !clientId || !tenantId) return null
 
@@ -299,7 +274,8 @@ export const m365Service = {
       )
       if (!drive) return null
 
-      const folderPath = [config.base_path, entityCode].filter(Boolean).join('/')
+      const basePath = config.base_path ? config.base_path.trim().replace(/^\/+|\/+$/g, '') : ''
+      const folderPath = [basePath, entityCode].filter(Boolean).join('/').replace(/\/+/g, '/')
       const url = `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${drive.id}/root:/${folderPath}:/children`
 
       const res = await fetchWithAuth(url)
@@ -325,16 +301,7 @@ export const m365Service = {
     if (!config) throw new Error('Mapeamento GED não encontrado para esta categoria de documento.')
 
     const token = getGraphToken()
-    const envBaseUrl = import.meta.env.VITE_SHAREPOINT_BASE_URL as string
     let { sharepointDomain } = mainStore.getState().sharepoint
-
-    if (envBaseUrl) {
-      try {
-        sharepointDomain = new URL(envBaseUrl).hostname
-      } catch (e) {
-        console.warn('Invalid VITE_SHAREPOINT_BASE_URL', e)
-      }
-    }
 
     if (!token) throw new Error('Sessão do Microsoft 365 ausente ou expirada.')
 
@@ -385,19 +352,21 @@ export const m365Service = {
       }
     }
 
-    let spPath = config.site_name.trim()
+    let spPath = config.site_name.trim().replace(/\/+$/g, '').replace(/^\/+/g, '')
     if (spPath.startsWith('http')) {
       try {
-        spPath = new URL(spPath).pathname
+        spPath = new URL(spPath).pathname.replace(/\/+$/g, '').replace(/^\/+/g, '')
       } catch (e) {
         console.warn('URL parsing error', e)
       }
     }
-    if (!spPath.startsWith('/')) {
-      if (!spPath.startsWith('sites/') && !spPath.startsWith('teams/')) spPath = `/sites/${spPath}`
-      else spPath = `/${spPath}`
+    if (!spPath.startsWith('sites/') && !spPath.startsWith('teams/')) {
+      spPath = `sites/${spPath}`
     }
-    const fullExpectedUrl = `https://${sharepointDomain}${spPath}/${config.library_name}/${safePath}`
+    spPath = `/${spPath}`
+
+    const libPath = config.library_name.trim().replace(/^\/+|\/+$/g, '')
+    const fullExpectedUrl = `https://${sharepointDomain}${spPath}/${libPath}/${safePath}`
 
     if (!itemData) {
       throw new Error(`Arquivo não encontrado no SharePoint. Caminho buscado: ${fullExpectedUrl}`)
@@ -427,17 +396,8 @@ export const m365Service = {
   ) => {
     const token = getGraphToken()
     const storeSpConfig = mainStore.getState().sharepoint
-    const envBaseUrl = import.meta.env.VITE_SHAREPOINT_BASE_URL as string
     let sharepointDomain = storeSpConfig.sharepointDomain
     const { clientId, tenantId } = storeSpConfig
-
-    if (envBaseUrl) {
-      try {
-        sharepointDomain = new URL(envBaseUrl).hostname
-      } catch (e) {
-        console.warn('Invalid VITE_SHAREPOINT_BASE_URL', e)
-      }
-    }
 
     if (!token || !clientId || !tenantId) {
       throw new Error(
@@ -463,7 +423,8 @@ export const m365Service = {
       if (!drive) throw new Error(`Biblioteca "${library}" não encontrada no site "${sitePath}".`)
       const driveId = drive.id
 
-      const url = `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/root:/${fileName}:/content`
+      const cleanFileName = fileName.replace(/^\/+|\/+$/g, '').replace(/\/+/g, '/')
+      const url = `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/root:/${cleanFileName}:/content`
 
       const res = await fetchWithAuth(url, {
         method: 'PUT',
@@ -527,17 +488,8 @@ export const m365Service = {
   fetchListItems: async (sitePath: string, listName: string): Promise<any[]> => {
     const token = getGraphToken()
     const storeSpConfig = mainStore.getState().sharepoint
-    const envBaseUrl = import.meta.env.VITE_SHAREPOINT_BASE_URL as string
     let sharepointDomain = storeSpConfig.sharepointDomain
     const { clientId, tenantId } = storeSpConfig
-
-    if (envBaseUrl) {
-      try {
-        sharepointDomain = new URL(envBaseUrl).hostname
-      } catch (e) {
-        console.warn('Invalid VITE_SHAREPOINT_BASE_URL', e)
-      }
-    }
 
     if (!token || !clientId || !tenantId) {
       throw new Error('Sessão ou credenciais M365 ausentes.')
@@ -602,38 +554,29 @@ export const m365Service = {
     const isEntityDoc = ['OWNER_DOCUMENT', 'TENANT_DOCUMENT'].includes(documentType)
     const isInspection = ['INSPECTION_MOVE_IN', 'INSPECTION_MOVE_OUT'].includes(documentType)
     const isLease = documentType === 'LEASES'
-    const date = new Date()
 
+    const basePath = config.base_path ? config.base_path.trim().replace(/^\/+|\/+$/g, '') : ''
     let folderPath = ''
     if (isEntityDoc && entityCode) {
-      folderPath = [config.base_path, entityCode].filter(Boolean).join('/')
+      folderPath = [basePath, entityCode].filter(Boolean).join('/')
     } else if (isInspection && leaseNumber) {
       const inspectionSubFolder =
         documentType === 'INSPECTION_MOVE_IN' ? 'Vistoria de Entrada' : 'Vistoria de Saida'
-      folderPath = [config.base_path, propertyId, 'Locacao', leaseNumber, inspectionSubFolder]
+      folderPath = [basePath, propertyId, 'Locacao', leaseNumber, inspectionSubFolder]
         .filter(Boolean)
         .join('/')
     } else if (isLease && leaseNumber) {
-      folderPath = [config.base_path, propertyId, 'Locacao', leaseNumber].filter(Boolean).join('/')
+      folderPath = [basePath, propertyId, 'Locacao', leaseNumber].filter(Boolean).join('/')
     } else {
-      folderPath = [config.base_path, propertyId].filter(Boolean).join('/')
+      folderPath = [basePath, propertyId].filter(Boolean).join('/')
     }
 
-    const fullPath = `${folderPath}/${fileName}`
+    const fullPath = `${folderPath}/${fileName}`.replace(/\/+/g, '/')
 
     const token = getGraphToken()
     const storeSpConfig = mainStore.getState().sharepoint
-    const envBaseUrl = import.meta.env.VITE_SHAREPOINT_BASE_URL as string
     let sharepointDomain = storeSpConfig.sharepointDomain
     const { clientId, tenantId } = storeSpConfig
-
-    if (envBaseUrl) {
-      try {
-        sharepointDomain = new URL(envBaseUrl).hostname
-      } catch (e) {
-        console.warn('Invalid VITE_SHAREPOINT_BASE_URL', e)
-      }
-    }
 
     try {
       if (!token || !clientId || !tenantId) {

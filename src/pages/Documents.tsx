@@ -187,8 +187,7 @@ const Documents = () => {
               <Input placeholder={`Buscar em ${siteNames[selectedSite]}...`} className="pl-8" />
             </div>
             <div className="text-sm text-muted-foreground hidden md:block">
-              GED Integrado:{' '}
-              {import.meta.env.VITE_SHAREPOINT_BASE_URL || store.sharepoint.sharepointDomain}
+              GED Integrado: {store.sharepoint.sharepointDomain || 'Não configurado'}
             </div>
           </div>
           <Card>
