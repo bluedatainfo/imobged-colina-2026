@@ -49,11 +49,11 @@ const DOCUMENT_TYPES = [
   { id: 'OWNER_DOCUMENT', label: 'Documento de Proprietário' },
   { id: 'TENANT_DOCUMENT', label: 'Documento de Locatário' },
   { id: 'GUARANTEE_DOCUMENT', label: 'Documentos de Garantia' },
-  { id: 'CONTRACT_ACTIVE', label: 'Contrato Ativo (Importar Legado)' },
-  { id: 'CONTRACT_TERMINATED', label: 'Contrato Encerrado' },
-  { id: 'INSPECTION_MOVE_IN', label: 'Vistoria de Entrada' },
-  { id: 'INSPECTION_MOVE_OUT', label: 'Vistoria de Saída' },
-  { id: 'LEASES', label: 'Locações' },
+  { id: 'CONTRACT_ACTIVE', label: 'Imovel - Documentação (Ativo)' },
+  { id: 'INSPECTION_MOVE_IN', label: 'Imovel - Vistoria de Entrada (Ativo)' },
+  { id: 'INSPECTION_MOVE_OUT', label: 'Imovel - Vistoria de Saida (Ativo)' },
+  { id: 'LEASES', label: 'Imovel - Locações' },
+  { id: 'CONTRACT_TERMINATED', label: 'Imovel - Documentação (Encerrado)' },
 ]
 
 const getOwnerName = (property: any) => {
