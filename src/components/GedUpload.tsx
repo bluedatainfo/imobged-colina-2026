@@ -209,9 +209,10 @@ export function GedUpload({
       if (propId) {
         if (['CONTRACT_ACTIVE', 'CONTRACT_TERMINATED'].includes(docType)) {
           setFolderNumber(String(propId))
-        }
-        if (['INSPECTION_MOVE_IN', 'INSPECTION_MOVE_OUT', 'LEASES'].includes(docType)) {
+        } else if (['INSPECTION_MOVE_IN', 'INSPECTION_MOVE_OUT'].includes(docType)) {
           setLeaseNumber(String(propId))
+        } else if (docType === 'LEASES') {
+          setLeaseNumber('')
         }
       }
     }
