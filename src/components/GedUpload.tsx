@@ -202,6 +202,21 @@ export function GedUpload({
     }
   }, [preselectedPropertyId, selectedProperty])
 
+  useEffect(() => {
+    const typeObj = DOCUMENT_TYPES.find((t) => t.id === docType)
+    if (typeObj && typeObj.label.startsWith('Imovel - ') && selectedProperty) {
+      const propId = selectedProperty.code || selectedProperty.id
+      if (propId) {
+        if (['CONTRACT_ACTIVE', 'CONTRACT_TERMINATED'].includes(docType)) {
+          setFolderNumber(String(propId))
+        }
+        if (['INSPECTION_MOVE_IN', 'INSPECTION_MOVE_OUT', 'LEASES'].includes(docType)) {
+          setLeaseNumber(String(propId))
+        }
+      }
+    }
+  }, [docType, selectedProperty])
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       setFile(e.target.files[0])
