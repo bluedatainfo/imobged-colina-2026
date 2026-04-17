@@ -263,38 +263,85 @@ export function GedUpload({
 
       let finalFile = file
       if (mode === 'scanner') {
-        setScanningStatus('Conectando ao scanner Epson...')
+        setScanningStatus('Iniciando digitalização no scanner Epson...')
+        let jobLocation = ''
+
         try {
-          const controller = new AbortController()
-          const timeoutId = setTimeout(() => controller.abort(), 3500)
-          // Validação real de hardware: tenta se comunicar com a API eSCL do scanner
-          await fetch(`http://${settings.scannerIp}/eSCL/ScannerStatus`, {
-            mode: 'no-cors',
-            signal: controller.signal,
+          const colorMapping: Record<string, string> = {
+            bw: 'BlackAndWhite',
+            gray: 'Grayscale',
+            color: 'RGB24',
+          }
+
+          const scanSettings = `<?xml version="1.0" encoding="UTF-8"?>
+<scan:ScanSettings xmlns:pwg="http://www.pwg.org/schemas/2010/12/sm" xmlns:scan="http://schemas.hp.com/imaging/escl/2011/05/03">
+  <pwg:Version>2.0</pwg:Version>
+  <scan:Intent>Document</scan:Intent>
+  <scan:DocumentFormat>application/pdf</scan:DocumentFormat>
+  <scan:InputSource>Feeder</scan:InputSource>
+  <scan:ColorMode>${colorMapping[colorMode] || 'RGB24'}</scan:ColorMode>
+  <scan:XResolution>${dpi}</scan:XResolution>
+  <scan:YResolution>${dpi}</scan:YResolution>
+  <scan:Duplex>${duplex ? 'true' : 'false'}</scan:Duplex>
+</scan:ScanSettings>`
+
+          const createJobRes = await fetch(`http://${settings.scannerIp}/eSCL/ScanJobs`, {
+            method: 'POST',
+            body: scanSettings,
+            headers: {
+              'Content-Type': 'text/xml',
+            },
           })
-          clearTimeout(timeoutId)
-        } catch (e) {
+
+          if (!createJobRes.ok) {
+            throw new Error(`Falha ao iniciar Scan: ${createJobRes.status}`)
+          }
+
+          jobLocation = createJobRes.headers.get('Location') || ''
+
+          if (jobLocation && jobLocation.startsWith('/')) {
+            jobLocation = `http://${settings.scannerIp}${jobLocation}`
+          } else if (!jobLocation) {
+            jobLocation = `http://${settings.scannerIp}/eSCL/ScanJobs/1`
+          }
+        } catch (e: any) {
           toast({
             variant: 'destructive',
-            title: 'Scanner Offline',
-            description: `Não foi possível conectar ao scanner no IP ${settings.scannerIp}. Verifique se ele está ligado e conectado na mesma rede.`,
+            title: 'Erro de Comunicação',
+            description: `Não foi possível iniciar a digitalização. Verifique se o IP ${settings.scannerIp} está correto e se o navegador permite Insecure Content. Erro: ${e.message}`,
           })
           setUploading(false)
           setScanningStatus('')
           return
         }
 
-        setScanningStatus('Capturando imagem...')
-        // Aguarda o tracionamento do papel simulado pós-conexão bem sucedida
-        await new Promise((resolve) => setTimeout(resolve, 3000))
+        setScanningStatus('Capturando e transferindo documento...')
 
-        setScanningStatus('Processando arquivo PDF...')
-        await new Promise((resolve) => setTimeout(resolve, 1000))
+        try {
+          const docUrl = jobLocation.endsWith('/NextDocument')
+            ? jobLocation
+            : `${jobLocation}/NextDocument`
 
-        finalFile = new File(['%PDF-1.4...'], `Scan_Epson_${Date.now()}.pdf`, {
-          type: 'application/pdf',
-        })
-        setScanningStatus('')
+          const docRes = await fetch(docUrl)
+          if (!docRes.ok) {
+            throw new Error(`Falha ao transferir documento: ${docRes.status}`)
+          }
+
+          const blob = await docRes.blob()
+          finalFile = new File([blob], `Scan_Epson_${Date.now()}.pdf`, {
+            type: 'application/pdf',
+          })
+          setScanningStatus('Digitalização concluída.')
+        } catch (e: any) {
+          toast({
+            variant: 'destructive',
+            title: 'Erro na Captura',
+            description: `Falha ao receber o arquivo do scanner. Detalhes: ${e.message}`,
+          })
+          setUploading(false)
+          setScanningStatus('')
+          return
+        }
       }
 
       if (!finalFile) {
