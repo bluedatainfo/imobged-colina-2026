@@ -152,10 +152,10 @@ const Documents = () => {
               <CardHeader className="bg-muted/50 border-b pb-4">
                 <div className="flex items-center gap-2">
                   <Printer className="h-5 w-5 text-primary" />
-                  <CardTitle className="text-lg">Digitalização Direta (Epson)</CardTitle>
+                  <CardTitle className="text-lg">Digitalização via Agente Local</CardTitle>
                 </div>
                 <CardDescription>
-                  Capture documentos físicos do scanner e indexe automaticamente.
+                  Capture documentos físicos do scanner através do integrador Windows local.
                 </CardDescription>
               </CardHeader>
               <CardContent className="pt-6 flex-1 flex flex-col">
