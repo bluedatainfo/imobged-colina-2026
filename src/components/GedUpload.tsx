@@ -123,6 +123,7 @@ export function GedUpload({
   const [dpi, setDpi] = useState('300')
   const [colorMode, setColorMode] = useState('color')
   const [duplex, setDuplex] = useState(true)
+  const [customFileName, setCustomFileName] = useState(`Scan${Math.floor(Math.random() * 1000)}`)
 
   const hasSpAccess = useMemo(() => {
     if (!user) return false
@@ -272,7 +273,8 @@ export function GedUpload({
 
           setScanningStatus('Capturando e transferindo documento...')
           const blob = await scanRes.blob()
-          finalFile = new File([blob], `Scan_${Date.now()}.pdf`, {
+          const safeName = customFileName.trim().substring(0, 10) || 'Scan'
+          finalFile = new File([blob], `${safeName}.pdf`, {
             type: 'application/pdf',
           })
           setScanningStatus('Digitalização concluída.')
@@ -654,6 +656,20 @@ export function GedUpload({
             <span className="text-xs text-emerald-600 font-medium">
               Agente Local (localhost:5000)
             </span>
+          </div>
+          <div className="space-y-2">
+            <Label className="text-xs">Nome do Arquivo (Máx 10 caracteres)</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                value={customFileName}
+                onChange={(e) => setCustomFileName(e.target.value)}
+                maxLength={10}
+                className="h-8"
+                placeholder="Ex: DocScan"
+                disabled={!hasSpAccess}
+              />
+              <span className="text-xs text-muted-foreground font-medium">.pdf</span>
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
