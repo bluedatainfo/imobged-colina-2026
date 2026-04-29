@@ -137,11 +137,28 @@ export function GedUpload({
     const fetchProperties = async () => {
       setLoadingProperties(true)
       try {
+        const isNumeric = /^\d+$/.test(searchQuery.trim())
         const url = searchQuery
-          ? `http://192.168.10.225:9000/imoveis?name=${encodeURIComponent(searchQuery)}`
+          ? isNumeric
+            ? `http://192.168.10.225:9000/imoveis?id=${encodeURIComponent(searchQuery.trim())}`
+            : `http://192.168.10.225:9000/imoveis?name=${encodeURIComponent(searchQuery.trim())}`
           : 'http://192.168.10.225:9000/imoveis'
 
-        const response = await fetch(url)
+        let response = await fetch(url)
+
+        // Fallback caso a API use 'code' no lugar de 'id' para buscas numéricas
+        if (isNumeric && response.ok) {
+          const clonedResponse = response.clone()
+          const data = await clonedResponse.json()
+          if (Array.isArray(data) && data.length === 0) {
+            const fallbackUrl = `http://192.168.10.225:9000/imoveis?code=${encodeURIComponent(searchQuery.trim())}`
+            const fallbackResponse = await fetch(fallbackUrl)
+            if (fallbackResponse.ok) {
+              response = fallbackResponse
+            }
+          }
+        }
+
         if (response.ok) {
           const data = await response.json()
           setServerProperties(Array.isArray(data) ? data : [])
@@ -166,8 +183,17 @@ export function GedUpload({
   }, [searchQuery, propertyOpen])
 
   const localServerProperties = useMemo(() => {
-    return serverProperties.slice(0, 50)
-  }, [serverProperties])
+    if (!searchQuery) return serverProperties.slice(0, 50)
+
+    const lowerQuery = searchQuery.toLowerCase()
+    return serverProperties
+      .filter((p: any) => {
+        const idStr = String(p.code || p.id || '').toLowerCase()
+        const nameStr = getOwnerName(p).toLowerCase()
+        return idStr.includes(lowerQuery) || nameStr.includes(lowerQuery)
+      })
+      .slice(0, 50)
+  }, [serverProperties, searchQuery])
 
   const localServerOwners = useMemo(() => {
     if (!owners) return []
@@ -416,7 +442,7 @@ export function GedUpload({
           <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
             <Command shouldFilter={false}>
               <CommandInput
-                placeholder="Buscar imóvel pelo nome do proprietário..."
+                placeholder="Buscar imóvel por ID ou Nome..."
                 value={searchQuery}
                 onValueChange={setSearchQuery}
               />
