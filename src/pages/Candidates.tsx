@@ -360,7 +360,9 @@ export default function Candidates() {
                         <p className="text-sm font-medium text-muted-foreground">UF</p>
                         <p className="font-medium">
                           {selectedCandidate.form_data?.UF ||
+                            selectedCandidate.form_data?.Uf ||
                             selectedCandidate.form_data?.Estado ||
+                            selectedCandidate.form_data?.Estado_x002f_Provincia ||
                             'Não informado'}
                         </p>
                       </div>
@@ -371,7 +373,12 @@ export default function Candidates() {
                             const val =
                               selectedCandidate.form_data?.DataNascimento ||
                               selectedCandidate.form_data?.DtNasc ||
-                              selectedCandidate.form_data?.Data_x0020_de_x0020_Nascimento
+                              selectedCandidate.form_data?.Data_Nascimento ||
+                              selectedCandidate.form_data?.DataNasc ||
+                              selectedCandidate.form_data?.Nascimento ||
+                              selectedCandidate.form_data?.Dt_Nasc ||
+                              selectedCandidate.form_data?.Data_x0020_de_x0020_Nascimento ||
+                              selectedCandidate.form_data?.Data_x0020_Nascimento
                             if (!val) return 'Não informado'
                             if (typeof val === 'string' && val.includes('T')) {
                               const [datePart] = val.split('T')
@@ -446,15 +453,6 @@ export default function Candidates() {
                       </Button>
                     </div>
                   )}
-
-                  <div className="space-y-2">
-                    <p className="text-sm font-semibold text-slate-800">
-                      Dados Adicionais do Formulário
-                    </p>
-                    <pre className="bg-slate-900 text-slate-50 p-4 rounded-md text-xs overflow-x-auto whitespace-pre-wrap">
-                      {JSON.stringify(selectedCandidate.form_data, null, 2)}
-                    </pre>
-                  </div>
                 </>
               )}
             </div>
