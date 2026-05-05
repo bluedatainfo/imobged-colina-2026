@@ -263,13 +263,13 @@ export default function Candidates() {
                         </div>
                         <div className="space-y-1 md:col-span-2">
                           <p className="text-sm font-medium text-muted-foreground">Endereço</p>
-                          <p className="font-medium">
+                          <p className="font-medium break-words">
                             {selectedCandidate.address || 'Não informado'}
                           </p>
                         </div>
                         <div className="space-y-1">
                           <p className="text-sm font-medium text-muted-foreground">E-mail</p>
-                          <p className="font-medium">
+                          <p className="font-medium break-all">
                             {selectedCandidate.email || 'Não informado'}
                           </p>
                         </div>
@@ -282,13 +282,13 @@ export default function Candidates() {
                         </div>
                         <div className="space-y-1">
                           <p className="text-sm font-medium text-muted-foreground">E-mail</p>
-                          <p className="font-medium">
+                          <p className="font-medium break-all">
                             {selectedCandidate.email || 'Não informado'}
                           </p>
                         </div>
                         <div className="space-y-1">
                           <p className="text-sm font-medium text-muted-foreground">Telefone</p>
-                          <p className="font-medium">
+                          <p className="font-medium break-words">
                             {selectedCandidate.phone || 'Não informado'}
                           </p>
                         </div>
@@ -318,7 +318,7 @@ export default function Candidates() {
                       <div className="space-y-1 lg:col-span-2">
                         <p className="text-sm font-medium text-muted-foreground">Endereço</p>
                         <p
-                          className="font-medium truncate"
+                          className="font-medium break-words"
                           title={
                             selectedCandidate.form_data?.Endereco ||
                             selectedCandidate.form_data?.Endereço ||
@@ -334,14 +334,14 @@ export default function Candidates() {
                       </div>
                       <div className="space-y-1">
                         <p className="text-sm font-medium text-muted-foreground">CEP</p>
-                        <p className="font-medium">
+                        <p className="font-medium break-words">
                           {selectedCandidate.form_data?.CEP || 'Não informado'}
                         </p>
                       </div>
                       <div className="space-y-1">
                         <p className="text-sm font-medium text-muted-foreground">Bairro</p>
                         <p
-                          className="font-medium truncate"
+                          className="font-medium break-words"
                           title={selectedCandidate.form_data?.Bairro || 'Não informado'}
                         >
                           {selectedCandidate.form_data?.Bairro || 'Não informado'}
@@ -350,7 +350,7 @@ export default function Candidates() {
                       <div className="space-y-1">
                         <p className="text-sm font-medium text-muted-foreground">Cidade</p>
                         <p
-                          className="font-medium truncate"
+                          className="font-medium break-words"
                           title={selectedCandidate.form_data?.Cidade || 'Não informado'}
                         >
                           {selectedCandidate.form_data?.Cidade || 'Não informado'}
@@ -358,27 +358,58 @@ export default function Candidates() {
                       </div>
                       <div className="space-y-1">
                         <p className="text-sm font-medium text-muted-foreground">UF</p>
-                        <p className="font-medium">
-                          {selectedCandidate.form_data?.UF ||
-                            selectedCandidate.form_data?.Uf ||
-                            selectedCandidate.form_data?.Estado ||
-                            selectedCandidate.form_data?.Estado_x002f_Provincia ||
-                            'Não informado'}
+                        <p className="font-medium break-words">
+                          {(() => {
+                            const formData = selectedCandidate.form_data || {}
+                            const val =
+                              formData.UF ||
+                              formData.Uf ||
+                              formData.Estado ||
+                              formData.Estado_x002f_Provincia ||
+                              Object.entries(formData).find(([k, v]) => {
+                                const lower = k
+                                  .toLowerCase()
+                                  .replace(/_x[0-9a-f]{4}_/gi, ' ')
+                                  .trim()
+                                return (
+                                  (lower === 'uf' ||
+                                    lower.includes('estado') ||
+                                    lower.includes('província') ||
+                                    lower.includes('provincia')) &&
+                                  v
+                                )
+                              })?.[1]
+                            return val || 'Não informado'
+                          })()}
                         </p>
                       </div>
                       <div className="space-y-1">
                         <p className="text-sm font-medium text-muted-foreground">Dt Nasc</p>
-                        <p className="font-medium">
+                        <p className="font-medium break-words">
                           {(() => {
+                            const formData = selectedCandidate.form_data || {}
                             const val =
-                              selectedCandidate.form_data?.DataNascimento ||
-                              selectedCandidate.form_data?.DtNasc ||
-                              selectedCandidate.form_data?.Data_Nascimento ||
-                              selectedCandidate.form_data?.DataNasc ||
-                              selectedCandidate.form_data?.Nascimento ||
-                              selectedCandidate.form_data?.Dt_Nasc ||
-                              selectedCandidate.form_data?.Data_x0020_de_x0020_Nascimento ||
-                              selectedCandidate.form_data?.Data_x0020_Nascimento
+                              formData.DataNascimento ||
+                              formData.DtNasc ||
+                              formData.Data_Nascimento ||
+                              formData.DataNasc ||
+                              formData.Nascimento ||
+                              formData.Dt_Nasc ||
+                              formData.Data_x0020_de_x0020_Nascimento ||
+                              formData.Data_x0020_Nascimento ||
+                              Object.entries(formData).find(([k, v]) => {
+                                const lower = k
+                                  .toLowerCase()
+                                  .replace(/_x[0-9a-f]{4}_/gi, ' ')
+                                  .trim()
+                                return (
+                                  (lower.includes('nasc') ||
+                                    lower.includes('aniversario') ||
+                                    lower.includes('aniversário')) &&
+                                  v
+                                )
+                              })?.[1]
+
                             if (!val) return 'Não informado'
                             if (typeof val === 'string' && val.includes('T')) {
                               const [datePart] = val.split('T')
