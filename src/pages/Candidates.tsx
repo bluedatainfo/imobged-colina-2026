@@ -310,6 +310,81 @@ export default function Candidates() {
                     )}
                   </div>
 
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-lg text-slate-800">
+                      Endereço e Dados Pessoais
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 bg-muted/20 p-4 rounded-lg border">
+                      <div className="space-y-1 lg:col-span-2">
+                        <p className="text-sm font-medium text-muted-foreground">Endereço</p>
+                        <p
+                          className="font-medium truncate"
+                          title={
+                            selectedCandidate.form_data?.Endereco ||
+                            selectedCandidate.form_data?.Endereço ||
+                            selectedCandidate.address ||
+                            'Não informado'
+                          }
+                        >
+                          {selectedCandidate.form_data?.Endereco ||
+                            selectedCandidate.form_data?.Endereço ||
+                            selectedCandidate.address ||
+                            'Não informado'}
+                        </p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-muted-foreground">CEP</p>
+                        <p className="font-medium">
+                          {selectedCandidate.form_data?.CEP || 'Não informado'}
+                        </p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-muted-foreground">Bairro</p>
+                        <p
+                          className="font-medium truncate"
+                          title={selectedCandidate.form_data?.Bairro || 'Não informado'}
+                        >
+                          {selectedCandidate.form_data?.Bairro || 'Não informado'}
+                        </p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-muted-foreground">Cidade</p>
+                        <p
+                          className="font-medium truncate"
+                          title={selectedCandidate.form_data?.Cidade || 'Não informado'}
+                        >
+                          {selectedCandidate.form_data?.Cidade || 'Não informado'}
+                        </p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-muted-foreground">UF</p>
+                        <p className="font-medium">
+                          {selectedCandidate.form_data?.UF ||
+                            selectedCandidate.form_data?.Estado ||
+                            'Não informado'}
+                        </p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-muted-foreground">Dt Nasc</p>
+                        <p className="font-medium">
+                          {(() => {
+                            const val =
+                              selectedCandidate.form_data?.DataNascimento ||
+                              selectedCandidate.form_data?.DtNasc ||
+                              selectedCandidate.form_data?.Data_x0020_de_x0020_Nascimento
+                            if (!val) return 'Não informado'
+                            if (typeof val === 'string' && val.includes('T')) {
+                              const [datePart] = val.split('T')
+                              const parts = datePart.split('-')
+                              if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`
+                            }
+                            return val
+                          })()}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="space-y-4 bg-white p-5 rounded-lg border shadow-sm">
                     <h3 className="font-semibold text-lg flex items-center justify-between text-slate-800">
                       Controle e Andamento
