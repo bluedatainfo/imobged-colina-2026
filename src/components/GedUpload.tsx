@@ -404,7 +404,7 @@ export function GedUpload({
   }
 
   return (
-    <div className="space-y-4 flex-1 flex flex-col">
+    <div className="space-y-4 flex-1 flex flex-col" translate="no">
       {!hasSpAccess && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
