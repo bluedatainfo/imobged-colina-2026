@@ -122,7 +122,7 @@ const Documents = () => {
             <SelectContent>
               {Object.entries(siteNames).map(([key, label]) => (
                 <SelectItem key={key} value={key as SiteKey}>
-                  {label}
+                  <span>{label}</span>
                 </SelectItem>
               ))}
             </SelectContent>

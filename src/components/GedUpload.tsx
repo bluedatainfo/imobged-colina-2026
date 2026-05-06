@@ -428,8 +428,8 @@ export function GedUpload({
             >
               {selectedProperty ? (
                 <span className="truncate flex items-center text-left">
-                  <strong className="mr-1">{selectedProperty.code || selectedProperty.id}</strong> -{' '}
-                  {getOwnerName(selectedProperty)}
+                  <strong className="mr-1">{selectedProperty.code || selectedProperty.id}</strong>
+                  <span> - {getOwnerName(selectedProperty)}</span>
                 </span>
               ) : (
                 <span className="text-muted-foreground">
@@ -477,7 +477,9 @@ export function GedUpload({
                           )}
                         />
                         <span className="font-medium text-sm truncate text-foreground">
-                          {p.code || p.id} - {getOwnerName(p)}
+                          <span>
+                            {p.code || p.id} - {getOwnerName(p)}
+                          </span>
                         </span>
                       </div>
                       <div className="flex items-center text-xs text-muted-foreground gap-1.5 w-full pl-6">
@@ -506,7 +508,7 @@ export function GedUpload({
           <SelectContent>
             {DOCUMENT_TYPES.map((t) => (
               <SelectItem key={t.id} value={t.id}>
-                {t.label}
+                <span>{t.label}</span>
               </SelectItem>
             ))}
           </SelectContent>
@@ -514,7 +516,7 @@ export function GedUpload({
       </div>
 
       {docType === 'OWNER_DOCUMENT' && (
-        <div className="grid gap-2 animate-fade-in">
+        <div key="owner-field" className="grid gap-2 animate-fade-in">
           <Label>Proprietário (Servidor Local)</Label>
           <Popover open={ownerOpen} onOpenChange={setOwnerOpen}>
             <PopoverTrigger asChild>
@@ -527,8 +529,11 @@ export function GedUpload({
               >
                 {selectedOwner ? (
                   <span className="truncate">
-                    <strong className="mr-1">{selectedOwner.code || selectedOwner.id}</strong> -{' '}
-                    {selectedOwner.name || selectedOwner.fullName || selectedOwner.title}
+                    <strong className="mr-1">{selectedOwner.code || selectedOwner.id}</strong>
+                    <span>
+                      {' '}
+                      - {selectedOwner.name || selectedOwner.fullName || selectedOwner.title}
+                    </span>
                   </span>
                 ) : (
                   <span className="text-muted-foreground">Buscar proprietário no servidor...</span>
@@ -565,8 +570,8 @@ export function GedUpload({
                           )}
                         />
                         <span className="truncate">
-                          <strong className="mr-1">{o.code || o.id}</strong> -{' '}
-                          {o.name || o.fullName || o.title}
+                          <strong className="mr-1">{o.code || o.id}</strong>
+                          <span> - {o.name || o.fullName || o.title}</span>
                         </span>
                       </CommandItem>
                     ))}
@@ -579,7 +584,7 @@ export function GedUpload({
       )}
 
       {docType === 'TENANT_DOCUMENT' && (
-        <div className="grid gap-2 animate-fade-in">
+        <div key="tenant-field" className="grid gap-2 animate-fade-in">
           <Label>Locatário (Servidor Local)</Label>
           <Popover open={tenantOpen} onOpenChange={setTenantOpen}>
             <PopoverTrigger asChild>
@@ -592,8 +597,11 @@ export function GedUpload({
               >
                 {selectedTenant ? (
                   <span className="truncate">
-                    <strong className="mr-1">{selectedTenant.code || selectedTenant.id}</strong> -{' '}
-                    {selectedTenant.name || selectedTenant.fullName || selectedTenant.title}
+                    <strong className="mr-1">{selectedTenant.code || selectedTenant.id}</strong>
+                    <span>
+                      {' '}
+                      - {selectedTenant.name || selectedTenant.fullName || selectedTenant.title}
+                    </span>
                   </span>
                 ) : (
                   <span className="text-muted-foreground">Buscar locatário no servidor...</span>
@@ -630,8 +638,8 @@ export function GedUpload({
                           )}
                         />
                         <span className="truncate">
-                          <strong className="mr-1">{t.code || t.id}</strong> -{' '}
-                          {t.name || t.fullName || t.title}
+                          <strong className="mr-1">{t.code || t.id}</strong>
+                          <span> - {t.name || t.fullName || t.title}</span>
                         </span>
                       </CommandItem>
                     ))}
@@ -644,7 +652,7 @@ export function GedUpload({
       )}
 
       {['INSPECTION_MOVE_IN', 'INSPECTION_MOVE_OUT', 'LEASES'].includes(docType) && (
-        <div className="grid gap-2 animate-fade-in">
+        <div key="lease-field" className="grid gap-2 animate-fade-in">
           <Label>Número da Locação</Label>
           <Input
             value={leaseNumber}
@@ -656,7 +664,7 @@ export function GedUpload({
       )}
 
       {['CONTRACT_ACTIVE', 'CONTRACT_TERMINATED'].includes(docType) && (
-        <div className="grid gap-2 animate-fade-in">
+        <div key="folder-field" className="grid gap-2 animate-fade-in">
           <Label>Número da Pasta</Label>
           <Input
             value={folderNumber}
@@ -702,12 +710,18 @@ export function GedUpload({
               <Label className="text-xs">Resolução (DPI)</Label>
               <Select value={dpi} onValueChange={setDpi}>
                 <SelectTrigger className="h-8 text-xs">
-                  <SelectValue />
+                  <SelectValue placeholder="Selecione DPI" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="200">200 DPI</SelectItem>
-                  <SelectItem value="300">300 DPI</SelectItem>
-                  <SelectItem value="600">600 DPI</SelectItem>
+                  <SelectItem value="200">
+                    <span>200 DPI</span>
+                  </SelectItem>
+                  <SelectItem value="300">
+                    <span>300 DPI</span>
+                  </SelectItem>
+                  <SelectItem value="600">
+                    <span>600 DPI</span>
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -715,12 +729,18 @@ export function GedUpload({
               <Label className="text-xs">Cor</Label>
               <Select value={colorMode} onValueChange={setColorMode}>
                 <SelectTrigger className="h-8 text-xs">
-                  <SelectValue />
+                  <SelectValue placeholder="Selecione Cor" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="color">Cores</SelectItem>
-                  <SelectItem value="gray">Tons de Cinza</SelectItem>
-                  <SelectItem value="bw">Preto e Branco</SelectItem>
+                  <SelectItem value="color">
+                    <span>Cores</span>
+                  </SelectItem>
+                  <SelectItem value="gray">
+                    <span>Tons de Cinza</span>
+                  </SelectItem>
+                  <SelectItem value="bw">
+                    <span>Preto e Branco</span>
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
