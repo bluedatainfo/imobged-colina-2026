@@ -61,11 +61,13 @@ const DocItem = ({
   name,
   badge,
   hasNotes,
+  isFolder,
   onClick,
 }: {
   name: string
   badge?: string
   hasNotes?: boolean
+  isFolder?: boolean
   onClick: () => void
 }) => (
   <div
@@ -75,10 +77,20 @@ const DocItem = ({
     {hasNotes && <div className="absolute top-0 left-0 w-1 h-full bg-amber-500"></div>}
     <div
       className={`p-2 rounded-md ${
-        hasNotes ? 'bg-amber-100 text-amber-700' : 'bg-blue-100/50 text-blue-700'
+        hasNotes
+          ? 'bg-amber-100 text-amber-700'
+          : isFolder
+            ? 'bg-purple-100 text-purple-700'
+            : 'bg-blue-100/50 text-blue-700'
       }`}
     >
-      {hasNotes ? <MessageSquare className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
+      {hasNotes ? (
+        <MessageSquare className="h-4 w-4" />
+      ) : isFolder ? (
+        <FolderOpen className="h-4 w-4" />
+      ) : (
+        <FileText className="h-4 w-4" />
+      )}
     </div>
     <div className="flex-1 flex flex-col min-w-0">
       <span className="text-sm font-medium truncate" title={name}>
@@ -103,7 +115,11 @@ const DocItem = ({
       size="icon"
       className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
     >
-      <Eye className="h-4 w-4 text-muted-foreground" />
+      {isFolder ? (
+        <FolderOpen className="h-4 w-4 text-muted-foreground" />
+      ) : (
+        <Eye className="h-4 w-4 text-muted-foreground" />
+      )}
     </Button>
   </div>
 )
@@ -151,6 +167,11 @@ const ManagerApproval = () => {
   const [spFiles, setSpFiles] = useState<any[]>([])
   const [rawSpFiles, setRawSpFiles] = useState<any[]>([])
   const [scanningSp, setScanningSp] = useState(false)
+  const [activeFolderFiles, setActiveFolderFiles] = useState<any[] | null>(null)
+  const [folderHistory, setFolderHistory] = useState<{ id: string; name: string; files: any[] }[]>(
+    [],
+  )
+  const [loadingFolder, setLoadingFolder] = useState<string | null>(null)
 
   const [spOwnerDocs, setSpOwnerDocs] = useState<any[] | null>(null)
   const [spTenantDocs, setSpTenantDocs] = useState<any[] | null>(null)
@@ -370,6 +391,8 @@ const ManagerApproval = () => {
   useEffect(() => {
     if (!selectedHub) {
       setSpFiles([])
+      setActiveFolderFiles(null)
+      setFolderHistory([])
       return
     }
     const isShortNumeric = /^\d{1,6}$/.test(selectedHub.id)
@@ -389,7 +412,51 @@ const ManagerApproval = () => {
       return exactFolderMatch || hasTenant || hasOwner
     })
     setSpFiles(filteredFiles)
+    setActiveFolderFiles(null)
+    setFolderHistory([])
   }, [rawSpFiles, selectedHub, hubOwner, ownerEntity])
+
+  const handleFolderClick = async (folder: any) => {
+    setLoadingFolder(folder.id)
+    try {
+      const children = await m365Service.getDriveItemChildren(
+        folder.siteId,
+        folder.driveId,
+        folder.id,
+      )
+      setFolderHistory((prev) => [
+        ...prev,
+        {
+          id: folder.id,
+          name: folder.name,
+          files: activeFolderFiles || spFiles,
+        },
+      ])
+      setActiveFolderFiles(children)
+    } catch (e) {
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível abrir a pasta',
+        variant: 'destructive',
+      })
+    } finally {
+      setLoadingFolder(null)
+    }
+  }
+
+  const handleBackFolder = () => {
+    setFolderHistory((prev) => {
+      const newHistory = [...prev]
+      const last = newHistory.pop()
+      if (last) {
+        setActiveFolderFiles(newHistory.length === 0 ? null : last.files)
+      }
+      return newHistory
+    })
+    if (folderHistory.length === 1) {
+      setActiveFolderFiles(null)
+    }
+  }
 
   const handleApprove = (id: string) => {
     mainStore.updateProperty(id, { status: 'Vistoria', isResubmission: false })
@@ -656,38 +723,70 @@ const ManagerApproval = () => {
                 Resultado da pesquisa híbrida automática na pasta do imóvel e arredores
               </CardDescription>
             </CardHeader>
-            <CardContent className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-              {spFiles.map((file) => {
-                const isDocStore = documents.some((d) => d.name === file.name)
-                const isContractStore = contracts.some((c) => c.documentName === file.name)
-                if (isDocStore || isContractStore) return null
+            <CardContent className="p-4">
+              {folderHistory.length > 0 && (
+                <div className="flex items-center gap-2 mb-4 text-sm text-muted-foreground bg-muted/30 p-2 rounded-md">
+                  <Button variant="ghost" size="sm" onClick={handleBackFolder} className="h-8 px-2">
+                    <ChevronLeft className="w-4 h-4 mr-1" /> Voltar
+                  </Button>
+                  <div className="flex items-center text-purple-900 font-medium">
+                    <FolderOpen className="w-4 h-4 mr-2" />
+                    {folderHistory[folderHistory.length - 1].name}
+                  </div>
+                </div>
+              )}
 
-                return (
-                  <DocItem
-                    key={file.id}
-                    name={file.name}
-                    badge="SharePoint Online"
-                    onClick={() =>
-                      setViewingItem({
-                        type: 'sp_file',
-                        id: file.id,
-                        name: file.name,
-                        siteId: file.siteId,
-                        driveId: file.driveId,
-                        webUrl: file.webUrl,
-                      })
-                    }
-                  />
-                )
-              })}
-              {spFiles.filter(
-                (f) =>
-                  !documents.some((d) => d.name === f.name) &&
-                  !contracts.some((c) => c.documentName === f.name),
-              ).length === 0 && (
-                <p className="col-span-full text-sm text-muted-foreground italic text-center p-2">
-                  Todos os arquivos encontrados já estão listados nos cards acima.
-                </p>
+              {loadingFolder ? (
+                <div className="flex justify-center items-center p-8">
+                  <Loader2 className="w-6 h-6 animate-spin text-purple-600 mr-2" />
+                  <span className="text-sm text-muted-foreground">
+                    Carregando conteúdo da pasta...
+                  </span>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                  {(activeFolderFiles || spFiles).map((file) => {
+                    const isDocStore = documents.some((d) => d.name === file.name)
+                    const isContractStore = contracts.some((c) => c.documentName === file.name)
+                    if (isDocStore || isContractStore) return null
+
+                    const isFolder = !!file.folder
+
+                    return (
+                      <DocItem
+                        key={file.id}
+                        name={file.name}
+                        badge={isFolder ? 'Pasta SharePoint' : 'SharePoint Online'}
+                        isFolder={isFolder}
+                        onClick={() => {
+                          if (isFolder) {
+                            handleFolderClick(file)
+                          } else {
+                            setViewingItem({
+                              type: 'sp_file',
+                              id: file.id,
+                              name: file.name,
+                              siteId: file.siteId,
+                              driveId: file.driveId,
+                              webUrl: file.webUrl,
+                            })
+                          }
+                        }}
+                      />
+                    )
+                  })}
+                  {(activeFolderFiles || spFiles).filter(
+                    (f) =>
+                      !documents.some((d) => d.name === f.name) &&
+                      !contracts.some((c) => c.documentName === f.name),
+                  ).length === 0 && (
+                    <p className="col-span-full text-sm text-muted-foreground italic text-center p-4 bg-muted/20 rounded-md">
+                      {activeFolderFiles
+                        ? 'Esta pasta está vazia.'
+                        : 'Todos os arquivos encontrados já estão listados nos cards acima.'}
+                    </p>
+                  )}
+                </div>
               )}
             </CardContent>
           </Card>

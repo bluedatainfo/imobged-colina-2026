@@ -201,6 +201,23 @@ export const m365Service = {
     return null
   },
 
+  getDriveItemChildren: async (siteId: string, driveId: string, itemId: string) => {
+    const token = getGraphToken()
+    if (!token) return []
+    try {
+      const res = await fetchWithAuth(
+        `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${itemId}/children`,
+      )
+      if (res.ok) {
+        const data = await res.json()
+        return data.value ? data.value.map((v: any) => ({ ...v, siteId, driveId })) : []
+      }
+    } catch (e) {
+      console.warn('Failed to fetch folder children', e)
+    }
+    return []
+  },
+
   searchFilesByPropertyId: async (propertyId: string): Promise<any[]> => {
     const token = getGraphToken()
     if (!token) return []
