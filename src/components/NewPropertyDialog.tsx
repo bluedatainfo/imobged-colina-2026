@@ -25,6 +25,7 @@ import { mainStore } from '@/stores/main'
 import { supabase } from '@/lib/supabase/client'
 import { useDebounce } from '@/hooks/use-debounce'
 import { cn } from '@/lib/utils'
+import { useAuth } from '@/contexts/AuthContext'
 
 const getOwnerName = (property: any) => {
   if (!property) return 'Não informado'
@@ -59,6 +60,7 @@ const getAddress = (property: any) => {
 export function NewPropertyDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { toast } = useToast()
   const { owners } = useEntitiesStore()
+  const { user } = useAuth()
 
   const [openERP, setOpenERP] = useState(false)
   const [searchERP, setSearchERP] = useState('')
@@ -139,7 +141,7 @@ export function NewPropertyDialog({ open, onClose }: { open: boolean; onClose: (
       mainStore.addAuditLog({
         propertyId: String(p.id),
         action: 'Imóvel Importado do ERP',
-        user: 'Integração Sistema Local',
+        user: user?.name || 'Sistema',
         details: 'Imóvel importado para o GED no estágio Pendente/Rascunho.',
       })
 

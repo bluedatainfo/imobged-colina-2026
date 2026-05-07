@@ -35,6 +35,7 @@ import { useNavigate } from 'react-router-dom'
 import { mainStore } from '@/stores/main'
 import { useDebounce } from '@/hooks/use-debounce'
 import { cn } from '@/lib/utils'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface Props {
   open: boolean
@@ -83,6 +84,24 @@ const formatCurrency = (value: string) => {
   }).format(amount)
 }
 
+const formatCpfCnpj = (v: string) => {
+  if (!v) return ''
+  const numbers = v.replace(/\D/g, '')
+  if (numbers.length <= 11) {
+    return numbers
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d{1,2})/, '$1-$2')
+      .slice(0, 14)
+  }
+  return numbers
+    .replace(/^(\d{2})(\d)/, '$1.$2')
+    .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+    .replace(/\.(\d{3})(\d)/, '.$1/$2')
+    .replace(/(\d{4})(\d)/, '$1-$2')
+    .slice(0, 18)
+}
+
 const parseCurrency = (value: string) => {
   if (!value) return 0
   const numbers = value.replace(/\D/g, '')
@@ -94,6 +113,8 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
   const { toast } = useToast()
   const navigate = useNavigate()
   const { owners } = useEntitiesStore()
+  const { user } = useAuth()
+
   const [guarantors, setGuarantors] = useState<PreRegistration[]>([])
   const [selectedGuarantor, setSelectedGuarantor] = useState('')
 
@@ -280,7 +301,7 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
       mainStore.addAuditLog({
         propertyId: finalPropId,
         action: 'Processo de Locação Iniciado',
-        user: 'Sistema',
+        user: user?.name || 'Sistema',
         details: `Processo iniciado para interessado ${candidate.full_name}`,
       })
 
@@ -323,7 +344,12 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
             </h4>
             <div className="font-medium text-lg">{candidate.full_name}</div>
             <div className="text-sm text-muted-foreground">
-              CPF/CNPJ: {candidate.cpf || candidate.cnpj || 'Não informado'}
+              CPF/CNPJ:{' '}
+              {candidate.cpf
+                ? formatCpfCnpj(candidate.cpf)
+                : candidate.cnpj
+                  ? formatCpfCnpj(candidate.cnpj)
+                  : 'Não informado'}
             </div>
           </div>
 
@@ -339,7 +365,7 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
                 <SelectItem value="_none">Sem fiador / Garantia alternativa</SelectItem>
                 {guarantors.map((g) => (
                   <SelectItem key={g.id} value={g.id}>
-                    {g.full_name} {g.cpf ? `(${g.cpf})` : ''}
+                    {g.full_name} {g.cpf ? `(${formatCpfCnpj(g.cpf)})` : ''}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -558,7 +584,8 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
                   <Label>SPC</Label>
                   <Input
                     value={newPropData.spc}
-                    onChange={(e) => updatePropData('spc', e.target.value)}
+                    onChange={(e) => updatePropData('spc', formatCpfCnpj(e.target.value))}
+                    placeholder="CPF/CNPJ do SPC"
                   />
                 </div>
                 <div className="space-y-2">
