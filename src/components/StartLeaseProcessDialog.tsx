@@ -224,12 +224,21 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
           (o) => o.fullName.toLowerCase() === erpOwnerName.toLowerCase() || o.code === erpOwnerName,
         )
 
+        const generateShortCode = (prefix: string) => {
+          const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+          let result = ''
+          for (let i = 0; i < 6; i++) {
+            result += chars.charAt(Math.floor(Math.random() * chars.length))
+          }
+          return `${prefix}-${result}`
+        }
+
         if (existingOwner) {
           finalOwnerId = existingOwner.id
         } else {
           const { data: oData, error: oErr } = await supabase
             .from('owners')
-            .insert({ code: 'ERP-' + Date.now(), full_name: erpOwnerName })
+            .insert({ code: generateShortCode('ERP'), full_name: erpOwnerName })
             .select()
             .single()
           if (oErr) throw oErr
@@ -239,9 +248,21 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
         if (!newPropData.ownerName || !newPropData.address)
           throw new Error('Preencha os dados do novo imóvel e proprietário (Endereço e Nome).')
 
+        const generateShortId = () => {
+          const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+          let result = ''
+          for (let i = 0; i < 8; i++) {
+            result += chars.charAt(Math.floor(Math.random() * chars.length))
+          }
+          return result
+        }
+
         const { data: oData, error: oErr } = await supabase
           .from('owners')
-          .insert({ code: 'MANUAL-' + Date.now(), full_name: newPropData.ownerName })
+          .insert({
+            code: 'MN-' + generateShortId().substring(0, 6),
+            full_name: newPropData.ownerName,
+          })
           .select()
           .single()
         if (oErr) throw oErr
@@ -252,7 +273,7 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
           .replace(/,\s*,/g, ',')
           .replace(/^,\s*|,\s*$/g, '')
         rentValue = parseCurrency(newPropData.rentValue)
-        finalPropId = 'MANUAL-' + Date.now()
+        finalPropId = generateShortId()
         details = {
           neighborhood: newPropData.neighborhood,
           city: newPropData.city,
