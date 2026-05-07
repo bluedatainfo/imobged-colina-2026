@@ -37,6 +37,22 @@ import useDocumentsStore, { documentsStore } from '@/stores/documents'
 import useContractsStore, { contractsStore } from '@/stores/contracts'
 import useEntitiesStore from '@/stores/entities'
 import { useAuth } from '@/contexts/AuthContext'
+
+const formatDossierId = (propertyId: string, allProperties: any[]) => {
+  if (propertyId.startsWith('MAN')) return propertyId
+  const sorted = [...allProperties].sort((a, b) => {
+    return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime()
+  })
+  const index = sorted.findIndex((p) => p.id === propertyId)
+  if (index === -1) return `MAN00000`
+  return `MAN${String(index + 1).padStart(5, '0')}`
+}
+
+const isInteressado = (p: any, tenantsList: any[]) => {
+  if (p.tenant_id || p.tenantId) return true
+  if (!p.tenant) return true
+  return !tenantsList.some((t: any) => t.fullName === p.tenant)
+}
 import { m365Service } from '@/lib/m365'
 import { DocumentViewer } from '@/components/DocumentViewer'
 import { supabase } from '@/lib/supabase/client'
@@ -111,12 +127,12 @@ const ManagerApproval = () => {
   }, [store.properties])
 
   const interessados = useMemo(
-    () => approvals.filter((p) => (p as any).tenant_id || (p as any).tenantId),
-    [approvals],
+    () => approvals.filter((p) => isInteressado(p, tenants)),
+    [approvals, tenants],
   )
   const locatarios = useMemo(
-    () => approvals.filter((p) => !((p as any).tenant_id || (p as any).tenantId)),
-    [approvals],
+    () => approvals.filter((p) => !isInteressado(p, tenants)),
+    [approvals, tenants],
   )
 
   const [selectedHub, setSelectedHub] = useState<Property | null>(null)
@@ -343,7 +359,7 @@ const ManagerApproval = () => {
         'Documentação validada no Hub SharePoint. Handoff para vistoria e contratos liberados.',
     })
 
-    const displayId = id.length > 8 ? id.substring(0, 8).toUpperCase() : id
+    const displayId = formatDossierId(id, store.properties)
     m365Service.syncToList('Audit Log', `Aprovação do Imóvel ID: ${displayId} por ${user?.name}`)
     m365Service.sendEmail(
       `${store.settings.administrativeEmails}, ${store.settings.operationalEmails}`,
@@ -374,10 +390,7 @@ const ManagerApproval = () => {
         if (d.reviewNotes) allNotes.push(`- Proprietário (${d.name}): ${d.reviewNotes}`)
       })
       finalTenantDocs.forEach((d) => {
-        const label =
-          (selectedHub as any).tenant_id || (selectedHub as any).tenantId
-            ? 'Interessado'
-            : 'Locatário'
+        const label = isInteressado(selectedHub, tenants) ? 'Interessado' : 'Locatário'
         if (d.reviewNotes) allNotes.push(`- ${label} (${d.name}): ${d.reviewNotes}`)
       })
       guarantorDocs.forEach((d) => {
@@ -411,7 +424,7 @@ const ManagerApproval = () => {
         }`,
       })
 
-      const displayId = rejectId.length > 8 ? rejectId.substring(0, 8).toUpperCase() : rejectId
+      const displayId = formatDossierId(rejectId, store.properties)
       m365Service.syncToList('Audit Log', `Rejeição do Imóvel ID: ${displayId} por ${user?.name}`)
       m365Service.sendEmail(
         `${store.settings.administrativeEmails}, ${store.settings.managementEmails}`,
@@ -440,10 +453,7 @@ const ManagerApproval = () => {
             <h1 className="text-3xl font-bold tracking-tight">Hub de Validação</h1>
             <p className="text-muted-foreground">
               Analisando dossiê do imóvel: <strong>{selectedHub.title}</strong> (ID:{' '}
-              {selectedHub.id.length > 8
-                ? selectedHub.id.substring(0, 8).toUpperCase()
-                : selectedHub.id}
-              )
+              {formatDossierId(selectedHub.id, store.properties)})
             </p>
           </div>
         </div>
@@ -484,9 +494,7 @@ const ManagerApproval = () => {
             <CardHeader className="bg-muted/30 pb-4 border-b">
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Users className="h-5 w-5 text-primary" />{' '}
-                {(selectedHub as any).tenant_id || (selectedHub as any).tenantId
-                  ? 'Interessado'
-                  : 'Locatário'}
+                {isInteressado(selectedHub, tenants) ? 'Interessado' : 'Locatário'}
               </CardTitle>
               <CardDescription>
                 {hubTenant?.full_name || selectedHub.tenant || 'Não informado'}
@@ -509,10 +517,8 @@ const ManagerApproval = () => {
               ) : (
                 <p className="text-sm text-muted-foreground italic text-center p-4">
                   Nenhum documento de{' '}
-                  {(selectedHub as any).tenant_id || (selectedHub as any).tenantId
-                    ? 'interessado'
-                    : 'locatário'}{' '}
-                  localizado no GED.
+                  {isInteressado(selectedHub, tenants) ? 'interessado' : 'locatário'} localizado no
+                  GED.
                 </p>
               )}
             </CardContent>
@@ -739,7 +745,7 @@ const ManagerApproval = () => {
                       <span>
                         ID:{' '}
                         <span className="font-mono bg-muted px-1 py-0.5 rounded" title={item.id}>
-                          {item.id.length > 8 ? item.id.substring(0, 8).toUpperCase() : item.id}
+                          {formatDossierId(item.id, store.properties)}
                         </span>
                       </span>
                       <span>
