@@ -99,7 +99,15 @@ const ManagerApproval = () => {
   const { contracts } = useContractsStore()
   const { owners, tenants } = useEntitiesStore()
 
-  const approvals = store.properties.filter((p) => p.status === 'Análise Gerencial')
+  const approvals = useMemo(() => {
+    return store.properties
+      .filter((p) => p.status === 'Análise Gerencial')
+      .sort((a, b) => {
+        const dateA = new Date(a.slaStart || a.updatedAt || 0).getTime()
+        const dateB = new Date(b.slaStart || b.updatedAt || 0).getTime()
+        return dateB - dateA
+      })
+  }, [store.properties])
 
   const [selectedHub, setSelectedHub] = useState<Property | null>(null)
   const [viewingItem, setViewingItem] = useState<{
