@@ -33,9 +33,10 @@ import {
 } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
-import { Download, ExternalLink, Loader2, RefreshCw } from 'lucide-react'
+import { Download, ExternalLink, Loader2, RefreshCw, ClipboardList } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import { StartLeaseProcessDialog } from '@/components/StartLeaseProcessDialog'
 
 const STATUS_COLORS: Record<PreRegistrationStatus, string> = {
   Novo: 'bg-blue-100 text-blue-800 hover:bg-blue-100',
@@ -63,6 +64,7 @@ export default function Candidates() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [updating, setUpdating] = useState(false)
   const [activeTab, setActiveTab] = useState<PreRegistrationCategory>('PF')
+  const [processDialogOpen, setProcessDialogOpen] = useState(false)
 
   const fetchCandidates = async () => {
     try {
@@ -458,6 +460,19 @@ export default function Candidates() {
                           Gerar JSON
                         </Button>
                       )}
+
+                      {(selectedCandidate.status === 'Em Análise da Gerência' ||
+                        selectedCandidate.status === 'Novo' ||
+                        selectedCandidate.status === 'Documentação Pendente') &&
+                        selectedCandidate.category !== 'Fiador' && (
+                          <Button
+                            onClick={() => setProcessDialogOpen(true)}
+                            className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto"
+                          >
+                            <ClipboardList className="mr-2 h-4 w-4" />
+                            Iniciar Processo de Locação
+                          </Button>
+                        )}
                     </div>
                   </div>
 
@@ -495,6 +510,16 @@ export default function Candidates() {
           </div>
         </DrawerContent>
       </Drawer>
+
+      <StartLeaseProcessDialog
+        open={processDialogOpen}
+        onClose={() => setProcessDialogOpen(false)}
+        candidate={selectedCandidate}
+        onSuccess={() => {
+          setProcessDialogOpen(false)
+          fetchCandidates()
+        }}
+      />
     </div>
   )
 }

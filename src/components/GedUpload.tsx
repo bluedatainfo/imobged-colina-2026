@@ -114,6 +114,19 @@ export function GedUpload({
   const [tenantSearchQuery, setTenantSearchQuery] = useState('')
   const [selectedTenant, setSelectedTenant] = useState<any | null>(null)
 
+  const [guarantorOpen, setGuarantorOpen] = useState(false)
+  const [guarantorSearchQuery, setGuarantorSearchQuery] = useState('')
+  const [selectedGuarantor, setSelectedGuarantor] = useState<any | null>(null)
+
+  const [dbCandidates, setDbCandidates] = useState<any[]>([])
+
+  useEffect(() => {
+    supabase
+      .from('pre_registrations')
+      .select('id, full_name, category')
+      .then(({ data }) => setDbCandidates(data || []))
+  }, [])
+
   const [uploading, setUploading] = useState(false)
   const [scanningStatus, setScanningStatus] = useState('')
   const [sendToManager, setSendToManager] = useState(false)
@@ -210,9 +223,17 @@ export function GedUpload({
   }, [owners, ownerSearchQuery])
 
   const localServerTenants = useMemo(() => {
-    if (!tenants) return []
+    const candidates = dbCandidates
+      .filter((c) => c.category === 'PF' || c.category === 'PJ')
+      .map((c) => ({
+        id: c.id,
+        code: c.id,
+        fullName: c.full_name + ' (Interessado)',
+        title: c.full_name,
+      }))
+    const combined = [...(tenants || []), ...candidates]
     const lowerQuery = tenantSearchQuery.toLowerCase()
-    return tenants
+    return combined
       .filter(
         (t: any) =>
           !lowerQuery ||
@@ -221,7 +242,22 @@ export function GedUpload({
           (t.name && t.name.toLowerCase().includes(lowerQuery)),
       )
       .slice(0, 50)
-  }, [tenants, tenantSearchQuery])
+  }, [tenants, dbCandidates, tenantSearchQuery])
+
+  const localServerGuarantors = useMemo(() => {
+    const g = dbCandidates
+      .filter((c) => c.category === 'Fiador')
+      .map((c) => ({
+        id: c.id,
+        code: c.id,
+        fullName: c.full_name + ' (Fiador SharePoint)',
+        title: c.full_name,
+      }))
+    const lowerQuery = guarantorSearchQuery.toLowerCase()
+    return g
+      .filter((x) => !lowerQuery || x.fullName.toLowerCase().includes(lowerQuery))
+      .slice(0, 50)
+  }, [dbCandidates, guarantorSearchQuery])
 
   useEffect(() => {
     if (preselectedPropertyId && !selectedProperty) {
@@ -268,6 +304,10 @@ export function GedUpload({
         finalEntityName =
           selectedTenant.name || selectedTenant.fullName || selectedTenant.title || ''
         finalEntityCode = selectedTenant.code || selectedTenant.id || ''
+      } else if (docType === 'GUARANTEE_DOCUMENT' && selectedGuarantor) {
+        finalEntityName =
+          selectedGuarantor.name || selectedGuarantor.fullName || selectedGuarantor.title || ''
+        finalEntityCode = selectedGuarantor.code || selectedGuarantor.id || ''
       }
 
       const propId = selectedProperty.code || selectedProperty.id
@@ -390,6 +430,7 @@ export function GedUpload({
       setEntityCode('')
       setSelectedOwner(null)
       setSelectedTenant(null)
+      setSelectedGuarantor(null)
       setLeaseNumber('')
       setFolderNumber('')
       const fileInput = document.getElementById('file-upload') as HTMLInputElement
@@ -585,7 +626,7 @@ export function GedUpload({
 
       {docType === 'TENANT_DOCUMENT' && (
         <div key="tenant-field" className="grid gap-2 animate-fade-in">
-          <Label>Locatário (Servidor Local)</Label>
+          <Label>Locatário / Interessado</Label>
           <Popover open={tenantOpen} onOpenChange={setTenantOpen}>
             <PopoverTrigger asChild>
               <Button
@@ -612,12 +653,12 @@ export function GedUpload({
             <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
               <Command shouldFilter={false}>
                 <CommandInput
-                  placeholder="Buscar locatário..."
+                  placeholder="Buscar locatário ou interessado..."
                   value={tenantSearchQuery}
                   onValueChange={setTenantSearchQuery}
                 />
                 <CommandList>
-                  <CommandEmpty>Nenhum locatário encontrado no servidor local.</CommandEmpty>
+                  <CommandEmpty>Nenhum registro encontrado.</CommandEmpty>
                   <CommandGroup>
                     {localServerTenants.map((t) => (
                       <CommandItem
@@ -641,6 +682,68 @@ export function GedUpload({
                           <strong className="mr-1">{t.code || t.id}</strong>
                           <span> - {t.name || t.fullName || t.title}</span>
                         </span>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+        </div>
+      )}
+
+      {docType === 'GUARANTEE_DOCUMENT' && (
+        <div key="guarantor-field" className="grid gap-2 animate-fade-in">
+          <Label>Fiador (Garantia)</Label>
+          <Popover open={guarantorOpen} onOpenChange={setGuarantorOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={guarantorOpen}
+                disabled={!hasSpAccess}
+                className="w-full justify-between font-normal"
+              >
+                {selectedGuarantor ? (
+                  <span className="truncate">
+                    <strong className="mr-1">
+                      {selectedGuarantor.code || selectedGuarantor.id}
+                    </strong>
+                    <span> - {selectedGuarantor.fullName}</span>
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">Buscar fiador no SharePoint...</span>
+                )}
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+              <Command shouldFilter={false}>
+                <CommandInput
+                  placeholder="Buscar fiador..."
+                  value={guarantorSearchQuery}
+                  onValueChange={setGuarantorSearchQuery}
+                />
+                <CommandList>
+                  <CommandEmpty>Nenhum fiador encontrado.</CommandEmpty>
+                  <CommandGroup>
+                    {localServerGuarantors.map((g) => (
+                      <CommandItem
+                        key={g.id}
+                        value={g.id}
+                        onSelect={() => {
+                          setSelectedGuarantor(g)
+                          setEntityCode(g.id)
+                          setGuarantorOpen(false)
+                        }}
+                      >
+                        <Check
+                          className={cn(
+                            'mr-2 h-4 w-4',
+                            selectedGuarantor?.id === g.id ? 'opacity-100' : 'opacity-0',
+                          )}
+                        />
+                        <span className="truncate">{g.fullName}</span>
                       </CommandItem>
                     ))}
                   </CommandGroup>
@@ -780,6 +883,7 @@ export function GedUpload({
           !hasSpAccess ||
           (docType === 'OWNER_DOCUMENT' && !selectedOwner) ||
           (docType === 'TENANT_DOCUMENT' && !selectedTenant) ||
+          (docType === 'GUARANTEE_DOCUMENT' && !selectedGuarantor) ||
           (['INSPECTION_MOVE_IN', 'INSPECTION_MOVE_OUT', 'LEASES'].includes(docType) &&
             !leaseNumber) ||
           (['CONTRACT_ACTIVE', 'CONTRACT_TERMINATED'].includes(docType) && !folderNumber)

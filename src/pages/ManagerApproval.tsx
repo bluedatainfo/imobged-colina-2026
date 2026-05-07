@@ -38,6 +38,7 @@ import useEntitiesStore from '@/stores/entities'
 import { useAuth } from '@/contexts/AuthContext'
 import { m365Service } from '@/lib/m365'
 import { DocumentViewer } from '@/components/DocumentViewer'
+import { supabase } from '@/lib/supabase/client'
 
 const DocItem = ({
   name,
@@ -116,6 +117,9 @@ const ManagerApproval = () => {
   const [spTenantDocs, setSpTenantDocs] = useState<any[] | null>(null)
   const [scanningSpEntities, setScanningSpEntities] = useState(false)
 
+  const [hubTenant, setHubTenant] = useState<any>(null)
+  const [hubGuarantor, setHubGuarantor] = useState<any>(null)
+
   const ownerEntity = useMemo(() => {
     return selectedHub?.ownerId ? owners.find((o) => o.id === selectedHub.ownerId) : null
   }, [selectedHub, owners])
@@ -139,10 +143,54 @@ const ManagerApproval = () => {
     const docs = documents.filter(
       (d) =>
         (d.propertyId === selectedHub.id && d.category === 'TENANT_DOCUMENT') ||
-        (tenantEntity && d.entityCode === tenantEntity.code && d.category === 'TENANT_DOCUMENT'),
+        (tenantEntity && d.entityCode === tenantEntity.code && d.category === 'TENANT_DOCUMENT') ||
+        (hubTenant && d.entityCode === hubTenant.id && d.category === 'TENANT_DOCUMENT'),
     )
     return Array.from(new Set(docs.map((a) => a.id))).map((id) => docs.find((a) => a.id === id)!)
-  }, [selectedHub, documents, tenantEntity])
+  }, [selectedHub, documents, tenantEntity, hubTenant])
+
+  const guarantorDocs = useMemo(() => {
+    if (!selectedHub) return []
+    const docs = documents.filter(
+      (d) =>
+        (d.propertyId === selectedHub.id && d.category === 'GUARANTEE_DOCUMENT') ||
+        (hubGuarantor && d.entityCode === hubGuarantor.id && d.category === 'GUARANTEE_DOCUMENT'),
+    )
+    return Array.from(new Set(docs.map((a) => a.id))).map((id) => docs.find((a) => a.id === id)!)
+  }, [selectedHub, documents, hubGuarantor])
+
+  useEffect(() => {
+    if (selectedHub) {
+      const fetchHubEntities = async () => {
+        // Safe check using 'any' to bypass TS strict typing for added columns
+        const tId = (selectedHub as any).tenant_id
+        const gId = (selectedHub as any).guarantor_id
+
+        if (tId) {
+          const { data } = await supabase
+            .from('pre_registrations')
+            .select('*')
+            .eq('id', tId)
+            .maybeSingle()
+          setHubTenant(data)
+        } else {
+          setHubTenant(null)
+        }
+
+        if (gId) {
+          const { data } = await supabase
+            .from('pre_registrations')
+            .select('*')
+            .eq('id', gId)
+            .maybeSingle()
+          setHubGuarantor(data)
+        } else {
+          setHubGuarantor(null)
+        }
+      }
+      fetchHubEntities()
+    }
+  }, [selectedHub])
 
   useEffect(() => {
     if (selectedHub) {
@@ -229,7 +277,7 @@ const ManagerApproval = () => {
 
   const hasPendingNotes = useMemo(() => {
     if (!selectedHub) return false
-    const allDocs = [...finalOwnerDocs, ...finalTenantDocs, ...uploadedContracts]
+    const allDocs = [...finalOwnerDocs, ...finalTenantDocs, ...guarantorDocs, ...uploadedContracts]
     const hasDocNotes = allDocs.some((d) => d.reviewNotes && d.reviewNotes.trim() !== '')
     const hasContractNotes = systemContracts.some(
       (c) => c.reviewNotes && c.reviewNotes.trim() !== '',
@@ -309,6 +357,9 @@ const ManagerApproval = () => {
       finalTenantDocs.forEach((d) => {
         if (d.reviewNotes) allNotes.push(`- Locatário (${d.name}): ${d.reviewNotes}`)
       })
+      guarantorDocs.forEach((d) => {
+        if (d.reviewNotes) allNotes.push(`- Fiador (${d.name}): ${d.reviewNotes}`)
+      })
       systemContracts.forEach((c) => {
         if (c.reviewNotes) allNotes.push(`- Contrato (${c.documentName}): ${c.reviewNotes}`)
       })
@@ -370,7 +421,7 @@ const ManagerApproval = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           <Card className="shadow-sm">
             <CardHeader className="bg-muted/30 pb-4 border-b">
               <CardTitle className="flex items-center gap-2 text-lg">
@@ -408,7 +459,7 @@ const ManagerApproval = () => {
                 <Users className="h-5 w-5 text-primary" /> Locatário
               </CardTitle>
               <CardDescription>
-                Comprovação do locatário ({selectedHub.tenant || 'Não informado'})
+                {hubTenant?.full_name || selectedHub.tenant || 'Não informado'}
               </CardDescription>
             </CardHeader>
             <CardContent className="p-4 space-y-3">
@@ -428,6 +479,31 @@ const ManagerApproval = () => {
               ) : (
                 <p className="text-sm text-muted-foreground italic text-center p-4">
                   Nenhum documento de locatário localizado no GED.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-sm">
+            <CardHeader className="bg-muted/30 pb-4 border-b">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <UserCheck className="h-5 w-5 text-primary" /> Fiador
+              </CardTitle>
+              <CardDescription>{hubGuarantor?.full_name || 'Sem fiador vinculado'}</CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 space-y-3">
+              {guarantorDocs.length > 0 ? (
+                guarantorDocs.map((doc) => (
+                  <DocItem
+                    key={doc.id}
+                    name={doc.name}
+                    hasNotes={!!doc.reviewNotes}
+                    onClick={() => setViewingItem({ type: 'document', id: doc.id })}
+                  />
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground italic text-center p-4">
+                  Nenhum documento de garantia localizado.
                 </p>
               )}
             </CardContent>
@@ -623,9 +699,22 @@ const ManagerApproval = () => {
                   </div>
                   <div>
                     <h3 className="font-semibold text-lg">{item.title}</h3>
-                    <p className="text-sm text-muted-foreground mt-0.5">
-                      ID: <span className="font-mono bg-muted px-1 py-0.5 rounded">{item.id}</span>{' '}
-                      • Locatário: <strong>{item.tenant || 'Aguardando'}</strong>
+                    <p className="text-sm text-muted-foreground mt-0.5 flex flex-wrap gap-x-2 gap-y-1">
+                      <span>
+                        ID:{' '}
+                        <span className="font-mono bg-muted px-1 py-0.5 rounded">{item.id}</span>
+                      </span>
+                      <span>
+                        • Locatário: <strong>{item.tenant || 'Aguardando'}</strong>
+                      </span>
+                      {(item as any).guarantor_id && (
+                        <span>
+                          •{' '}
+                          <Badge variant="secondary" className="text-xs h-5">
+                            Com Fiador
+                          </Badge>
+                        </span>
+                      )}
                     </p>
                     <div className="flex gap-2 pt-3 flex-wrap">
                       <Badge
