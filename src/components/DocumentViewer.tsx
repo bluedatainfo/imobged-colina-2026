@@ -16,6 +16,8 @@ import {
   Save,
   CheckCircle2,
   FileEdit,
+  ArrowLeft,
+  FolderOpen,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -73,6 +75,10 @@ export function DocumentViewer({ open, onClose, viewItem, docName, isTerm }: Doc
   const [correctionName, setCorrectionName] = useState('')
   const [correctionFile, setCorrectionFile] = useState<File | null>(null)
 
+  // Folder Navigation State
+  const [folderItems, setFolderItems] = useState<any[]>([])
+  const [selectedFolderItem, setSelectedFolderItem] = useState<any>(null)
+
   useEffect(() => {
     if (!open) return
 
@@ -85,6 +91,8 @@ export function DocumentViewer({ open, onClose, viewItem, docName, isTerm }: Doc
       setSavedNotes('')
       setCorrectionName('')
       setCorrectionFile(null)
+      setFolderItems([])
+      setSelectedFolderItem(null)
       return
     }
 
@@ -96,6 +104,8 @@ export function DocumentViewer({ open, onClose, viewItem, docName, isTerm }: Doc
       setNotes('')
       setSavedNotes('')
       setCorrectionFile(null)
+      setFolderItems([])
+      setSelectedFolderItem(null)
 
       try {
         if (viewItem.type === 'document') {
@@ -194,15 +204,31 @@ export function DocumentViewer({ open, onClose, viewItem, docName, isTerm }: Doc
           setCorrectionName(viewItem.name || '')
 
           if (viewItem.siteId && viewItem.driveId && viewItem.id) {
-            const url = await m365Service.getDriveItemPreviewUrl(
+            const itemDetails = await m365Service.getDriveItemDetails(
               viewItem.siteId,
               viewItem.driveId,
               viewItem.id,
             )
-            if (url) {
-              setPreviewUrl(url)
+
+            if (itemDetails && itemDetails.folder) {
+              const children = await m365Service.getDriveItemChildrenRecursive(
+                viewItem.siteId,
+                viewItem.driveId,
+                viewItem.id,
+              )
+              setFolderItems(children)
+              setPreviewUrl(null)
             } else {
-              setPreviewUrl(viewItem.webUrl || null)
+              const url = await m365Service.getDriveItemPreviewUrl(
+                viewItem.siteId,
+                viewItem.driveId,
+                viewItem.id,
+              )
+              if (url) {
+                setPreviewUrl(url)
+              } else {
+                setPreviewUrl(viewItem.webUrl || null)
+              }
             }
           } else {
             setPreviewUrl(viewItem.webUrl || null)
@@ -240,6 +266,29 @@ export function DocumentViewer({ open, onClose, viewItem, docName, isTerm }: Doc
       toast({ variant: 'destructive', title: 'Erro', description: 'Falha ao salvar as anotações.' })
     } finally {
       setSavingNotes(false)
+    }
+  }
+
+  const handleSelectFolderItem = async (item: any) => {
+    setLoading(true)
+    try {
+      const url = await m365Service.getDriveItemPreviewUrl(item.siteId, item.driveId, item.id)
+      if (url) {
+        setPreviewUrl(url)
+        setSelectedFolderItem(item)
+        setTitle(item.name)
+      } else {
+        toast({
+          title: 'Aviso',
+          description:
+            'Não foi possível gerar preview deste arquivo. Ele pode ser baixado ou aberto externamente.',
+        })
+        if (item.webUrl) window.open(item.webUrl, '_blank')
+      }
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Erro', description: 'Falha ao carregar arquivo.' })
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -303,18 +352,40 @@ export function DocumentViewer({ open, onClose, viewItem, docName, isTerm }: Doc
     <Dialog open={open} onOpenChange={(val) => !val && onClose()}>
       <DialogContent className="max-w-[1200px] w-[95vw] h-[90vh] flex flex-col p-0 overflow-hidden bg-muted/30">
         <DialogHeader className="p-4 border-b bg-background flex flex-row items-center justify-between shrink-0">
-          <div className="space-y-1">
-            <DialogTitle className="flex items-center gap-2">
-              <FileText className="w-5 h-5 text-blue-600" />
-              {title}
-            </DialogTitle>
-            <DialogDescription>
-              {viewItem?.type === 'sp_file' || viewItem?.type === 'document' || previewUrl
-                ? 'Visualização nativa via SharePoint Online (Modo Leitura)'
-                : 'Visualização de Minuta do Sistema (Dados preenchidos)'}
-            </DialogDescription>
+          <div className="space-y-1 flex items-center">
+            {selectedFolderItem && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                  setPreviewUrl(null)
+                  setSelectedFolderItem(null)
+                  setTitle(viewItem?.name || 'Pasta')
+                }}
+                className="mr-3 h-8 w-8 shrink-0"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </Button>
+            )}
+            <div>
+              <DialogTitle className="flex items-center gap-2">
+                {folderItems.length > 0 && !selectedFolderItem ? (
+                  <FolderOpen className="w-5 h-5 text-blue-600" />
+                ) : (
+                  <FileText className="w-5 h-5 text-blue-600" />
+                )}
+                <span className="truncate max-w-[400px] block" title={title}>
+                  {title}
+                </span>
+              </DialogTitle>
+              <DialogDescription>
+                {viewItem?.type === 'sp_file' || viewItem?.type === 'document' || previewUrl
+                  ? 'Visualização nativa via SharePoint Online (Modo Leitura)'
+                  : 'Visualização de Minuta do Sistema (Dados preenchidos)'}
+              </DialogDescription>
+            </div>
           </div>
-          <div className="flex items-center gap-2 mr-6">
+          <div className="flex items-center gap-2 mr-6 shrink-0">
             {previewUrl && (
               <Button variant="outline" size="sm" onClick={handleOpenExternal}>
                 <ExternalLink className="w-4 h-4 mr-2" /> Abrir no SharePoint
@@ -355,10 +426,50 @@ export function DocumentViewer({ open, onClose, viewItem, docName, isTerm }: Doc
             {!loading && !error && previewUrl && (
               <iframe
                 src={previewUrl}
-                className="w-full flex-1 border-0"
+                className="w-full flex-1 border-0 bg-white"
                 title={title}
                 allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
               />
+            )}
+
+            {!loading && !error && folderItems.length > 0 && !previewUrl && (
+              <div className="p-4 md:p-8 flex-1 overflow-auto bg-background">
+                <h3 className="text-lg font-semibold mb-6 border-b pb-2">
+                  Conteúdo da Pasta: {title}
+                </h3>
+                <div className="grid gap-3">
+                  {folderItems
+                    .filter((item) => !item.isFolder)
+                    .map((item) => (
+                      <button
+                        key={item.id}
+                        onClick={() => handleSelectFolderItem(item)}
+                        className="flex items-center gap-4 p-4 rounded-lg border bg-card hover:bg-muted/50 hover:border-primary/50 text-left transition-all group shadow-sm"
+                      >
+                        <div className="bg-blue-50 p-2 rounded-md group-hover:bg-blue-100 transition-colors">
+                          <FileText className="w-6 h-6 text-blue-600 shrink-0" />
+                        </div>
+                        <div className="flex flex-col overflow-hidden">
+                          <span className="font-medium text-foreground truncate">{item.name}</span>
+                          <span className="text-xs text-muted-foreground truncate">
+                            {item.displayPath}
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+                  {folderItems.filter((item) => !item.isFolder).length === 0 && (
+                    <div className="text-center py-12 border-2 border-dashed rounded-lg bg-muted/20">
+                      <FolderOpen className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-50" />
+                      <p className="text-muted-foreground font-medium">
+                        Nenhum arquivo encontrado.
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Esta pasta e suas subpastas não possuem arquivos compatíveis.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
 
             {!loading && !error && !previewUrl && templateContent && (

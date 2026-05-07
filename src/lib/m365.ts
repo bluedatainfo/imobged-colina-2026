@@ -218,6 +218,57 @@ export const m365Service = {
     return []
   },
 
+  getDriveItemDetails: async (siteId: string, driveId: string, itemId: string) => {
+    const token = getGraphToken()
+    if (!token) return null
+    try {
+      const res = await fetchWithAuth(
+        `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${itemId}`,
+      )
+      if (res.ok) return await res.json()
+    } catch (e) {
+      console.warn('Failed to fetch item details', e)
+    }
+    return null
+  },
+
+  getDriveItemChildrenRecursive: async (
+    siteId: string,
+    driveId: string,
+    itemId: string,
+  ): Promise<any[]> => {
+    const token = getGraphToken()
+    if (!token) return []
+
+    const fetchChildren = async (cItemId: string, path: string = ''): Promise<any[]> => {
+      try {
+        const res = await fetchWithAuth(
+          `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${cItemId}/children`,
+        )
+        if (res.ok) {
+          const data = await res.json()
+          let all: any[] = []
+          for (const item of data.value || []) {
+            const itemPath = path ? `${path}/${item.name}` : item.name
+            if (item.folder) {
+              all.push({ ...item, siteId, driveId, displayPath: itemPath, isFolder: true })
+              const children = await fetchChildren(item.id, itemPath)
+              all = [...all, ...children]
+            } else {
+              all.push({ ...item, siteId, driveId, displayPath: itemPath, isFolder: false })
+            }
+          }
+          return all
+        }
+      } catch (e) {
+        console.warn('Failed to fetch children recursively', e)
+      }
+      return []
+    }
+
+    return fetchChildren(itemId)
+  },
+
   searchFilesByPropertyId: async (propertyId: string): Promise<any[]> => {
     const token = getGraphToken()
     if (!token) return []
