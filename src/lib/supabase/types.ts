@@ -381,6 +381,7 @@ export type Database = {
         Row: {
           address: string
           created_at: string | null
+          guarantor_id: string | null
           id: string
           image: string | null
           is_resubmission: boolean | null
@@ -391,6 +392,7 @@ export type Database = {
           sla_start: string | null
           status: string
           tenant: string | null
+          tenant_id: string | null
           title: string
           type: string
           updated_at: string | null
@@ -398,6 +400,7 @@ export type Database = {
         Insert: {
           address: string
           created_at?: string | null
+          guarantor_id?: string | null
           id: string
           image?: string | null
           is_resubmission?: boolean | null
@@ -408,6 +411,7 @@ export type Database = {
           sla_start?: string | null
           status: string
           tenant?: string | null
+          tenant_id?: string | null
           title: string
           type: string
           updated_at?: string | null
@@ -415,6 +419,7 @@ export type Database = {
         Update: {
           address?: string
           created_at?: string | null
+          guarantor_id?: string | null
           id?: string
           image?: string | null
           is_resubmission?: boolean | null
@@ -425,16 +430,31 @@ export type Database = {
           sla_start?: string | null
           status?: string
           tenant?: string | null
+          tenant_id?: string | null
           title?: string
           type?: string
           updated_at?: string | null
         }
         Relationships: [
           {
+            foreignKeyName: 'properties_guarantor_id_fkey'
+            columns: ['guarantor_id']
+            isOneToOne: false
+            referencedRelation: 'pre_registrations'
+            referencedColumns: ['id']
+          },
+          {
             foreignKeyName: 'properties_owner_id_fkey'
             columns: ['owner_id']
             isOneToOne: false
             referencedRelation: 'owners'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'properties_tenant_id_fkey'
+            columns: ['tenant_id']
+            isOneToOne: false
+            referencedRelation: 'pre_registrations'
             referencedColumns: ['id']
           },
         ]
@@ -812,6 +832,8 @@ export const Constants = {
 //   updated_at: timestamp with time zone (nullable, default: now())
 //   owner_id: uuid (nullable)
 //   is_resubmission: boolean (nullable, default: false)
+//   tenant_id: uuid (nullable)
+//   guarantor_id: uuid (nullable)
 // Table: property_documents
 //   id: uuid (not null, default: gen_random_uuid())
 //   property_id: text (not null)
@@ -865,8 +887,10 @@ export const Constants = {
 // Table: pre_registrations
 //   PRIMARY KEY pre_registrations_pkey: PRIMARY KEY (id)
 // Table: properties
+//   FOREIGN KEY properties_guarantor_id_fkey: FOREIGN KEY (guarantor_id) REFERENCES pre_registrations(id) ON DELETE SET NULL
 //   FOREIGN KEY properties_owner_id_fkey: FOREIGN KEY (owner_id) REFERENCES owners(id) ON DELETE SET NULL
 //   PRIMARY KEY properties_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY properties_tenant_id_fkey: FOREIGN KEY (tenant_id) REFERENCES pre_registrations(id) ON DELETE SET NULL
 // Table: property_documents
 //   PRIMARY KEY property_documents_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY property_documents_property_id_fkey: FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE CASCADE

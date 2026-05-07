@@ -47,10 +47,25 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
   const [selectedProp, setSelectedProp] = useState('')
   const [loadingProps, setLoadingProps] = useState(false)
 
-  const [newOwnerName, setNewOwnerName] = useState('')
-  const [newPropTitle, setNewPropTitle] = useState('')
-  const [newPropAddress, setNewPropAddress] = useState('')
-  const [newPropValue, setNewPropValue] = useState('')
+  const [newPropData, setNewPropData] = useState({
+    ownerName: '',
+    address: '',
+    neighborhood: '',
+    city: '',
+    sheet: '',
+    rentValue: '',
+    iptu: '',
+    condo: '',
+    contractTerm: '',
+    release12Months: 'nao',
+    proposal: '',
+    spc: '',
+    date: '',
+  })
+
+  const updatePropData = (field: string, value: string) => {
+    setNewPropData((prev) => ({ ...prev, [field]: value }))
+  }
 
   const [submitting, setSubmitting] = useState(false)
 
@@ -73,34 +88,30 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
       let isMounted = true
       setLoadingProps(true)
       fetch(`http://192.168.10.225:9000/imoveis?name=${encodeURIComponent(owner.fullName)}`)
-        .then((res) => (res.ok ? res.json() : []))
+        .then((res) => {
+          if (!res.ok) throw new Error('Falha na resposta do servidor local')
+          return res.json()
+        })
         .then((data) => {
           if (!isMounted) return
-          if (!data || data.length === 0) {
-            setErpProperties([
-              {
-                id: 'ERP-' + Math.floor(Math.random() * 1000),
-                title: 'Imóvel Exemplo ERP',
-                address: owner.fullAddress || 'Endereço ERP',
-                type: 'Apartamento',
-                rentValue: 2500,
-              },
-            ])
-          } else {
+          if (data && data.length > 0) {
             setErpProperties(data)
+          } else {
+            setErpProperties([])
+            toast({
+              title: 'Aviso',
+              description: 'Nenhum imóvel encontrado no ERP para este proprietário.',
+            })
           }
         })
         .catch(() => {
           if (!isMounted) return
-          setErpProperties([
-            {
-              id: 'ERP-' + Math.floor(Math.random() * 1000),
-              title: 'Imóvel Integrado (Simulado)',
-              address: 'Endereço Mockado do ERP',
-              type: 'Casa',
-              rentValue: 3000,
-            },
-          ])
+          setErpProperties([])
+          toast({
+            variant: 'destructive',
+            title: 'Erro de conexão',
+            description: 'Não foi possível conectar ao servidor ERP (192.168.10.225).',
+          })
         })
         .finally(() => {
           if (isMounted) setLoadingProps(false)
@@ -124,6 +135,8 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
       let rentValue = 0
       let finalOwnerId = ownerId
 
+      let details: any = {}
+
       if (propertyMode === 'existing') {
         const p = erpProperties.find((x) => x.id === selectedProp)
         if (!p) throw new Error('Selecione um imóvel da lista.')
@@ -131,19 +144,33 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
         address = p.address || p.endereco || 'Endereço ERP'
         rentValue = Number(p.rentValue || p.valor || 0)
       } else {
-        if (!newOwnerName || !newPropTitle)
-          throw new Error('Preencha os dados do novo imóvel e proprietário.')
+        if (!newPropData.ownerName || !newPropData.address)
+          throw new Error('Preencha os dados do novo imóvel e proprietário (Endereço e Nome).')
         const { data: oData, error: oErr } = await supabase
           .from('owners')
-          .insert({ code: 'MANUAL-' + Date.now(), full_name: newOwnerName })
+          .insert({ code: 'MANUAL-' + Date.now(), full_name: newPropData.ownerName })
           .select()
           .single()
         if (oErr) throw oErr
         finalOwnerId = oData.id
-        title = newPropTitle
-        address = newPropAddress
-        rentValue = Number(newPropValue || 0)
+        title = newPropData.address
+        address = `${newPropData.address}, ${newPropData.neighborhood}, ${newPropData.city}`
+          .replace(/,\s*,/g, ',')
+          .replace(/^,\s*|,\s*$/g, '')
+        rentValue = Number(newPropData.rentValue || 0)
         finalPropId = 'MANUAL-' + Date.now()
+        details = {
+          neighborhood: newPropData.neighborhood,
+          city: newPropData.city,
+          sheet: newPropData.sheet,
+          iptu: newPropData.iptu,
+          condo: newPropData.condo,
+          contractTerm: newPropData.contractTerm,
+          release12Months: newPropData.release12Months,
+          proposal: newPropData.proposal,
+          spc: newPropData.spc,
+          date: newPropData.date,
+        }
       }
 
       const { data: existingProp } = await supabase
@@ -163,6 +190,7 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
         tenant: candidate.full_name,
         tenant_id: candidate.id,
         guarantor_id: selectedGuarantor && selectedGuarantor !== '_none' ? selectedGuarantor : null,
+        ...(propertyMode === 'new' ? { details } : {}),
       }
 
       if (existingProp) {
@@ -321,38 +349,110 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
                 )}
               </div>
             ) : (
-              <div className="space-y-4 animate-in fade-in slide-in-from-top-2 bg-muted/10 p-4 rounded-lg border">
-                <div className="grid gap-2">
+              <div className="grid gap-4 sm:grid-cols-2 animate-in fade-in slide-in-from-top-2 bg-muted/10 p-4 rounded-lg border">
+                <div className="space-y-2 sm:col-span-2">
                   <Label>Nome do Proprietário</Label>
                   <Input
-                    value={newOwnerName}
-                    onChange={(e) => setNewOwnerName(e.target.value)}
+                    value={newPropData.ownerName}
+                    onChange={(e) => updatePropData('ownerName', e.target.value)}
                     placeholder="Ex: João da Silva"
                   />
                 </div>
-                <div className="grid gap-2">
-                  <Label>Identificação do Imóvel</Label>
-                  <Input
-                    value={newPropTitle}
-                    onChange={(e) => setNewPropTitle(e.target.value)}
-                    placeholder="Ex: Casa Vila Nova"
-                  />
-                </div>
-                <div className="grid gap-2">
+                <div className="space-y-2 sm:col-span-2">
                   <Label>Endereço</Label>
                   <Input
-                    value={newPropAddress}
-                    onChange={(e) => setNewPropAddress(e.target.value)}
+                    value={newPropData.address}
+                    onChange={(e) => updatePropData('address', e.target.value)}
                     placeholder="Ex: Rua das Flores, 123"
                   />
                 </div>
-                <div className="grid gap-2">
-                  <Label>Valor do Aluguel (R$)</Label>
+                <div className="space-y-2">
+                  <Label>Bairro</Label>
+                  <Input
+                    value={newPropData.neighborhood}
+                    onChange={(e) => updatePropData('neighborhood', e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Cidade</Label>
+                  <Input
+                    value={newPropData.city}
+                    onChange={(e) => updatePropData('city', e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Ficha</Label>
+                  <Input
+                    value={newPropData.sheet}
+                    onChange={(e) => updatePropData('sheet', e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Valor (R$)</Label>
                   <Input
                     type="number"
-                    value={newPropValue}
-                    onChange={(e) => setNewPropValue(e.target.value)}
-                    placeholder="Ex: 2500"
+                    value={newPropData.rentValue}
+                    onChange={(e) => updatePropData('rentValue', e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>IPTU (R$)</Label>
+                  <Input
+                    type="number"
+                    value={newPropData.iptu}
+                    onChange={(e) => updatePropData('iptu', e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Condomínio (R$)</Label>
+                  <Input
+                    type="number"
+                    value={newPropData.condo}
+                    onChange={(e) => updatePropData('condo', e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Prazo do Contrato</Label>
+                  <Input
+                    value={newPropData.contractTerm}
+                    onChange={(e) => updatePropData('contractTerm', e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Liberação 12 Meses</Label>
+                  <Select
+                    value={newPropData.release12Months}
+                    onValueChange={(v) => updatePropData('release12Months', v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="sim">Sim</SelectItem>
+                      <SelectItem value="nao">Não</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2 sm:col-span-2">
+                  <Label>Proposta</Label>
+                  <Input
+                    value={newPropData.proposal}
+                    onChange={(e) => updatePropData('proposal', e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>SPC</Label>
+                  <Input
+                    value={newPropData.spc}
+                    onChange={(e) => updatePropData('spc', e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Data</Label>
+                  <Input
+                    type="date"
+                    value={newPropData.date}
+                    onChange={(e) => updatePropData('date', e.target.value)}
                   />
                 </div>
               </div>
@@ -369,7 +469,7 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
             disabled={
               submitting ||
               (propertyMode === 'existing' && !selectedProp) ||
-              (propertyMode === 'new' && (!newOwnerName || !newPropTitle))
+              (propertyMode === 'new' && (!newPropData.ownerName || !newPropData.address))
             }
           >
             {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}

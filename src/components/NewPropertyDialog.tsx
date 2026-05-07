@@ -44,36 +44,31 @@ export function NewPropertyDialog({ open, onClose }: { open: boolean; onClose: (
 
     // Fetch from local ERP: http://192.168.10.225:9000/imoveis?name={nome proprietario}
     fetch(`http://192.168.10.225:9000/imoveis?name=${encodeURIComponent(owner.fullName)}`)
-      .then((res) => (res.ok ? res.json() : []))
+      .then((res) => {
+        if (!res.ok) throw new Error('Falha na resposta do servidor local')
+        return res.json()
+      })
       .then((data) => {
         if (isMounted) {
-          if (!data || data.length === 0) {
-            setErpProperties([
-              {
-                id: 'ERP-' + Math.floor(Math.random() * 1000),
-                title: 'Imóvel Exemplo ERP',
-                address: owner.fullAddress || 'Endereço ERP',
-                type: 'Apartamento',
-                rentValue: 2500,
-              },
-            ])
-          } else {
+          if (data && data.length > 0) {
             setErpProperties(data)
+          } else {
+            setErpProperties([])
+            toast({
+              title: 'Aviso',
+              description: 'Nenhum imóvel encontrado no ERP para este proprietário.',
+            })
           }
         }
       })
       .catch(() => {
         if (isMounted) {
-          // Fallback mock since ERP is likely inaccessible from preview
-          setErpProperties([
-            {
-              id: 'ERP-' + Math.floor(Math.random() * 1000),
-              title: 'Imóvel Integrado (Simulado)',
-              address: 'Endereço Mockado do ERP',
-              type: 'Casa',
-              rentValue: 3000,
-            },
-          ])
+          setErpProperties([])
+          toast({
+            variant: 'destructive',
+            title: 'Erro de conexão',
+            description: 'Não foi possível conectar ao servidor ERP (192.168.10.225).',
+          })
         }
       })
       .finally(() => {
