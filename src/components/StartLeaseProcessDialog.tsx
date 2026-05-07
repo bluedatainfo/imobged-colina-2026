@@ -17,20 +17,77 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Card } from '@/components/ui/card'
-import { Loader2, MapPin, User, Building } from 'lucide-react'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Loader2, MapPin, User, Building, Search } from 'lucide-react'
 import useEntitiesStore from '@/stores/entities'
 import { supabase } from '@/lib/supabase/client'
 import { useToast } from '@/hooks/use-toast'
 import { PreRegistration } from '@/services/candidates'
 import { useNavigate } from 'react-router-dom'
 import { mainStore } from '@/stores/main'
+import { useDebounce } from '@/hooks/use-debounce'
+import { cn } from '@/lib/utils'
 
 interface Props {
   open: boolean
   onClose: () => void
   candidate: PreRegistration | null
   onSuccess: () => void
+}
+
+const getOwnerName = (property: any) => {
+  if (!property) return 'Não informado'
+  if (property.proprietario) return property.proprietario
+  if (property.Proprietario) return property.Proprietario
+  if (property.nomeProprietario) return property.nomeProprietario
+  if (property.proprietario_nome) return property.proprietario_nome
+  if (property.cliente) return property.cliente
+  if (property.ownerName) return property.ownerName
+  if (property.title) return property.title
+  if (
+    property.proprietarios &&
+    Array.isArray(property.proprietarios) &&
+    property.proprietarios.length > 0
+  ) {
+    return property.proprietarios[0].nome
+  }
+  return 'Proprietário não informado'
+}
+
+const getAddress = (property: any) => {
+  if (!property) return 'Endereço não informado'
+  const parts = []
+  if (property.endereco) parts.push(property.endereco)
+  if (property.numero) parts.push(property.numero)
+  if (property.bairro) parts.push(property.bairro)
+  if (property.cidade) parts.push(property.cidade)
+  if (property.uf) parts.push(property.uf)
+  return parts.length > 0 ? parts.join(', ') : 'Endereço não informado'
+}
+
+const formatCurrency = (value: string) => {
+  const numbers = value.replace(/\D/g, '')
+  if (!numbers) return ''
+  const amount = Number(numbers) / 100
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  }).format(amount)
+}
+
+const parseCurrency = (value: string) => {
+  if (!value) return 0
+  const numbers = value.replace(/\D/g, '')
+  if (!numbers) return 0
+  return Number(numbers) / 100
 }
 
 export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }: Props) {
@@ -42,10 +99,13 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
 
   const [propertyMode, setPropertyMode] = useState<'existing' | 'new'>('existing')
 
-  const [ownerId, setOwnerId] = useState('')
-  const [erpProperties, setErpProperties] = useState<any[]>([])
-  const [selectedProp, setSelectedProp] = useState('')
-  const [loadingProps, setLoadingProps] = useState(false)
+  // ERP Search state
+  const [openERP, setOpenERP] = useState(false)
+  const [searchERP, setSearchERP] = useState('')
+  const debouncedSearchERP = useDebounce(searchERP, 400)
+  const [erpOptions, setErpOptions] = useState<any[]>([])
+  const [loadingERP, setLoadingERP] = useState(false)
+  const [selectedERPProperty, setSelectedERPProperty] = useState<any | null>(null)
 
   const [newPropData, setNewPropData] = useState({
     ownerName: '',
@@ -82,89 +142,102 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
   }, [open])
 
   useEffect(() => {
-    if (propertyMode === 'existing' && ownerId) {
-      const owner = owners.find((o) => o.id === ownerId)
-      if (!owner) return
-      let isMounted = true
-      setLoadingProps(true)
-      fetch(`http://192.168.10.225:9000/imoveis?name=${encodeURIComponent(owner.fullName)}`)
-        .then((res) => {
-          if (!res.ok) throw new Error('Falha na resposta do servidor local')
-          return res.json()
-        })
-        .then((data) => {
-          if (!isMounted) return
-          if (data && data.length > 0) {
-            setErpProperties(data)
-          } else {
-            setErpProperties([])
-            toast({
-              title: 'Aviso',
-              description: 'Nenhum imóvel encontrado no ERP para este proprietário.',
-            })
-          }
-        })
-        .catch(() => {
-          if (!isMounted) return
-          setErpProperties([])
-          toast({
-            variant: 'destructive',
-            title: 'Erro de conexão',
-            description: 'Não foi possível conectar ao servidor ERP (192.168.10.225).',
-          })
-        })
-        .finally(() => {
-          if (isMounted) setLoadingProps(false)
-        })
-      return () => {
-        isMounted = false
-      }
-    } else {
-      setErpProperties([])
-      setSelectedProp('')
+    if (propertyMode !== 'existing' || !debouncedSearchERP.trim()) {
+      setErpOptions([])
+      return
     }
-  }, [ownerId, owners, propertyMode])
+
+    let isMounted = true
+    const fetchOptions = async () => {
+      setLoadingERP(true)
+      try {
+        const res = await fetch(
+          `http://192.168.10.225:9000/imoveis?name=${encodeURIComponent(debouncedSearchERP)}`,
+        )
+        if (!res.ok) throw new Error('Erro na comunicação com o servidor local')
+        const data = await res.json()
+
+        if (isMounted) {
+          const dataArray = Array.isArray(data) ? data : [data]
+          setErpOptions(dataArray.filter((item) => item && item.id))
+        }
+      } catch (err) {
+        console.error(err)
+        if (isMounted) {
+          setErpOptions([])
+        }
+      } finally {
+        if (isMounted) {
+          setLoadingERP(false)
+        }
+      }
+    }
+
+    fetchOptions()
+    return () => {
+      isMounted = false
+    }
+  }, [debouncedSearchERP, propertyMode])
 
   const handleSubmit = async () => {
     if (!candidate) return
     setSubmitting(true)
     try {
-      let finalPropId = selectedProp
+      let finalPropId = ''
       let title = ''
       let address = ''
       let rentValue = 0
-      let finalOwnerId = ownerId
-
+      let finalOwnerId = ''
       let details: any = {}
 
       if (propertyMode === 'existing') {
-        const p = erpProperties.find((x) => x.id === selectedProp)
-        if (!p) throw new Error('Selecione um imóvel da lista.')
-        title = p.title || p.nome || 'Imóvel ERP'
-        address = p.address || p.endereco || 'Endereço ERP'
+        if (!selectedERPProperty) throw new Error('Selecione um imóvel da lista.')
+        const p = selectedERPProperty
+        title = p.title || p.nome || p.endereco || 'Imóvel ERP'
+        address = getAddress(p)
         rentValue = Number(p.rentValue || p.valor || 0)
+        finalPropId = String(p.id)
+
+        const erpOwnerName = getOwnerName(p)
+        const existingOwner = owners.find(
+          (o) => o.fullName.toLowerCase() === erpOwnerName.toLowerCase() || o.code === erpOwnerName,
+        )
+
+        if (existingOwner) {
+          finalOwnerId = existingOwner.id
+        } else {
+          const { data: oData, error: oErr } = await supabase
+            .from('owners')
+            .insert({ code: 'ERP-' + Date.now(), full_name: erpOwnerName })
+            .select()
+            .single()
+          if (oErr) throw oErr
+          finalOwnerId = oData.id
+        }
       } else {
         if (!newPropData.ownerName || !newPropData.address)
           throw new Error('Preencha os dados do novo imóvel e proprietário (Endereço e Nome).')
+
         const { data: oData, error: oErr } = await supabase
           .from('owners')
           .insert({ code: 'MANUAL-' + Date.now(), full_name: newPropData.ownerName })
           .select()
           .single()
         if (oErr) throw oErr
+
         finalOwnerId = oData.id
         title = newPropData.address
         address = `${newPropData.address}, ${newPropData.neighborhood}, ${newPropData.city}`
           .replace(/,\s*,/g, ',')
           .replace(/^,\s*|,\s*$/g, '')
-        rentValue = Number(newPropData.rentValue || 0)
+        rentValue = parseCurrency(newPropData.rentValue)
         finalPropId = 'MANUAL-' + Date.now()
         details = {
           neighborhood: newPropData.neighborhood,
           city: newPropData.city,
           sheet: newPropData.sheet,
-          iptu: newPropData.iptu,
-          condo: newPropData.condo,
+          iptu: parseCurrency(newPropData.iptu),
+          condo: parseCurrency(newPropData.condo),
           contractTerm: newPropData.contractTerm,
           release12Months: newPropData.release12Months,
           proposal: newPropData.proposal,
@@ -297,54 +370,95 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
             {propertyMode === 'existing' ? (
               <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
                 <div className="grid gap-2">
-                  <Label>Buscar Proprietário</Label>
-                  <Select
-                    value={ownerId}
-                    onValueChange={(val) => {
-                      setOwnerId(val)
-                      setSelectedProp('')
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione na lista do ERP..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {owners.map((o) => (
-                        <SelectItem key={o.id} value={o.id}>
-                          {o.fullName} ({o.code})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label>Buscar Imóvel / Proprietário no ERP</Label>
+                  <Popover open={openERP} onOpenChange={setOpenERP}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={openERP}
+                        className="justify-between w-full font-normal h-12"
+                      >
+                        <span
+                          className={cn(
+                            'truncate',
+                            !selectedERPProperty && 'text-muted-foreground',
+                          )}
+                        >
+                          {selectedERPProperty
+                            ? `${selectedERPProperty.id} - ${getOwnerName(selectedERPProperty)}`
+                            : 'Digite para buscar...'}
+                        </span>
+                        {loadingERP && !openERP ? (
+                          <Loader2 className="ml-2 h-4 w-4 shrink-0 animate-spin opacity-50" />
+                        ) : (
+                          <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      className="w-[var(--radix-popover-trigger-width)] p-0"
+                      align="start"
+                    >
+                      <Command shouldFilter={false}>
+                        <CommandInput
+                          placeholder="Ex: Nome do Proprietário, ID..."
+                          value={searchERP}
+                          onValueChange={(val) => {
+                            setSearchERP(val)
+                            setSelectedERPProperty(null)
+                          }}
+                        />
+                        <CommandList>
+                          <CommandEmpty className="py-6 text-center text-sm">
+                            {loadingERP ? (
+                              <div className="flex items-center justify-center gap-2 text-muted-foreground">
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                <span>Buscando no servidor local...</span>
+                              </div>
+                            ) : debouncedSearchERP.trim().length > 0 ? (
+                              'Nenhum imóvel encontrado.'
+                            ) : (
+                              'Digite para começar a buscar.'
+                            )}
+                          </CommandEmpty>
+                          <CommandGroup>
+                            {erpOptions.map((property) => (
+                              <CommandItem
+                                key={property.id}
+                                value={String(property.id)}
+                                onSelect={() => {
+                                  setSearchERP(getOwnerName(property))
+                                  setSelectedERPProperty(property)
+                                  setOpenERP(false)
+                                }}
+                                className="flex flex-col items-start py-3 px-4 gap-1.5 cursor-pointer border-b border-border/40 last:border-0"
+                              >
+                                <div className="flex items-center gap-2 w-full">
+                                  <span className="font-medium text-sm truncate text-foreground">
+                                    {property.id} - {getOwnerName(property)}
+                                  </span>
+                                </div>
+                                <div className="flex items-center text-xs text-muted-foreground gap-1.5 w-full">
+                                  <MapPin className="w-3.5 h-3.5 shrink-0 opacity-70" />
+                                  <span className="truncate">{getAddress(property)}</span>
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
 
-                {ownerId && (
-                  <div className="grid gap-2">
-                    <Label>Imóveis Localizados</Label>
-                    {loadingProps ? (
-                      <div className="flex items-center justify-center p-4 border rounded-lg bg-muted/20">
-                        <Loader2 className="w-4 h-4 animate-spin mr-2" /> Consultando servidor...
-                      </div>
-                    ) : erpProperties.length > 0 ? (
-                      <div className="space-y-2 max-h-[150px] overflow-y-auto pr-2">
-                        {erpProperties.map((prop) => (
-                          <Card
-                            key={prop.id}
-                            className={`p-3 cursor-pointer transition-colors border-2 ${selectedProp === prop.id ? 'border-primary bg-primary/5' : 'hover:bg-muted'}`}
-                            onClick={() => setSelectedProp(prop.id)}
-                          >
-                            <p className="font-semibold text-sm">{prop.title || prop.nome}</p>
-                            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                              <MapPin className="w-3 h-3" /> {prop.address || prop.endereco || '-'}
-                            </p>
-                          </Card>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="p-4 border rounded-lg bg-muted/20 text-center text-sm text-muted-foreground">
-                        Nenhum imóvel localizado.
-                      </div>
-                    )}
+                {selectedERPProperty && (
+                  <div className="p-4 border rounded-lg bg-muted/20 space-y-2">
+                    <p className="font-medium text-sm">Imóvel Selecionado:</p>
+                    <p className="text-sm text-foreground">{getAddress(selectedERPProperty)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Proprietário: {getOwnerName(selectedERPProperty)}
+                    </p>
                   </div>
                 )}
               </div>
@@ -390,25 +504,25 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
                 <div className="space-y-2">
                   <Label>Valor (R$)</Label>
                   <Input
-                    type="number"
                     value={newPropData.rentValue}
-                    onChange={(e) => updatePropData('rentValue', e.target.value)}
+                    onChange={(e) => updatePropData('rentValue', formatCurrency(e.target.value))}
+                    placeholder="R$ 0,00"
                   />
                 </div>
                 <div className="space-y-2">
                   <Label>IPTU (R$)</Label>
                   <Input
-                    type="number"
                     value={newPropData.iptu}
-                    onChange={(e) => updatePropData('iptu', e.target.value)}
+                    onChange={(e) => updatePropData('iptu', formatCurrency(e.target.value))}
+                    placeholder="R$ 0,00"
                   />
                 </div>
                 <div className="space-y-2">
                   <Label>Condomínio (R$)</Label>
                   <Input
-                    type="number"
                     value={newPropData.condo}
-                    onChange={(e) => updatePropData('condo', e.target.value)}
+                    onChange={(e) => updatePropData('condo', formatCurrency(e.target.value))}
+                    placeholder="R$ 0,00"
                   />
                 </div>
                 <div className="space-y-2">
@@ -468,7 +582,7 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
             onClick={handleSubmit}
             disabled={
               submitting ||
-              (propertyMode === 'existing' && !selectedProp) ||
+              (propertyMode === 'existing' && !selectedERPProperty) ||
               (propertyMode === 'new' && (!newPropData.ownerName || !newPropData.address))
             }
           >

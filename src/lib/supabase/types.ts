@@ -381,6 +381,7 @@ export type Database = {
         Row: {
           address: string
           created_at: string | null
+          details: Json | null
           guarantor_id: string | null
           id: string
           image: string | null
@@ -400,6 +401,7 @@ export type Database = {
         Insert: {
           address: string
           created_at?: string | null
+          details?: Json | null
           guarantor_id?: string | null
           id: string
           image?: string | null
@@ -419,6 +421,7 @@ export type Database = {
         Update: {
           address?: string
           created_at?: string | null
+          details?: Json | null
           guarantor_id?: string | null
           id?: string
           image?: string | null
@@ -834,6 +837,7 @@ export const Constants = {
 //   is_resubmission: boolean (nullable, default: false)
 //   tenant_id: uuid (nullable)
 //   guarantor_id: uuid (nullable)
+//   details: jsonb (nullable, default: '{}'::jsonb)
 // Table: property_documents
 //   id: uuid (not null, default: gen_random_uuid())
 //   property_id: text (not null)

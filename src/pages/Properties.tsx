@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
+import { useDebounce } from '@/hooks/use-debounce'
 
 interface ERPProperty {
   id: number | string
@@ -47,17 +48,6 @@ interface ERPProperty {
     numero: string
   }[]
   [key: string]: any
-}
-
-function useDebounce<T>(value: T, delay: number): T {
-  const [debouncedValue, setDebouncedValue] = useState<T>(value)
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value)
-    }, delay)
-    return () => clearTimeout(handler)
-  }, [value, delay])
-  return debouncedValue
 }
 
 export default function Properties() {
