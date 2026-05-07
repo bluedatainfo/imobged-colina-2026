@@ -461,8 +461,7 @@ export default function Candidates() {
                         </Button>
                       )}
 
-                      {(selectedCandidate.status === 'Em Análise da Gerência' ||
-                        selectedCandidate.status === 'Novo' ||
+                      {(selectedCandidate.status === 'Novo' ||
                         selectedCandidate.status === 'Documentação Pendente') &&
                         selectedCandidate.category !== 'Fiador' && (
                           <Button

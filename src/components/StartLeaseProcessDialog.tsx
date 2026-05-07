@@ -216,7 +216,13 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
         const p = selectedERPProperty
         title = p.title || p.nome || p.endereco || 'Imóvel ERP'
         address = getAddress(p)
-        rentValue = Number(p.rentValue || p.valor || 0)
+
+        let rawRent = p.rentValue || p.valor || 0
+        if (typeof rawRent === 'string' && (rawRent.includes('R$') || rawRent.includes(','))) {
+          rentValue = parseCurrency(rawRent)
+        } else {
+          rentValue = Number(rawRent) || 0
+        }
         finalPropId = String(p.id)
 
         const erpOwnerName = getOwnerName(p)
@@ -309,9 +315,14 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
       }
 
       if (existingProp) {
-        await supabase.from('properties').update(propPayload).eq('id', finalPropId)
+        const { error } = await supabase
+          .from('properties')
+          .update(propPayload)
+          .eq('id', finalPropId)
+        if (error) throw error
       } else {
-        await supabase.from('properties').insert(propPayload)
+        const { error } = await supabase.from('properties').insert(propPayload)
+        if (error) throw error
       }
 
       await supabase

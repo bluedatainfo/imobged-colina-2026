@@ -155,7 +155,8 @@ const ManagerApproval = () => {
   const [hubGuarantor, setHubGuarantor] = useState<any>(null)
 
   const ownerEntity = useMemo(() => {
-    return selectedHub?.ownerId ? owners.find((o) => o.id === selectedHub.ownerId) : null
+    const oId = (selectedHub as any)?.owner_id || selectedHub?.ownerId
+    return oId ? owners.find((o) => o.id === oId) : null
   }, [selectedHub, owners])
 
   const tenantEntity = useMemo(() => {
@@ -465,8 +466,9 @@ const ManagerApproval = () => {
                 <User className="h-5 w-5 text-primary" /> Proprietário
               </CardTitle>
               <CardDescription>
-                Documentos vinculados ({ownerEntity?.fullName || 'Não definido'})
-              </CardDescription>
+                Documentos vinculados (
+                {ownerEntity?.fullName || (ownerEntity as any)?.full_name || 'Não definido'})
+              </CardDescription>{' '}
             </CardHeader>
             <CardContent className="p-4 space-y-3">
               {scanningSpEntities ? (
