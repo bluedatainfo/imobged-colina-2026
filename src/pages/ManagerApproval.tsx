@@ -153,12 +153,12 @@ const ManagerApproval = () => {
 
   const [hubTenant, setHubTenant] = useState<any>(null)
   const [hubGuarantor, setHubGuarantor] = useState<any>(null)
+  const [hubOwner, setHubOwner] = useState<any>(null)
 
   const ownerEntity = useMemo(() => {
     const oId = (selectedHub as any)?.owner_id || selectedHub?.ownerId
     return oId ? owners.find((o) => o.id === oId) : null
   }, [selectedHub, owners])
-
   const tenantEntity = useMemo(() => {
     return selectedHub?.tenant ? tenants.find((t) => t.fullName === selectedHub.tenant) : null
   }, [selectedHub, tenants])
@@ -221,6 +221,14 @@ const ManagerApproval = () => {
           setHubGuarantor(data)
         } else {
           setHubGuarantor(null)
+        }
+
+        const oId = (selectedHub as any).owner_id || (selectedHub as any).ownerId
+        if (oId) {
+          const { data } = await supabase.from('owners').select('*').eq('id', oId).maybeSingle()
+          setHubOwner(data)
+        } else {
+          setHubOwner(null)
         }
       }
       fetchHubEntities()
@@ -467,7 +475,11 @@ const ManagerApproval = () => {
               </CardTitle>
               <CardDescription>
                 Documentos vinculados (
-                {ownerEntity?.fullName || (ownerEntity as any)?.full_name || 'Não definido'})
+                {hubOwner?.full_name ||
+                  ownerEntity?.fullName ||
+                  (ownerEntity as any)?.full_name ||
+                  'Não definido'}
+                )
               </CardDescription>{' '}
             </CardHeader>
             <CardContent className="p-4 space-y-3">

@@ -226,9 +226,6 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
         finalPropId = String(p.id)
 
         const erpOwnerName = getOwnerName(p)
-        const existingOwner = owners.find(
-          (o) => o.fullName.toLowerCase() === erpOwnerName.toLowerCase() || o.code === erpOwnerName,
-        )
 
         const generateShortCode = (prefix: string) => {
           const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
@@ -239,8 +236,16 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
           return `${prefix}-${result}`
         }
 
-        if (existingOwner) {
-          finalOwnerId = existingOwner.id
+        // Sempre busca direto no banco para garantir que pegaremos um UUID válido,
+        // evitando IDs mockados da store local que causavam "invalid input syntax for type uuid"
+        const { data: dbOwner } = await supabase
+          .from('owners')
+          .select('id')
+          .ilike('full_name', erpOwnerName)
+          .maybeSingle()
+
+        if (dbOwner) {
+          finalOwnerId = dbOwner.id
         } else {
           const { data: oData, error: oErr } = await supabase
             .from('owners')
