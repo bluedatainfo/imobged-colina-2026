@@ -470,7 +470,7 @@ export default function Candidates() {
                             className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto"
                           >
                             <ClipboardList className="mr-2 h-4 w-4" />
-                            Iniciar Processo de Locação
+                            Iniciar Análise para Locação
                           </Button>
                         )}
                     </div>
