@@ -145,6 +145,7 @@ const ManagerApproval = () => {
   const [rejectReason, setRejectReason] = useState('')
 
   const [spFiles, setSpFiles] = useState<any[]>([])
+  const [rawSpFiles, setRawSpFiles] = useState<any[]>([])
   const [scanningSp, setScanningSp] = useState(false)
 
   const [spOwnerDocs, setSpOwnerDocs] = useState<any[] | null>(null)
@@ -197,9 +198,21 @@ const ManagerApproval = () => {
   useEffect(() => {
     if (selectedHub) {
       const fetchHubEntities = async () => {
-        // Safe check using 'any' to bypass TS strict typing for added columns
-        const tId = (selectedHub as any).tenant_id || (selectedHub as any).tenantId
-        const gId = (selectedHub as any).guarantor_id || (selectedHub as any).guarantorId
+        // Buscamos diretamente do DB para ter certeza de pegar a versão mais recente das vinculações
+        const { data: propData } = await supabase
+          .from('properties')
+          .select('tenant_id, guarantor_id, owner_id')
+          .eq('id', selectedHub.id)
+          .maybeSingle()
+
+        const tId =
+          propData?.tenant_id || (selectedHub as any).tenant_id || (selectedHub as any).tenantId
+        const gId =
+          propData?.guarantor_id ||
+          (selectedHub as any).guarantor_id ||
+          (selectedHub as any).guarantorId
+        const oId =
+          propData?.owner_id || (selectedHub as any).owner_id || (selectedHub as any).ownerId
 
         if (tId) {
           const { data } = await supabase
@@ -223,7 +236,6 @@ const ManagerApproval = () => {
           setHubGuarantor(null)
         }
 
-        const oId = (selectedHub as any).owner_id || (selectedHub as any).ownerId
         if (oId) {
           const { data } = await supabase.from('owners').select('*').eq('id', oId).maybeSingle()
           setHubOwner(data)
@@ -336,7 +348,7 @@ const ManagerApproval = () => {
         .searchFilesByPropertyId(selectedHub.id)
         .then((files) => {
           if (isMounted) {
-            setSpFiles(files)
+            setRawSpFiles(files)
             setScanningSp(false)
           }
         })
@@ -347,9 +359,33 @@ const ManagerApproval = () => {
         isMounted = false
       }
     } else {
-      setSpFiles([])
+      setRawSpFiles([])
     }
   }, [selectedHub])
+
+  useEffect(() => {
+    if (!selectedHub) {
+      setSpFiles([])
+      return
+    }
+    const isShortNumeric = /^\d{1,6}$/.test(selectedHub.id)
+    const filteredFiles = rawSpFiles.filter((f: any) => {
+      if (!isShortNumeric) return true
+
+      const pathStr = (f.parentReference?.path || f.webUrl || '').toLowerCase()
+      const nameStr = (f.name || '').toLowerCase()
+      const tenantName = (selectedHub.tenant || '').toLowerCase()
+      const ownerName = (hubOwner?.full_name || ownerEntity?.fullName || '').toLowerCase()
+
+      const exactFolderMatch =
+        pathStr.endsWith(`/${selectedHub.id}`) || pathStr.includes(`/${selectedHub.id}/`)
+      const hasTenant = tenantName && (pathStr.includes(tenantName) || nameStr.includes(tenantName))
+      const hasOwner = ownerName && (pathStr.includes(ownerName) || nameStr.includes(ownerName))
+
+      return exactFolderMatch || hasTenant || hasOwner
+    })
+    setSpFiles(filteredFiles)
+  }, [rawSpFiles, selectedHub, hubOwner, ownerEntity])
 
   const handleApprove = (id: string) => {
     mainStore.updateProperty(id, { status: 'Vistoria', isResubmission: false })

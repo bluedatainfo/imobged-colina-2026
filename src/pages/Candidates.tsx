@@ -461,17 +461,23 @@ export default function Candidates() {
                         </Button>
                       )}
 
-                      {(selectedCandidate.status === 'Novo' ||
-                        selectedCandidate.status === 'Documentação Pendente') &&
-                        selectedCandidate.category !== 'Fiador' && (
-                          <Button
-                            onClick={() => setProcessDialogOpen(true)}
-                            className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto"
-                          >
-                            <ClipboardList className="mr-2 h-4 w-4" />
-                            Iniciar Análise para Locação
-                          </Button>
-                        )}
+                      {selectedCandidate.category !== 'Fiador' && (
+                        <Button
+                          disabled={
+                            !['Novo', 'Documentação Pendente'].includes(selectedCandidate.status)
+                          }
+                          onClick={() => setProcessDialogOpen(true)}
+                          className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
+                          title={
+                            !['Novo', 'Documentação Pendente'].includes(selectedCandidate.status)
+                              ? 'Status atual não permite iniciar nova análise para evitar duplicidade'
+                              : ''
+                          }
+                        >
+                          <ClipboardList className="mr-2 h-4 w-4" />
+                          Iniciar Análise para Locação
+                        </Button>
+                      )}
                     </div>
                   </div>
 

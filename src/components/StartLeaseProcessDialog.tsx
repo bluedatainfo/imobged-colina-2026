@@ -157,10 +157,58 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
         .select('*')
         .eq('category', 'Fiador')
         .then(({ data }) => {
-          setGuarantors(data || [])
+          const loadedGuarantors = data || []
+          setGuarantors(loadedGuarantors)
+
+          if (candidate) {
+            const fd = candidate.form_data || {}
+
+            // Pre-fill owner and address
+            const ownerName =
+              fd.Proprietario ||
+              fd.NomeProprietario ||
+              fd.Proprietario_x0020_do_x0020_Imovel ||
+              fd.proprietario ||
+              ''
+            const address =
+              fd.EnderecoImovel ||
+              fd.Endereco_x0020_do_x0020_Imovel ||
+              fd.endereco_imovel ||
+              fd.Endereco ||
+              ''
+
+            setNewPropData((prev) => ({
+              ...prev,
+              ownerName: ownerName,
+              address: address,
+            }))
+
+            if (ownerName || address) {
+              setSearchERP(ownerName || address)
+            }
+
+            // Pre-fill guarantor
+            const fiadorName =
+              fd.Fiador || fd.NomeFiador || fd.Nome_x0020_do_x0020_Fiador || fd.fiador || ''
+            const fiadorCpf =
+              fd.CpfFiador || fd.CPF_x0020_do_x0020_Fiador || fd.CPF_Fiador || fd.cpf_fiador || ''
+
+            if (fiadorCpf || fiadorName) {
+              const matched = loadedGuarantors.find((g) => {
+                if (fiadorCpf && g.cpf && g.cpf.replace(/\D/g, '') === fiadorCpf.replace(/\D/g, ''))
+                  return true
+                if (fiadorName && g.full_name.toLowerCase().includes(fiadorName.toLowerCase()))
+                  return true
+                return false
+              })
+              if (matched) {
+                setSelectedGuarantor(matched.id)
+              }
+            }
+          }
         })
     }
-  }, [open])
+  }, [open, candidate])
 
   useEffect(() => {
     if (propertyMode !== 'existing' || !debouncedSearchERP.trim()) {
@@ -242,6 +290,7 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
           .from('owners')
           .select('id')
           .ilike('full_name', erpOwnerName)
+          .limit(1)
           .maybeSingle()
 
         if (dbOwner) {
