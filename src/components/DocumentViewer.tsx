@@ -34,7 +34,14 @@ import { cn } from '@/lib/utils'
 interface DocumentViewerProps {
   open: boolean
   onClose: () => void
-  viewItem?: { type: 'document' | 'contract'; id: string } | null
+  viewItem?: {
+    type: 'document' | 'contract' | 'sp_file'
+    id: string
+    name?: string
+    siteId?: string
+    driveId?: string
+    webUrl?: string
+  } | null
   docName?: string | null
   isTerm?: boolean
 }
@@ -180,6 +187,26 @@ export function DocumentViewer({ open, onClose, viewItem, docName, isTerm }: Doc
               )
             }
           }
+        } else if (viewItem.type === 'sp_file') {
+          setTitle(viewItem.name || 'Arquivo SharePoint')
+          setNotes('')
+          setSavedNotes('')
+          setCorrectionName(viewItem.name || '')
+
+          if (viewItem.siteId && viewItem.driveId && viewItem.id) {
+            const url = await m365Service.getDriveItemPreviewUrl(
+              viewItem.siteId,
+              viewItem.driveId,
+              viewItem.id,
+            )
+            if (url) {
+              setPreviewUrl(url)
+            } else {
+              setPreviewUrl(viewItem.webUrl || null)
+            }
+          } else {
+            setPreviewUrl(viewItem.webUrl || null)
+          }
         }
       } catch (err: any) {
         setError(err.message || 'Ocorreu um erro ao tentar carregar o documento do SharePoint.')
@@ -282,7 +309,7 @@ export function DocumentViewer({ open, onClose, viewItem, docName, isTerm }: Doc
               {title}
             </DialogTitle>
             <DialogDescription>
-              {viewItem?.type === 'document' || previewUrl
+              {viewItem?.type === 'sp_file' || viewItem?.type === 'document' || previewUrl
                 ? 'Visualização nativa via SharePoint Online (Modo Leitura)'
                 : 'Visualização de Minuta do Sistema (Dados preenchidos)'}
             </DialogDescription>
@@ -427,7 +454,7 @@ export function DocumentViewer({ open, onClose, viewItem, docName, isTerm }: Doc
             )}
           </div>
 
-          {viewItem && (
+          {viewItem && viewItem.type !== 'sp_file' && (
             <div className="w-full md:w-[340px] shrink-0 border-t md:border-t-0 md:border-l bg-background flex flex-col z-20">
               <div className="p-4 border-b font-medium flex items-center gap-2 bg-muted/30">
                 <MessageSquare className="w-4 h-4 text-primary" /> Avaliação e Correções

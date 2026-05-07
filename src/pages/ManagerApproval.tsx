@@ -137,8 +137,12 @@ const ManagerApproval = () => {
 
   const [selectedHub, setSelectedHub] = useState<Property | null>(null)
   const [viewingItem, setViewingItem] = useState<{
-    type: 'document' | 'contract'
+    type: 'document' | 'contract' | 'sp_file'
     id: string
+    name?: string
+    siteId?: string
+    driveId?: string
+    webUrl?: string
   } | null>(null)
 
   const [rejectId, setRejectId] = useState<string | null>(null)
@@ -663,7 +667,16 @@ const ManagerApproval = () => {
                     key={file.id}
                     name={file.name}
                     badge="SharePoint Online"
-                    onClick={() => window.open(file.webUrl, '_blank')}
+                    onClick={() =>
+                      setViewingItem({
+                        type: 'sp_file',
+                        id: file.id,
+                        name: file.name,
+                        siteId: file.siteId,
+                        driveId: file.driveId,
+                        webUrl: file.webUrl,
+                      })
+                    }
                   />
                 )
               })}

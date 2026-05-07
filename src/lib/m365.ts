@@ -229,7 +229,8 @@ export const m365Service = {
         if (searchRes.ok) {
           const searchData = await searchRes.json()
           if (searchData.value) {
-            allFiles = [...allFiles, ...searchData.value]
+            const mapped = searchData.value.map((v: any) => ({ ...v, siteId, driveId: drive.id }))
+            allFiles = [...allFiles, ...mapped]
           }
         }
       }
@@ -238,6 +239,24 @@ export const m365Service = {
       console.warn('Failed to search SharePoint by Property ID', e)
       return []
     }
+  },
+
+  getDriveItemPreviewUrl: async (siteId: string, driveId: string, itemId: string) => {
+    const token = getGraphToken()
+    if (!token) return null
+    try {
+      const previewRes = await fetchWithAuth(
+        `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${itemId}/preview`,
+        { method: 'POST' },
+      )
+      if (previewRes.ok) {
+        const previewData = await previewRes.json()
+        if (previewData.getUrl) return previewData.getUrl
+      }
+    } catch (e) {
+      console.warn('Preview fetch error', e)
+    }
+    return null
   },
 
   getEntityDocuments: async (documentType: string, entityCode: string): Promise<any[] | null> => {
