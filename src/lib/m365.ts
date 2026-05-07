@@ -202,20 +202,10 @@ export const m365Service = {
   },
 
   getDriveItemChildren: async (siteId: string, driveId: string, itemId: string) => {
-    const token = getGraphToken()
-    if (!token) return []
-    try {
-      const res = await fetchWithAuth(
-        `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${itemId}/children`,
-      )
-      if (res.ok) {
-        const data = await res.json()
-        return data.value ? data.value.map((v: any) => ({ ...v, siteId, driveId })) : []
-      }
-    } catch (e) {
-      console.warn('Failed to fetch folder children', e)
-    }
-    return []
+    // Busca recursiva profunda para garantir que os arquivos em subpastas apareçam achatados (flattened)
+    const allItems = await m365Service.getDriveItemChildrenRecursive(siteId, driveId, itemId)
+    // Filtramos os diretórios para que a listagem exiba apenas os arquivos reais contidos dentro deles
+    return allItems.filter((item: any) => !item.isFolder && !item.folder)
   },
 
   getDriveItemDetails: async (siteId: string, driveId: string, itemId: string) => {

@@ -227,11 +227,19 @@ export function DocumentViewer({ open, onClose, viewItem, docName, isTerm }: Doc
               if (url) {
                 setPreviewUrl(url)
               } else {
-                setPreviewUrl(viewItem.webUrl || null)
+                toast({
+                  title: 'Visualização Nativa Indisponível',
+                  description:
+                    'Preview direto não suportado para este formato. Utilize "Abrir no SharePoint".',
+                })
               }
             }
           } else {
-            setPreviewUrl(viewItem.webUrl || null)
+            toast({
+              title: 'Visualização Nativa Indisponível',
+              description:
+                'Este arquivo requer visualização externa. Utilize "Abrir no SharePoint".',
+            })
           }
         }
       } catch (err: any) {
@@ -246,6 +254,7 @@ export function DocumentViewer({ open, onClose, viewItem, docName, isTerm }: Doc
 
   const handleOpenExternal = () => {
     if (previewUrl) window.open(previewUrl, '_blank')
+    else if (viewItem?.webUrl) window.open(viewItem.webUrl, '_blank')
   }
 
   const handleSaveNotes = async () => {
@@ -386,7 +395,7 @@ export function DocumentViewer({ open, onClose, viewItem, docName, isTerm }: Doc
             </div>
           </div>
           <div className="flex items-center gap-2 mr-6 shrink-0">
-            {previewUrl && (
+            {(previewUrl || viewItem?.webUrl) && (
               <Button variant="outline" size="sm" onClick={handleOpenExternal}>
                 <ExternalLink className="w-4 h-4 mr-2" /> Abrir no SharePoint
               </Button>
