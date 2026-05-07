@@ -18,8 +18,8 @@ import {
   ArrowLeftRight,
 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
   Dialog,
@@ -104,20 +104,14 @@ const ManagerApproval = () => {
     return store.properties
       .filter((p) => p.status === 'Análise Gerencial')
       .sort((a, b) => {
-        const dateA = new Date(a.updatedAt || a.slaStart || 0).getTime()
-        const dateB = new Date(b.updatedAt || b.slaStart || 0).getTime()
+        const dateA = new Date(a.createdAt || a.slaStart || a.updatedAt || 0).getTime()
+        const dateB = new Date(b.createdAt || b.slaStart || b.updatedAt || 0).getTime()
         return dateB - dateA
       })
   }, [store.properties])
 
-  const interestedApprovals = useMemo(
-    () => approvals.filter((a) => (a as any).tenant_id || (a as any).tenantId),
-    [approvals],
-  )
-  const erpApprovals = useMemo(
-    () => approvals.filter((a) => !((a as any).tenant_id || (a as any).tenantId)),
-    [approvals],
-  )
+  const interessados = useMemo(() => approvals.filter((p) => (p as any).tenant_id), [approvals])
+  const locatarios = useMemo(() => approvals.filter((p) => !(p as any).tenant_id), [approvals])
 
   const [selectedHub, setSelectedHub] = useState<Property | null>(null)
   const [viewingItem, setViewingItem] = useState<{
@@ -181,8 +175,8 @@ const ManagerApproval = () => {
     if (selectedHub) {
       const fetchHubEntities = async () => {
         // Safe check using 'any' to bypass TS strict typing for added columns
-        const tId = (selectedHub as any).tenant_id || (selectedHub as any).tenantId
-        const gId = (selectedHub as any).guarantor_id || (selectedHub as any).guarantorId
+        const tId = (selectedHub as any).tenant_id
+        const gId = (selectedHub as any).guarantor_id
 
         if (tId) {
           const { data } = await supabase
@@ -372,12 +366,9 @@ const ManagerApproval = () => {
       finalOwnerDocs.forEach((d) => {
         if (d.reviewNotes) allNotes.push(`- Proprietário (${d.name}): ${d.reviewNotes}`)
       })
-      const isInterestedHub = (selectedHub as any)?.tenant_id || (selectedHub as any)?.tenantId
       finalTenantDocs.forEach((d) => {
-        if (d.reviewNotes)
-          allNotes.push(
-            `- ${isInterestedHub ? 'Interessado' : 'Locatário'} (${d.name}): ${d.reviewNotes}`,
-          )
+        const label = (selectedHub as any).tenant_id ? 'Interessado' : 'Locatário'
+        if (d.reviewNotes) allNotes.push(`- ${label} (${d.name}): ${d.reviewNotes}`)
       })
       guarantorDocs.forEach((d) => {
         if (d.reviewNotes) allNotes.push(`- Fiador (${d.name}): ${d.reviewNotes}`)
@@ -479,9 +470,7 @@ const ManagerApproval = () => {
             <CardHeader className="bg-muted/30 pb-4 border-b">
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Users className="h-5 w-5 text-primary" />{' '}
-                {(selectedHub as any).tenant_id || (selectedHub as any).tenantId
-                  ? 'Interessado'
-                  : 'Locatário'}
+                {(selectedHub as any).tenant_id ? 'Interessado' : 'Locatário'}
               </CardTitle>
               <CardDescription>
                 {hubTenant?.full_name || selectedHub.tenant || 'Não informado'}
@@ -503,10 +492,7 @@ const ManagerApproval = () => {
                 ))
               ) : (
                 <p className="text-sm text-muted-foreground italic text-center p-4">
-                  Nenhum documento de{' '}
-                  {(selectedHub as any).tenant_id || (selectedHub as any).tenantId
-                    ? 'interessado'
-                    : 'locatário'}{' '}
+                  Nenhum documento de {(selectedHub as any).tenant_id ? 'interessado' : 'locatário'}{' '}
                   localizado no GED.
                 </p>
               )}
@@ -695,216 +681,129 @@ const ManagerApproval = () => {
     )
   }
 
+  const renderList = (items: any[], type: 'interessado' | 'locatario') => {
+    if (items.length === 0) {
+      return (
+        <Card className="p-12 text-center text-muted-foreground flex flex-col items-center shadow-sm">
+          <Check className="h-12 w-12 mb-4 text-emerald-500 opacity-50" />
+          <p className="text-lg font-medium text-foreground">Todas as análises concluídas!</p>
+          <p>Não há documentação pendente nesta categoria.</p>
+        </Card>
+      )
+    }
+
+    return (
+      <div className="grid gap-4">
+        {items.map((item) => {
+          const breached = isSlaBreached(item.slaStart, store.settings.slaHours)
+          return (
+            <Card
+              key={item.id}
+              className={`flex flex-col md:flex-row gap-4 p-5 items-center md:items-start ${
+                breached ? 'border-destructive bg-destructive/5' : ''
+              }`}
+            >
+              <div className="flex-1 space-y-4 w-full">
+                <div className="flex items-start gap-4">
+                  <div
+                    className={`p-3 rounded-xl shrink-0 ${
+                      breached ? 'bg-destructive/20' : 'bg-primary/10'
+                    }`}
+                  >
+                    <UserCheck
+                      className={`h-6 w-6 ${breached ? 'text-destructive' : 'text-primary'}`}
+                    />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-lg">{item.title}</h3>
+                    <p className="text-sm text-muted-foreground mt-0.5 flex flex-wrap gap-x-2 gap-y-1">
+                      <span>
+                        ID:{' '}
+                        <span className="font-mono bg-muted px-1 py-0.5 rounded">{item.id}</span>
+                      </span>
+                      <span>
+                        • {type === 'interessado' ? 'Interessado' : 'Locatário'}:{' '}
+                        <strong>{item.tenant || 'Aguardando'}</strong>
+                      </span>
+                      {(item as any).guarantor_id && (
+                        <span>
+                          •{' '}
+                          <Badge variant="secondary" className="text-xs h-5">
+                            Com Fiador
+                          </Badge>
+                        </span>
+                      )}
+                    </p>
+                    <div className="flex gap-2 pt-3 flex-wrap">
+                      <Badge
+                        variant="outline"
+                        className="border-amber-500 text-amber-600 bg-amber-50"
+                      >
+                        Análise Gerencial
+                      </Badge>
+                      {item.isResubmission && (
+                        <Badge
+                          variant="outline"
+                          className="border-purple-500 text-purple-700 bg-purple-50 animate-in fade-in"
+                        >
+                          <ArrowLeftRight className="w-3 h-3 mr-1" /> Nova Análise (Retorno)
+                        </Badge>
+                      )}
+                      {breached && (
+                        <Badge variant="destructive" className="animate-pulse">
+                          <AlertCircle className="w-3 h-3 mr-1" /> SLA Violado (&gt;{' '}
+                          {store.settings.slaHours}h)
+                        </Badge>
+                      )}
+                      {item.slaStart && !breached && (
+                        <span className="text-xs text-muted-foreground flex items-center mt-1">
+                          <Clock className="w-3 h-3 mr-1" /> SLA Em Dia
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2 w-full md:w-56 shrink-0 mt-4 md:mt-0">
+                <Button
+                  size="lg"
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
+                  onClick={() => setSelectedHub(item)}
+                >
+                  <FolderOpen className="h-4 w-4 mr-2" /> Analisar Dossiê
+                </Button>
+                <p className="text-xs text-center text-muted-foreground px-2">
+                  Acesse os documentos reais vinculados
+                </p>
+              </div>
+            </Card>
+          )
+        })}
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Análise do Gerente</h1>
         <p className="text-muted-foreground">
-          Abra o Hub de Validação para conferir a documentação completa de proprietários e
-          locatários antes da vistoria.
+          Abra o Hub de Validação para conferir a documentação completa de proprietários,
+          interessados e locatários antes da vistoria.
         </p>
       </div>
 
-      <Tabs defaultValue="interested" className="w-full">
-        <TabsList className="mb-6 h-auto p-1 flex-wrap sm:flex-nowrap">
-          <TabsTrigger value="interested" className="flex-1 py-2.5 text-sm sm:text-base">
-            Interessados ({interestedApprovals.length})
-          </TabsTrigger>
-          <TabsTrigger value="erp" className="flex-1 py-2.5 text-sm sm:text-base">
-            Locatários ERP ({erpApprovals.length})
-          </TabsTrigger>
+      <Tabs defaultValue="interessados" className="w-full">
+        <TabsList className="mb-4 grid w-full md:w-[400px] grid-cols-2">
+          <TabsTrigger value="interessados">Interessados ({interessados.length})</TabsTrigger>
+          <TabsTrigger value="locatarios">Locatários ({locatarios.length})</TabsTrigger>
         </TabsList>
-
-        <TabsContent value="interested" className="grid gap-4 mt-0">
-          {interestedApprovals.map((item) => {
-            const breached = isSlaBreached(item.slaStart, store.settings.slaHours)
-            return (
-              <Card
-                key={item.id}
-                className={`flex flex-col md:flex-row gap-4 p-5 items-center md:items-start ${
-                  breached ? 'border-destructive bg-destructive/5' : ''
-                }`}
-              >
-                <div className="flex-1 space-y-4 w-full">
-                  <div className="flex items-start gap-4">
-                    <div
-                      className={`p-3 rounded-xl shrink-0 ${
-                        breached ? 'bg-destructive/20' : 'bg-primary/10'
-                      }`}
-                    >
-                      <UserCheck
-                        className={`h-6 w-6 ${breached ? 'text-destructive' : 'text-primary'}`}
-                      />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-lg">{item.title}</h3>
-                      <p className="text-sm text-muted-foreground mt-0.5 flex flex-wrap gap-x-2 gap-y-1">
-                        <span>
-                          ID:{' '}
-                          <span className="font-mono bg-muted px-1 py-0.5 rounded">{item.id}</span>
-                        </span>
-                        <span>
-                          • Interessado: <strong>{item.tenant || 'Aguardando'}</strong>
-                        </span>
-                        {((item as any).guarantor_id || (item as any).guarantorId) && (
-                          <span>
-                            •{' '}
-                            <Badge variant="secondary" className="text-xs h-5">
-                              Com Fiador
-                            </Badge>
-                          </span>
-                        )}
-                      </p>
-                      <div className="flex gap-2 pt-3 flex-wrap">
-                        <Badge
-                          variant="outline"
-                          className="border-amber-500 text-amber-600 bg-amber-50"
-                        >
-                          Análise Gerencial
-                        </Badge>
-                        {item.isResubmission && (
-                          <Badge
-                            variant="outline"
-                            className="border-purple-500 text-purple-700 bg-purple-50 animate-in fade-in"
-                          >
-                            <ArrowLeftRight className="w-3 h-3 mr-1" /> Nova Análise (Retorno)
-                          </Badge>
-                        )}
-                        {breached && (
-                          <Badge variant="destructive" className="animate-pulse">
-                            <AlertCircle className="w-3 h-3 mr-1" /> SLA Violado (&gt;{' '}
-                            {store.settings.slaHours}h)
-                          </Badge>
-                        )}
-                        {item.slaStart && !breached && (
-                          <span className="text-xs text-muted-foreground flex items-center mt-1">
-                            <Clock className="w-3 h-3 mr-1" /> SLA Em Dia
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-2 w-full md:w-56 shrink-0 mt-4 md:mt-0">
-                  <Button
-                    size="lg"
-                    className="w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
-                    onClick={() => setSelectedHub(item)}
-                  >
-                    <FolderOpen className="h-4 w-4 mr-2" /> Analisar Dossiê
-                  </Button>
-                  <p className="text-xs text-center text-muted-foreground px-2">
-                    Acesse os documentos reais vinculados
-                  </p>
-                </div>
-              </Card>
-            )
-          })}
-
-          {interestedApprovals.length === 0 && (
-            <Card className="p-12 text-center text-muted-foreground flex flex-col items-center">
-              <Check className="h-12 w-12 mb-4 text-emerald-500 opacity-50" />
-              <p className="text-lg font-medium text-foreground">Todas as análises concluídas!</p>
-              <p>Não há interessados pendentes para aprovação no momento.</p>
-            </Card>
-          )}
+        <TabsContent value="interessados" className="mt-0">
+          {renderList(interessados, 'interessado')}
         </TabsContent>
-
-        <TabsContent value="erp" className="grid gap-4 mt-0">
-          {erpApprovals.map((item) => {
-            const breached = isSlaBreached(item.slaStart, store.settings.slaHours)
-            return (
-              <Card
-                key={item.id}
-                className={`flex flex-col md:flex-row gap-4 p-5 items-center md:items-start ${
-                  breached ? 'border-destructive bg-destructive/5' : ''
-                }`}
-              >
-                <div className="flex-1 space-y-4 w-full">
-                  <div className="flex items-start gap-4">
-                    <div
-                      className={`p-3 rounded-xl shrink-0 ${
-                        breached ? 'bg-destructive/20' : 'bg-primary/10'
-                      }`}
-                    >
-                      <UserCheck
-                        className={`h-6 w-6 ${breached ? 'text-destructive' : 'text-primary'}`}
-                      />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-lg">{item.title}</h3>
-                      <p className="text-sm text-muted-foreground mt-0.5 flex flex-wrap gap-x-2 gap-y-1">
-                        <span>
-                          ID:{' '}
-                          <span className="font-mono bg-muted px-1 py-0.5 rounded">{item.id}</span>
-                        </span>
-                        <span>
-                          • Locatário ERP: <strong>{item.tenant || 'Aguardando'}</strong>
-                        </span>
-                        {((item as any).guarantor_id || (item as any).guarantorId) && (
-                          <span>
-                            •{' '}
-                            <Badge variant="secondary" className="text-xs h-5">
-                              Com Fiador
-                            </Badge>
-                          </span>
-                        )}
-                      </p>
-                      <div className="flex gap-2 pt-3 flex-wrap">
-                        <Badge
-                          variant="outline"
-                          className="border-amber-500 text-amber-600 bg-amber-50"
-                        >
-                          Análise Gerencial
-                        </Badge>
-                        {item.isResubmission && (
-                          <Badge
-                            variant="outline"
-                            className="border-purple-500 text-purple-700 bg-purple-50 animate-in fade-in"
-                          >
-                            <ArrowLeftRight className="w-3 h-3 mr-1" /> Nova Análise (Retorno)
-                          </Badge>
-                        )}
-                        {breached && (
-                          <Badge variant="destructive" className="animate-pulse">
-                            <AlertCircle className="w-3 h-3 mr-1" /> SLA Violado (&gt;{' '}
-                            {store.settings.slaHours}h)
-                          </Badge>
-                        )}
-                        {item.slaStart && !breached && (
-                          <span className="text-xs text-muted-foreground flex items-center mt-1">
-                            <Clock className="w-3 h-3 mr-1" /> SLA Em Dia
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-2 w-full md:w-56 shrink-0 mt-4 md:mt-0">
-                  <Button
-                    size="lg"
-                    className="w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
-                    onClick={() => setSelectedHub(item)}
-                  >
-                    <FolderOpen className="h-4 w-4 mr-2" /> Analisar Dossiê
-                  </Button>
-                  <p className="text-xs text-center text-muted-foreground px-2">
-                    Acesse os documentos reais vinculados
-                  </p>
-                </div>
-              </Card>
-            )
-          })}
-
-          {erpApprovals.length === 0 && (
-            <Card className="p-12 text-center text-muted-foreground flex flex-col items-center">
-              <Check className="h-12 w-12 mb-4 text-emerald-500 opacity-50" />
-              <p className="text-lg font-medium text-foreground">Todas as análises concluídas!</p>
-              <p>Não há locatários do ERP pendentes para aprovação no momento.</p>
-            </Card>
-          )}
+        <TabsContent value="locatarios" className="mt-0">
+          {renderList(locatarios, 'locatario')}
         </TabsContent>
       </Tabs>
     </div>
