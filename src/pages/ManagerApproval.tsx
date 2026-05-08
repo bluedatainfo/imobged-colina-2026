@@ -57,6 +57,75 @@ import { m365Service } from '@/lib/m365'
 import { DocumentViewer } from '@/components/DocumentViewer'
 import { supabase } from '@/lib/supabase/client'
 
+const FormCard = ({ title, entity }: { title: string; entity: any }) => {
+  if (!entity?.form_data) return null
+
+  const validEntries = Object.entries(entity.form_data).filter(([key, value]) => {
+    if (key.startsWith('@') || key.startsWith('OData_')) return false
+    const ignore = [
+      'id',
+      'title',
+      'created',
+      'modified',
+      'authorid',
+      'editorid',
+      'attachments',
+      'guid',
+      'complianceassetid',
+      'filesystemobjecttype',
+      'iteminternalid',
+      'contenttypeid',
+    ]
+    if (ignore.includes(key.toLowerCase())) return false
+    if (value === null || value === '' || value === undefined) return false
+    if (typeof value === 'object') return false
+    return true
+  })
+
+  if (validEntries.length === 0) return null
+
+  return (
+    <Card className="shadow-sm border-blue-200 bg-blue-50/20 mb-6 animate-in fade-in slide-in-from-bottom-2">
+      <CardHeader className="pb-3 border-b border-blue-100 bg-white/50">
+        <CardTitle className="text-lg flex items-center gap-2 text-blue-900">
+          <FileText className="h-5 w-5 text-blue-600" />
+          Ficha Cadastral ({title})
+        </CardTitle>
+        <CardDescription className="text-blue-700/70">
+          Informações preenchidas no formulário de pré-cadastro original
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="p-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {validEntries.map(([key, value]) => {
+            const formattedKey = key
+              .replace(/_x0020_/g, ' ')
+              .replace(/_x002d_/g, '-')
+              .replace(/([A-Z])/g, ' $1')
+              .trim()
+              .replace(/^./, (str) => str.toUpperCase())
+
+            return (
+              <div
+                key={key}
+                className="space-y-1 bg-white p-3 rounded-md border border-blue-100 shadow-sm hover:border-blue-300 transition-colors"
+              >
+                <span
+                  className="text-[10px] font-semibold text-blue-800/70 uppercase tracking-wider block truncate"
+                  title={formattedKey}
+                >
+                  {formattedKey}
+                </span>
+                <p className="text-sm font-medium text-slate-700 break-words">{String(value)}</p>
+              </div>
+            )
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 const DocItem = ({
   name,
   badge,
@@ -573,6 +642,14 @@ const ManagerApproval = () => {
             </p>
           </div>
         </div>
+
+        {hubTenant?.form_data && (
+          <FormCard
+            title={isInteressado(selectedHub, tenants) ? 'Interessado' : 'Locatário'}
+            entity={hubTenant}
+          />
+        )}
+        {hubGuarantor?.form_data && <FormCard title="Fiador" entity={hubGuarantor} />}
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           <Card className="shadow-sm">
