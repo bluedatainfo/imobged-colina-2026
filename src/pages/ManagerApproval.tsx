@@ -61,7 +61,8 @@ const FormCard = ({ title, entity }: { title: string; entity: any }) => {
   if (!entity?.form_data) return null
 
   const validEntries = Object.entries(entity.form_data).filter(([key, value]) => {
-    if (key.startsWith('@') || key.startsWith('OData_')) return false
+    if (key.startsWith('@') || key.startsWith('OData_') || key.toLowerCase().startsWith('odata.'))
+      return false
     const ignore = [
       'id',
       'title',
@@ -75,6 +76,13 @@ const FormCard = ({ title, entity }: { title: string; entity: any }) => {
       'filesystemobjecttype',
       'iteminternalid',
       'contenttypeid',
+      'contenttype',
+      'odata.type',
+      'odata.id',
+      'odata.etag',
+      'odata.editlink',
+      'serverredirectedembeduri',
+      'serverredirectedembedurl',
     ]
     if (ignore.includes(key.toLowerCase())) return false
     if (value === null || value === '' || value === undefined) return false
@@ -290,7 +298,14 @@ const ManagerApproval = () => {
   }, [selectedHub, documents, hubGuarantor])
 
   useEffect(() => {
+    let isMounted = true
+
     if (selectedHub) {
+      // Limpeza imediata de estado para evitar resíduos de visualizações anteriores
+      setHubTenant(null)
+      setHubGuarantor(null)
+      setHubOwner(null)
+
       const fetchHubEntities = async () => {
         // Buscamos diretamente do DB para ter certeza de pegar a versão mais recente das vinculações
         const { data: propData } = await supabase
@@ -298,6 +313,8 @@ const ManagerApproval = () => {
           .select('tenant_id, guarantor_id, owner_id')
           .eq('id', selectedHub.id)
           .maybeSingle()
+
+        if (!isMounted) return
 
         const tId =
           propData?.tenant_id || (selectedHub as any).tenant_id || (selectedHub as any).tenantId
@@ -314,9 +331,9 @@ const ManagerApproval = () => {
             .select('*')
             .eq('id', tId)
             .maybeSingle()
-          setHubTenant(data)
+          if (isMounted) setHubTenant(data)
         } else {
-          setHubTenant(null)
+          if (isMounted) setHubTenant(null)
         }
 
         if (gId) {
@@ -325,19 +342,27 @@ const ManagerApproval = () => {
             .select('*')
             .eq('id', gId)
             .maybeSingle()
-          setHubGuarantor(data)
+          if (isMounted) setHubGuarantor(data)
         } else {
-          setHubGuarantor(null)
+          if (isMounted) setHubGuarantor(null)
         }
 
         if (oId) {
           const { data } = await supabase.from('owners').select('*').eq('id', oId).maybeSingle()
-          setHubOwner(data)
+          if (isMounted) setHubOwner(data)
         } else {
-          setHubOwner(null)
+          if (isMounted) setHubOwner(null)
         }
       }
       fetchHubEntities()
+    } else {
+      setHubTenant(null)
+      setHubGuarantor(null)
+      setHubOwner(null)
+    }
+
+    return () => {
+      isMounted = false
     }
   }, [selectedHub])
 
@@ -435,8 +460,8 @@ const ManagerApproval = () => {
   }, [finalOwnerDocs, finalTenantDocs, systemContracts, uploadedContracts, selectedHub])
 
   useEffect(() => {
+    let isMounted = true
     if (selectedHub) {
-      let isMounted = true
       setScanningSp(true)
       m365Service
         .searchFilesByPropertyId(selectedHub.id)
@@ -449,11 +474,12 @@ const ManagerApproval = () => {
         .catch(() => {
           if (isMounted) setScanningSp(false)
         })
-      return () => {
-        isMounted = false
-      }
     } else {
       setRawSpFiles([])
+      setScanningSp(false)
+    }
+    return () => {
+      isMounted = false
     }
   }, [selectedHub])
 
