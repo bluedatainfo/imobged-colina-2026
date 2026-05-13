@@ -28,40 +28,6 @@ export const initUsersStore = async () => {
       role: (u.role as Role) || 'Vistoriador',
       avatar: u.avatar || '',
     }))
-  } else if (localStorage.getItem('app_user_id')) {
-    const demoUsers: SystemUser[] = [
-      {
-        id: 'usr-admin',
-        name: 'Administrador Demo',
-        email: 'admin@imobiliaria.local',
-        role: 'Admin',
-        avatar: '',
-      },
-      {
-        id: 'usr-corretor',
-        name: 'João (Corretor)',
-        email: 'corretor@imobiliaria.local',
-        role: 'Corretor',
-        avatar: '',
-      },
-      {
-        id: 'usr-gerente',
-        name: 'Maria (Gerente)',
-        email: 'gerente@imobiliaria.local',
-        role: 'Gerente',
-        avatar: '',
-      },
-    ]
-    state.users = demoUsers
-    for (const u of demoUsers) {
-      await supabase.from('app_users').upsert({
-        id: u.id,
-        name: u.name,
-        email: u.email,
-        role: u.role,
-        avatar: u.avatar,
-      })
-    }
   }
   emit()
 }

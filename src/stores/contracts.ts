@@ -56,50 +56,6 @@ export const initContractsStore = async () => {
       reviewNotes: c.review_notes || undefined,
       content: c.content || undefined,
     }))
-  } else if (localStorage.getItem('app_user_id')) {
-    const defaultContracts: LeaseContract[] = [
-      {
-        id: 'CTR-001',
-        propertyId: '101',
-        tenantName: 'João Pedro',
-        template: 'Apartamento Padrão (Caução)',
-        status: 'Ativo',
-        documentName: 'Contrato_Joao_Pedro.docx',
-        updatedAt: new Date().toISOString(),
-        expirationDate: new Date(Date.now() + 25 * 24 * 60 * 60 * 1000).toISOString(),
-        docusignStatus: 'Signed',
-      },
-      {
-        id: 'CTR-002',
-        propertyId: '103',
-        tenantName: 'Maria Souza',
-        template: 'Residencial (Fiador - Alto Padrão)',
-        status: 'Aguardando Assinatura',
-        documentName: 'Minuta_Maria_Souza.docx',
-        updatedAt: new Date().toISOString(),
-        expirationDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
-        docusignStatus: null,
-        isCritical: true,
-        managerApproval: false,
-      },
-    ]
-    state.contracts = defaultContracts
-    for (const c of defaultContracts) {
-      await supabase.from('contracts').insert({
-        id: c.id,
-        property_id: c.propertyId,
-        tenant_name: c.tenantName,
-        template: c.template,
-        status: c.status,
-        document_name: c.documentName,
-        updated_at: c.updatedAt,
-        expiration_date: c.expirationDate,
-        docusign_status: c.docusignStatus,
-        is_critical: c.isCritical,
-        manager_approval: c.managerApproval,
-        content: c.content,
-      } as any)
-    }
   }
   emit()
 }
