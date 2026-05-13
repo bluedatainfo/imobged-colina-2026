@@ -425,6 +425,48 @@ export default function Candidates() {
                     </div>
                   </div>
 
+                  {selectedCandidate.form_data &&
+                    Object.keys(selectedCandidate.form_data).length > 0 && (
+                      <div className="space-y-4">
+                        <h3 className="font-semibold text-lg text-slate-800 border-b pb-2">
+                          Dados Completos do Formulário
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 bg-white p-5 rounded-lg border shadow-sm">
+                          {Object.entries(selectedCandidate.form_data)
+                            .filter(([key, value]) => {
+                              if (value === null || value === undefined || value === '')
+                                return false
+                              if (typeof value === 'object') return false
+                              const lower = key.toLowerCase()
+                              if (
+                                lower.startsWith('@odata') ||
+                                lower === 'id' ||
+                                lower === 'iteminternalid' ||
+                                lower.startsWith('odata_')
+                              )
+                                return false
+                              return true
+                            })
+                            .map(([key, value]) => {
+                              const cleanKey = key
+                                .replace(/_x[0-9a-fA-F]{4}_/g, ' ')
+                                .replace(/([a-z])([A-Z])/g, '$1 $2')
+                                .trim()
+                              return (
+                                <div key={key} className="space-y-1">
+                                  <p className="text-sm font-medium text-muted-foreground capitalize">
+                                    {cleanKey}
+                                  </p>
+                                  <p className="font-medium text-sm break-words whitespace-pre-wrap">
+                                    {String(value)}
+                                  </p>
+                                </div>
+                              )
+                            })}
+                        </div>
+                      </div>
+                    )}
+
                   <div className="space-y-4 bg-white p-5 rounded-lg border shadow-sm">
                     <h3 className="font-semibold text-lg flex items-center justify-between text-slate-800">
                       Controle e Andamento

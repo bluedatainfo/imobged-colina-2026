@@ -14,21 +14,62 @@ Deno.serve(async (req: Request) => {
 
     const payload = await req.json()
 
-    const full_name = payload.full_name || payload.nome || payload.name || 'Nome Não Informado'
-    const cpf = payload.cpf || payload.documento || null
-    const email = payload.email || payload.contato_email || null
-    const phone = payload.phone || payload.telefone || payload.celular || null
+    const full_name =
+      payload.full_name ||
+      payload.nome ||
+      payload.name ||
+      payload.Nome ||
+      payload.RazaoSocial ||
+      payload.Title ||
+      'Nome Não Informado'
+    const cpf = payload.cpf || payload.documento || payload.CPF || null
+    const cnpj = payload.cnpj || payload.CNPJ || null
+    const email = payload.email || payload.contato_email || payload.Email || payload.EMail || null
+    const phone =
+      payload.phone ||
+      payload.telefone ||
+      payload.celular ||
+      payload.Celular ||
+      payload.Telefone ||
+      null
     const documents_link =
       payload.documents_link || payload.link_documentos || payload.pasta_sharepoint || null
+    const address =
+      payload.address || payload.endereco || payload.Endereco || payload.Endereço || null
+
+    let category = payload.category || payload.Categoria || null
+    if (!category) {
+      if (
+        cnpj ||
+        (payload.form_title &&
+          typeof payload.form_title === 'string' &&
+          payload.form_title.toLowerCase().includes('jurídica'))
+      ) {
+        category = 'PJ'
+      } else if (
+        payload.fiador ||
+        payload.Fiador ||
+        (payload.form_title &&
+          typeof payload.form_title === 'string' &&
+          payload.form_title.toLowerCase().includes('fiador'))
+      ) {
+        category = 'Fiador'
+      } else {
+        category = 'PF'
+      }
+    }
 
     const { data, error } = await supabase
       .from('pre_registrations')
       .insert({
         full_name,
         cpf,
+        cnpj,
         email,
         phone,
+        address,
         documents_link,
+        category,
         form_data: payload,
         status: 'Novo',
       })
