@@ -331,6 +331,7 @@ export type Database = {
           address: string | null
           category: string | null
           cnpj: string | null
+          code: string
           cpf: string | null
           created_at: string
           documents_link: string | null
@@ -347,6 +348,7 @@ export type Database = {
           address?: string | null
           category?: string | null
           cnpj?: string | null
+          code: string
           cpf?: string | null
           created_at?: string
           documents_link?: string | null
@@ -363,6 +365,7 @@ export type Database = {
           address?: string | null
           category?: string | null
           cnpj?: string | null
+          code?: string
           cpf?: string | null
           created_at?: string
           documents_link?: string | null
@@ -819,6 +822,7 @@ export const Constants = {
 //   cnpj: text (nullable)
 //   address: text (nullable)
 //   sp_list_id: text (nullable)
+//   code: text (not null)
 // Table: properties
 //   id: text (not null)
 //   title: text (not null)
@@ -966,6 +970,19 @@ export const Constants = {
 //     WITH CHECK: true
 
 // --- DATABASE FUNCTIONS ---
+// FUNCTION set_pre_registrations_code()
+//   CREATE OR REPLACE FUNCTION public.set_pre_registrations_code()
+//    RETURNS trigger
+//    LANGUAGE plpgsql
+//   AS $function$
+//   BEGIN
+//     IF NEW.code IS NULL THEN
+//       NEW.code := 'IN' || LPAD(nextval('pre_registrations_code_seq')::text, 5, '0');
+//     END IF;
+//     RETURN NEW;
+//   END;
+//   $function$
+//
 // FUNCTION set_pre_registrations_updated_at()
 //   CREATE OR REPLACE FUNCTION public.set_pre_registrations_updated_at()
 //    RETURNS trigger
@@ -980,12 +997,14 @@ export const Constants = {
 
 // --- TRIGGERS ---
 // Table: pre_registrations
+//   trg_pre_registrations_code: CREATE TRIGGER trg_pre_registrations_code BEFORE INSERT ON public.pre_registrations FOR EACH ROW EXECUTE FUNCTION set_pre_registrations_code()
 //   trg_pre_registrations_updated_at: CREATE TRIGGER trg_pre_registrations_updated_at BEFORE UPDATE ON public.pre_registrations FOR EACH ROW EXECUTE FUNCTION set_pre_registrations_updated_at()
 
 // --- INDEXES ---
 // Table: owners
 //   CREATE UNIQUE INDEX owners_code_key ON public.owners USING btree (code)
 // Table: pre_registrations
+//   CREATE UNIQUE INDEX pre_registrations_code_idx ON public.pre_registrations USING btree (code)
 //   CREATE UNIQUE INDEX pre_registrations_sp_list_id_idx ON public.pre_registrations USING btree (sp_list_id) WHERE (sp_list_id IS NOT NULL)
 // Table: sharepoint_configs
 //   CREATE UNIQUE INDEX sharepoint_configs_document_type_key ON public.sharepoint_configs USING btree (document_type)

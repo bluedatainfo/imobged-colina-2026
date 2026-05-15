@@ -33,8 +33,9 @@ import {
 } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
-import { Download, ExternalLink, Loader2, RefreshCw, ClipboardList } from 'lucide-react'
+import { Download, ExternalLink, Loader2, RefreshCw, ClipboardList, Search } from 'lucide-react'
 import { format } from 'date-fns'
+import { Input } from '@/components/ui/input'
 import { ptBR } from 'date-fns/locale'
 import { StartLeaseProcessDialog } from '@/components/StartLeaseProcessDialog'
 
@@ -65,6 +66,7 @@ export default function Candidates() {
   const [updating, setUpdating] = useState(false)
   const [activeTab, setActiveTab] = useState<PreRegistrationCategory>('PF')
   const [processDialogOpen, setProcessDialogOpen] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
 
   const fetchCandidates = async () => {
     try {
@@ -148,7 +150,17 @@ export default function Candidates() {
     setIsDrawerOpen(true)
   }
 
-  const filteredCandidates = candidates.filter((c) => (c.category || 'PF') === activeTab)
+  const filteredCandidates = candidates.filter((c) => {
+    if ((c.category || 'PF') !== activeTab) return false
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase()
+      const matchCode = c.code?.toLowerCase().includes(term)
+      const matchName = c.full_name?.toLowerCase().includes(term)
+      const matchDoc = c.cpf?.includes(term) || c.cnpj?.includes(term)
+      return matchCode || matchName || matchDoc
+    }
+    return true
+  })
 
   if (loading && candidates.length === 0) {
     return (
@@ -162,14 +174,25 @@ export default function Candidates() {
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <h2 className="text-3xl font-bold tracking-tight text-slate-800">Gestão de Interessados</h2>
-        <Button onClick={handleSync} disabled={syncing || loading} className="w-full sm:w-auto">
-          {syncing ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <RefreshCw className="mr-2 h-4 w-4" />
-          )}
-          Sincronizar SharePoint
-        </Button>
+        <div className="flex flex-col sm:flex-row w-full sm:w-auto items-center gap-2">
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por código, nome ou doc..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-8 w-full"
+            />
+          </div>
+          <Button onClick={handleSync} disabled={syncing || loading} className="w-full sm:w-auto">
+            {syncing ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="mr-2 h-4 w-4" />
+            )}
+            Sincronizar
+          </Button>
+        </div>
       </div>
 
       <Tabs
