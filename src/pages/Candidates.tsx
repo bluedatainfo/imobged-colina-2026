@@ -504,7 +504,12 @@ export default function Candidates() {
                     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                       <div className="flex-1 w-full max-w-xs">
                         <Select
-                          disabled={updating}
+                          disabled={
+                            updating ||
+                            ['Em Análise da Gerência', 'Aprovado', 'Reprovado'].includes(
+                              selectedCandidate.status,
+                            )
+                          }
                           value={selectedCandidate.status}
                           onValueChange={(val: PreRegistrationStatus) =>
                             handleStatusChange(selectedCandidate.id, val)
