@@ -49,7 +49,7 @@ interface GedUploadProps {
 
 const DOCUMENT_TYPES = [
   { id: 'OWNER_DOCUMENT', label: 'Documento de Proprietário' },
-  { id: 'TENANT_DOCUMENT', label: 'Documento de Locatário' },
+  { id: 'TENANT_DOCUMENT', label: 'Documento Locatário/Interessado' },
   { id: 'GUARANTEE_DOCUMENT', label: 'Documentos de Garantia' },
   { id: 'CONTRACT_ACTIVE', label: 'Imovel - Documentação (Ativo)' },
   { id: 'INSPECTION_MOVE_IN', label: 'Imovel - Vistoria de Entrada (Ativo)' },
