@@ -126,7 +126,7 @@ export function GedUpload({
   useEffect(() => {
     supabase
       .from('pre_registrations')
-      .select('id, full_name, category')
+      .select('id, code, full_name, category')
       .then(({ data }) => setDbCandidates(data || []))
   }, [])
 
@@ -240,7 +240,7 @@ export function GedUpload({
       .filter((c) => c.category === 'PF' || c.category === 'PJ')
       .map((c) => ({
         id: c.id,
-        code: c.id,
+        code: c.code || c.id,
         fullName: c.full_name + ' (Interessado)',
         title: c.full_name,
       }))
@@ -262,7 +262,7 @@ export function GedUpload({
       .filter((c) => c.category === 'Fiador')
       .map((c) => ({
         id: c.id,
-        code: c.id,
+        code: c.code || c.id,
         fullName: c.full_name + ' (Fiador SharePoint)',
         title: c.full_name,
       }))
@@ -780,7 +780,7 @@ export function GedUpload({
                         value={g.id}
                         onSelect={() => {
                           setSelectedGuarantor(g)
-                          setEntityCode(g.id)
+                          setEntityCode(g.code || g.id)
                           setGuarantorOpen(false)
                         }}
                       >
