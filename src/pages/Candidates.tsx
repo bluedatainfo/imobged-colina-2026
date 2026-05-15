@@ -120,7 +120,7 @@ export default function Candidates() {
 
   const handleExportJSON = (candidate: PreRegistration) => {
     const exportData = {
-      id: candidate.id,
+      id: candidate.code || candidate.id,
       nome: candidate.full_name,
       cpf: candidate.cpf,
       cnpj: candidate.cnpj,
@@ -137,7 +137,7 @@ export default function Candidates() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `interessado_${candidate.cpf?.replace(/\D/g, '') || candidate.cnpj?.replace(/\D/g, '') || candidate.id}.json`
+    a.download = `interessado_${candidate.code || candidate.cpf?.replace(/\D/g, '') || candidate.cnpj?.replace(/\D/g, '') || candidate.id}.json`
     a.click()
     URL.revokeObjectURL(url)
     toast.success('Arquivo JSON gerado com sucesso')
@@ -188,6 +188,7 @@ export default function Candidates() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Código</TableHead>
                   <TableHead>Data de Entrada</TableHead>
                   <TableHead>{activeTab === 'PJ' ? 'Razão Social' : 'Nome'}</TableHead>
                   <TableHead>{activeTab === 'PJ' ? 'CNPJ' : 'CPF'}</TableHead>
@@ -198,7 +199,7 @@ export default function Candidates() {
               <TableBody>
                 {filteredCandidates.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                       Nenhum registro encontrado nesta categoria.
                     </TableCell>
                   </TableRow>
@@ -209,6 +210,9 @@ export default function Candidates() {
                       className="cursor-pointer hover:bg-muted/50 transition-colors"
                       onClick={() => openCandidateDetails(candidate)}
                     >
+                      <TableCell className="font-medium text-slate-900">
+                        {candidate.code || '-'}
+                      </TableCell>
                       <TableCell className="whitespace-nowrap">
                         {format(new Date(candidate.created_at), 'dd/MM/yyyy HH:mm', {
                           locale: ptBR,
@@ -248,7 +252,10 @@ export default function Candidates() {
         <DrawerContent className="max-h-[95vh]">
           <div className="mx-auto w-full max-w-4xl">
             <DrawerHeader>
-              <DrawerTitle className="text-2xl">{selectedCandidate?.full_name}</DrawerTitle>
+              <DrawerTitle className="text-2xl">
+                {selectedCandidate?.code ? `${selectedCandidate.code} - ` : ''}
+                {selectedCandidate?.full_name}
+              </DrawerTitle>
               <DrawerDescription>
                 Ficha detalhada do registro importado (Categoria: {selectedCandidate?.category})
               </DrawerDescription>

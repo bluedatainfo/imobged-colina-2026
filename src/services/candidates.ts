@@ -13,6 +13,7 @@ export type PreRegistrationCategory = 'PF' | 'PJ' | 'Fiador'
 
 export interface PreRegistration {
   id: string
+  code: string
   full_name: string
   cpf: string | null
   cnpj: string | null
