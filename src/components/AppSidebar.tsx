@@ -20,6 +20,7 @@ import {
   TrendingUp,
   Wallet,
   FileUp,
+  FilePlus,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -41,6 +42,7 @@ const navigation = [
   { title: 'Painel', url: '/', icon: LayoutDashboard },
   { title: 'Gestão de Interessados', url: '/candidates', icon: UserPlus },
   { title: 'Documentos GED', url: '/documents', icon: FolderOpen },
+  { title: 'Documentos Adicionais', url: '/additional-documents', icon: FilePlus },
   { title: 'Documentos Enviados ao SharePoint', url: '/sent-documents', icon: FileUp },
   { title: 'Entidades (Prop. / Loc.)', url: '/entities', icon: UsersRound },
   { title: 'Imóveis', url: '/properties', icon: Home },
@@ -72,6 +74,7 @@ export function AppSidebar() {
     '/contracts': 'contracts',
     '/manager-approval': 'manager_approval',
     '/documents': 'documents',
+    '/additional-documents': 'documents',
     '/sent-documents': 'documents',
     '/inspections': 'inspections',
     '/keys': 'keys',

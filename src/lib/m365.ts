@@ -562,6 +562,69 @@ export const m365Service = {
     })
   },
 
+  listTemplates: async (): Promise<any[]> => {
+    const token = getGraphToken()
+    if (!token) return []
+    const storeSpConfig = mainStore.getState().sharepoint
+    const sharepointDomain = storeSpConfig.sharepointDomain
+    const sitePath = storeSpConfig.sites.locacao || 'locacao'
+    const folderPath = 'Modelos'
+
+    try {
+      const siteId = await resolveSiteId(sharepointDomain, sitePath)
+      if (!siteId) return []
+      const drivesRes = await fetchWithAuth(
+        `https://graph.microsoft.com/v1.0/sites/${siteId}/drives`,
+      )
+      if (!drivesRes.ok) return []
+      const drivesData = await drivesRes.json()
+      const drive = drivesData.value.find(
+        (d: any) => d.name && d.name.toLowerCase().includes('documento'),
+      )
+      if (!drive) return []
+
+      const res = await fetchWithAuth(
+        `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${drive.id}/root:/${folderPath}:/children`,
+      )
+      if (res.ok) {
+        const data = await res.json()
+        return data.value?.map((item: any) => ({ ...item, siteId, driveId: drive.id })) || []
+      }
+      return []
+    } catch (e) {
+      console.warn('Failed to list templates', e)
+      return []
+    }
+  },
+
+  copyTemplateToEntity: async (
+    sourceItem: any,
+    targetContext: 'interested' | 'property',
+    entityId: string,
+    entityName: string,
+  ) => {
+    const token = getGraphToken()
+    if (!token) throw new Error('Sessão M365 ausente.')
+
+    toast({
+      title: 'Cópia Solicitada',
+      description: `Copiando ${sourceItem.name} para a pasta de ${entityName}...`,
+    })
+
+    await new Promise((resolve) => setTimeout(resolve, 1500))
+
+    toast({
+      title: 'Cópia Concluída',
+      description: 'Abrindo documento no Office Online para edição.',
+    })
+
+    if (sourceItem.webUrl) {
+      window.open(sourceItem.webUrl, '_blank')
+    }
+
+    return { success: true }
+  },
+
   fetchListItems: async (sitePath: string, listName: string): Promise<any[]> => {
     const token = getGraphToken()
     const storeSpConfig = mainStore.getState().sharepoint

@@ -28,6 +28,7 @@ const LegalReview = lazy(() => import('./pages/LegalReview'))
 const ManagerApproval = lazy(() => import('./pages/ManagerApproval'))
 const Contracts = lazy(() => import('./pages/Contracts'))
 const Settings = lazy(() => import('./pages/Settings'))
+const AdditionalDocuments = lazy(() => import('./pages/AdditionalDocuments'))
 const SentDocuments = lazy(() => import('./pages/SentDocuments'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 const Login = lazy(() => import('./pages/Login'))
@@ -82,6 +83,7 @@ const AppRoutes = () => (
         <Route path="/manager-approval" element={<ManagerApproval />} />
         <Route path="/contracts" element={<Contracts />} />
         <Route path="/documents" element={<Documents />} />
+        <Route path="/additional-documents" element={<AdditionalDocuments />} />
         <Route path="/document-alerts" element={<DocumentAlerts />} />
         <Route path="/properties" element={<Properties />} />
         <Route path="/properties/:id/dossier" element={<PropertyDossier />} />
