@@ -776,7 +776,7 @@ const ManagerApproval = () => {
           <Card className="shadow-sm border-blue-200">
             <CardHeader className="bg-blue-50/50 pb-4 border-b border-blue-100">
               <CardTitle className="flex items-center gap-2 text-lg text-blue-900">
-                <FileSignature className="h-5 w-5 text-blue-600" /> Contrato (GED + Ciclo)
+                <FileSignature className="h-5 w-5 text-blue-600" /> Documentos Imóvel
               </CardTitle>
               <CardDescription>Minuta gerada ou contrato importado</CardDescription>
             </CardHeader>
