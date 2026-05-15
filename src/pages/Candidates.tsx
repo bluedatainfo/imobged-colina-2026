@@ -506,7 +506,7 @@ export default function Candidates() {
                         <Select
                           disabled={
                             updating ||
-                            ['Em Análise da Gerência', 'Aprovado', 'Reprovado'].includes(
+                            ['Em Análise da Gerência', 'Aprovado'].includes(
                               selectedCandidate.status,
                             )
                           }
@@ -541,12 +541,16 @@ export default function Candidates() {
                       {selectedCandidate.category !== 'Fiador' && (
                         <Button
                           disabled={
-                            !['Novo', 'Documentação Pendente'].includes(selectedCandidate.status)
+                            !['Novo', 'Documentação Pendente', 'Reprovado'].includes(
+                              selectedCandidate.status,
+                            )
                           }
                           onClick={() => setProcessDialogOpen(true)}
                           className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
                           title={
-                            !['Novo', 'Documentação Pendente'].includes(selectedCandidate.status)
+                            !['Novo', 'Documentação Pendente', 'Reprovado'].includes(
+                              selectedCandidate.status,
+                            )
                               ? 'Status atual não permite iniciar nova análise para evitar duplicidade'
                               : ''
                           }

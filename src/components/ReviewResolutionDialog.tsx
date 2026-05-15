@@ -14,6 +14,8 @@ import useContractsStore, { contractsStore } from '@/stores/contracts'
 import useMainStore, { mainStore } from '@/stores/main'
 import { DocumentViewer } from './DocumentViewer'
 import { Badge } from '@/components/ui/badge'
+import { candidatesService } from '@/services/candidates'
+import { supabase } from '@/lib/supabase/client'
 
 interface ReviewResolutionDialogProps {
   propertyId: string | null
@@ -45,11 +47,29 @@ export function ReviewResolutionDialog({ propertyId, onClose }: ReviewResolution
 
   const totalPending = pendingDocs.length + pendingContracts.length
 
-  const handleResubmit = () => {
+  const handleResubmit = async () => {
     if (totalPending > 0 || !propertyId) return
 
     // Update property to "Análise Gerencial" and mark as resubmission
     mainStore.updateProperty(propertyId, { status: 'Análise Gerencial', isResubmission: true })
+
+    // Fetch property to update candidate status
+    try {
+      const { data: propData } = await supabase
+        .from('properties')
+        .select('tenant_id, guarantor_id')
+        .eq('id', propertyId)
+        .maybeSingle()
+
+      if (propData?.tenant_id) {
+        await candidatesService.updateStatus(propData.tenant_id, 'Em Análise da Gerência')
+      }
+      if (propData?.guarantor_id) {
+        await candidatesService.updateStatus(propData.guarantor_id, 'Em Análise da Gerência')
+      }
+    } catch (e) {
+      console.error('Error updating candidate status', e)
+    }
 
     // Also explicitly force contract status to "Em Análise"
     const propertyContracts = contracts.filter(

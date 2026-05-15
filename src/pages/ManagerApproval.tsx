@@ -37,6 +37,7 @@ import useDocumentsStore, { documentsStore } from '@/stores/documents'
 import useContractsStore, { contractsStore } from '@/stores/contracts'
 import useEntitiesStore from '@/stores/entities'
 import { useAuth } from '@/contexts/AuthContext'
+import { candidatesService } from '@/services/candidates'
 
 const formatDossierId = (propertyId: string, allProperties: any[]) => {
   if (propertyId.startsWith('MAN')) return propertyId
@@ -553,8 +554,15 @@ const ManagerApproval = () => {
     }
   }
 
-  const handleApprove = (id: string) => {
+  const handleApprove = async (id: string) => {
     mainStore.updateProperty(id, { status: 'Vistoria', isResubmission: false })
+
+    if (hubTenant?.id) {
+      candidatesService.updateStatus(hubTenant.id, 'Aguardando Vistoria').catch(console.error)
+    }
+    if (hubGuarantor?.id) {
+      candidatesService.updateStatus(hubGuarantor.id, 'Aguardando Vistoria').catch(console.error)
+    }
 
     systemContracts.forEach((c) => {
       if (c.status === 'Em Análise') {
@@ -585,7 +593,7 @@ const ManagerApproval = () => {
     setSelectedHub(null)
   }
 
-  const handleRejectConfirm = () => {
+  const handleRejectConfirm = async () => {
     if (!rejectReason.trim()) {
       toast({
         variant: 'destructive',
@@ -596,6 +604,15 @@ const ManagerApproval = () => {
     }
 
     if (rejectId) {
+      if (hubTenant?.id) {
+        candidatesService.updateStatus(hubTenant.id, 'Documentação Pendente').catch(console.error)
+      }
+      if (hubGuarantor?.id) {
+        candidatesService
+          .updateStatus(hubGuarantor.id, 'Documentação Pendente')
+          .catch(console.error)
+      }
+
       const allNotes: string[] = []
       finalOwnerDocs.forEach((d) => {
         if (d.reviewNotes) allNotes.push(`- Proprietário (${d.name}): ${d.reviewNotes}`)
