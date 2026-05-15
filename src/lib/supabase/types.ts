@@ -977,7 +977,14 @@ export const Constants = {
 //   AS $function$
 //   BEGIN
 //     IF NEW.code IS NULL THEN
-//       NEW.code := 'IN' || LPAD(nextval('pre_registrations_code_seq')::text, 5, '0');
+//       IF NEW.category = 'PJ' THEN
+//         NEW.code := 'InJ' || LPAD(nextval('public.pre_registrations_pj_code_seq')::text, 5, '0');
+//       ELSIF NEW.category = 'Fiador' THEN
+//         NEW.code := 'Fia' || LPAD(nextval('public.pre_registrations_fiador_code_seq')::text, 5, '0');
+//       ELSE
+//         -- Default to PF
+//         NEW.code := 'InF' || LPAD(nextval('public.pre_registrations_pf_code_seq')::text, 5, '0');
+//       END IF;
 //     END IF;
 //     RETURN NEW;
 //   END;

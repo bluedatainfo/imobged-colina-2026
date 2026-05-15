@@ -130,6 +130,7 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
 
   const [newPropData, setNewPropData] = useState({
     ownerName: '',
+    gestaoRealCode: '',
     address: '',
     neighborhood: '',
     city: '',
@@ -305,8 +306,8 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
           finalOwnerId = oData.id
         }
       } else {
-        if (!newPropData.ownerName || !newPropData.address)
-          throw new Error('Preencha os dados do novo imóvel e proprietário (Endereço e Nome).')
+        if (!newPropData.gestaoRealCode || !newPropData.address)
+          throw new Error('Preencha o Código do Imóvel no GESTÃO REAL e o Endereço.')
 
         const generateShortId = () => {
           const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
@@ -321,7 +322,7 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
           .from('owners')
           .insert({
             code: 'MN-' + generateShortId().substring(0, 6),
-            full_name: newPropData.ownerName,
+            full_name: newPropData.ownerName || `Proprietário (Cód: ${newPropData.gestaoRealCode})`,
           })
           .select()
           .single()
@@ -333,8 +334,9 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
           .replace(/,\s*,/g, ',')
           .replace(/^,\s*|,\s*$/g, '')
         rentValue = parseCurrency(newPropData.rentValue)
-        finalPropId = generateShortId()
+        finalPropId = newPropData.gestaoRealCode
         details = {
+          gestaoRealCode: newPropData.gestaoRealCode,
           neighborhood: newPropData.neighborhood,
           city: newPropData.city,
           sheet: newPropData.sheet,
@@ -577,11 +579,12 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 animate-in fade-in slide-in-from-top-2 bg-muted/10 p-4 rounded-lg border">
                 <div className="space-y-2 sm:col-span-2">
-                  <Label>Nome do Proprietário</Label>
+                  <Label>Código do Imóvel no GESTÃO REAL</Label>
                   <Input
-                    value={newPropData.ownerName}
-                    onChange={(e) => updatePropData('ownerName', e.target.value)}
-                    placeholder="Ex: João da Silva"
+                    maxLength={8}
+                    value={newPropData.gestaoRealCode}
+                    onChange={(e) => updatePropData('gestaoRealCode', e.target.value)}
+                    placeholder="Ex: 12345678"
                   />
                 </div>
                 <div className="space-y-2 sm:col-span-2">
@@ -696,7 +699,7 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
             disabled={
               submitting ||
               (propertyMode === 'existing' && !selectedERPProperty) ||
-              (propertyMode === 'new' && (!newPropData.ownerName || !newPropData.address))
+              (propertyMode === 'new' && (!newPropData.gestaoRealCode || !newPropData.address))
             }
           >
             {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
