@@ -202,9 +202,7 @@ export const m365Service = {
   },
 
   getDriveItemChildren: async (siteId: string, driveId: string, itemId: string) => {
-    // Busca recursiva profunda para garantir que os arquivos em subpastas apareçam achatados (flattened)
     const allItems = await m365Service.getDriveItemChildrenRecursive(siteId, driveId, itemId)
-    // Filtramos os diretórios para que a listagem exiba apenas os arquivos reais contidos dentro deles
     return allItems.filter((item: any) => !item.isFolder && !item.folder)
   },
 
@@ -597,32 +595,16 @@ export const m365Service = {
     }
   },
 
-  copyTemplateToEntity: async (
-    sourceItem: any,
-    targetContext: 'interested' | 'property',
-    entityId: string,
-    entityName: string,
-  ) => {
+  downloadItemContent: async (siteId: string, driveId: string, itemId: string): Promise<Blob> => {
     const token = getGraphToken()
     if (!token) throw new Error('Sessão M365 ausente.')
 
-    toast({
-      title: 'Cópia Solicitada',
-      description: `Copiando ${sourceItem.name} para a pasta de ${entityName}...`,
-    })
+    const res = await fetchWithAuth(
+      `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${itemId}/content`,
+    )
+    if (!res.ok) throw new Error('Falha ao baixar conteúdo do modelo')
 
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-
-    toast({
-      title: 'Cópia Concluída',
-      description: 'Abrindo documento no Office Online para edição.',
-    })
-
-    if (sourceItem.webUrl) {
-      window.open(sourceItem.webUrl, '_blank')
-    }
-
-    return { success: true }
+    return await res.blob()
   },
 
   fetchListItems: async (sitePath: string, listName: string): Promise<any[]> => {
@@ -680,6 +662,7 @@ export const m365Service = {
     entityCode?: string,
     entityName?: string,
     leaseNumber?: string,
+    folderNumber?: string,
   ) => {
     const { data: config, error } = await supabase
       .from('sharepoint_configs')
@@ -691,27 +674,31 @@ export const m365Service = {
       throw new Error('SharePoint configuration missing for this document category.')
     }
 
-    const isEntityDoc = ['OWNER_DOCUMENT', 'TENANT_DOCUMENT'].includes(documentType)
+    const isEntityDoc = ['OWNER_DOCUMENT', 'TENANT_DOCUMENT', 'GUARANTEE_DOCUMENT'].includes(
+      documentType,
+    )
     const isInspection = ['INSPECTION_MOVE_IN', 'INSPECTION_MOVE_OUT'].includes(documentType)
     const isLease = documentType === 'LEASES'
 
     const basePath = config.base_path ? config.base_path.trim().replace(/^\/+|\/+$/g, '') : ''
-    let folderPath = ''
+    let targetFolder = ''
     if (isEntityDoc && entityCode) {
-      folderPath = [basePath, entityCode].filter(Boolean).join('/')
+      targetFolder = [basePath, entityCode].filter(Boolean).join('/')
     } else if (isInspection && leaseNumber) {
       const inspectionSubFolder =
         documentType === 'INSPECTION_MOVE_IN' ? 'Vistoria de Entrada' : 'Vistoria de Saida'
-      folderPath = [basePath, propertyId, 'Locacao', leaseNumber, inspectionSubFolder]
+      targetFolder = [basePath, propertyId, 'Locacao', leaseNumber, inspectionSubFolder]
         .filter(Boolean)
         .join('/')
     } else if (isLease && leaseNumber) {
-      folderPath = [basePath, propertyId, 'Locacao', leaseNumber].filter(Boolean).join('/')
+      targetFolder = [basePath, propertyId, 'Locacao', leaseNumber].filter(Boolean).join('/')
+    } else if (folderNumber) {
+      targetFolder = [basePath, folderNumber].filter(Boolean).join('/')
     } else {
-      folderPath = [basePath, propertyId].filter(Boolean).join('/')
+      targetFolder = [basePath, propertyId].filter(Boolean).join('/')
     }
 
-    const fullPath = `${folderPath}/${fileName}`.replace(/\/+/g, '/')
+    const fullPath = `${targetFolder}/${fileName}`.replace(/\/+/g, '/')
 
     const token = getGraphToken()
     const storeSpConfig = mainStore.getState().sharepoint
@@ -795,10 +782,10 @@ export const m365Service = {
         propertyId,
         action: 'SHAREPOINT_UPLOAD',
         user: userName,
-        details: `Arquivo ${fileName} salvo com sucesso em ${config.site_name}/${config.library_name}/${folderPath}`,
+        details: `Arquivo ${fileName} salvo com sucesso em ${config.site_name}/${config.library_name}/${targetFolder}`,
       })
 
-      return { success: true, path: fullPath }
+      return { success: true, path: fullPath, webUrl: uploadedItem.webUrl }
     } catch (e: any) {
       const msg =
         e.message || 'Erro de permissão no SharePoint. Verifique o acesso do seu usuário M365.'
@@ -810,7 +797,6 @@ export const m365Service = {
         details: `Erro ao subir ${fileName}: ${msg}`,
       })
 
-      toast({ variant: 'destructive', title: 'Falha no Upload GED', description: msg })
       throw new Error(msg)
     }
   },

@@ -7,6 +7,7 @@ import {
   ChevronsUpDown,
   MapPin,
   Printer,
+  FileText,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -42,7 +43,8 @@ interface GedUploadProps {
   preselectedPropertyId?: string
   preselectedType?: string
   onSuccess?: () => void
-  mode?: 'file' | 'scanner'
+  mode?: 'file' | 'scanner' | 'template'
+  template?: any
 }
 
 const DOCUMENT_TYPES = [
@@ -91,9 +93,10 @@ export function GedUpload({
   preselectedType,
   onSuccess,
   mode = 'file',
+  template,
 }: GedUploadProps) {
-  const { settings, properties: mainProperties } = useMainStore()
-  const { owners, tenants, properties: localProperties } = useEntitiesStore()
+  const { settings } = useMainStore()
+  const { owners, tenants } = useEntitiesStore()
   const { user } = useAuth()
   const { toast } = useToast()
 
@@ -136,7 +139,17 @@ export function GedUpload({
   const [dpi, setDpi] = useState('300')
   const [colorMode, setColorMode] = useState('color')
   const [duplex, setDuplex] = useState(true)
-  const [customFileName, setCustomFileName] = useState(`Scan${Math.floor(Math.random() * 1000)}`)
+  const [customFileName, setCustomFileName] = useState(
+    mode === 'scanner' ? `Scan${Math.floor(Math.random() * 1000)}` : '',
+  )
+
+  useEffect(() => {
+    if (mode === 'template' && template?.name) {
+      const nameParts = template.name.split('.')
+      const nameWithoutExt = nameParts.length > 1 ? nameParts.slice(0, -1).join('.') : template.name
+      setCustomFileName(nameWithoutExt)
+    }
+  }, [mode, template])
 
   const hasSpAccess = useMemo(() => {
     if (!user) return false
@@ -290,6 +303,7 @@ export function GedUpload({
   const handleUpload = async () => {
     if (!propertyId || !docType || !hasSpAccess || !selectedProperty) return
     if (mode === 'file' && !file) return
+    if (mode === 'template' && !template) return
 
     setUploading(true)
     setScanningStatus('')
@@ -321,6 +335,8 @@ export function GedUpload({
         'Imóvel'
 
       let finalFile = file
+      let finalFileName = file?.name || ''
+
       if (mode === 'scanner') {
         setScanningStatus('Iniciando digitalização via Agente Local...')
 
@@ -340,7 +356,8 @@ export function GedUpload({
           setScanningStatus('Capturando e transferindo documento...')
           const blob = await scanRes.blob()
           const safeName = customFileName.trim().substring(0, 10) || 'Scan'
-          finalFile = new File([blob], `${safeName}.pdf`, {
+          finalFileName = `${safeName}.pdf`
+          finalFile = new File([blob], finalFileName, {
             type: 'application/pdf',
           })
           setScanningStatus('Digitalização concluída.')
@@ -354,22 +371,45 @@ export function GedUpload({
           setScanningStatus('')
           return
         }
+      } else if (mode === 'template') {
+        setScanningStatus('Baixando modelo original...')
+        try {
+          const blob = await m365Service.downloadItemContent(
+            template.siteId,
+            template.driveId,
+            template.id,
+          )
+          const ext = template.name.includes('.')
+            ? template.name.substring(template.name.lastIndexOf('.'))
+            : ''
+          finalFileName = `${customFileName.trim() || 'Documento_Gerado'}${ext}`
+          finalFile = new File([blob], finalFileName, { type: blob.type })
+          setScanningStatus('Salvando cópia no destino...')
+        } catch (e: any) {
+          toast({
+            variant: 'destructive',
+            title: 'Erro',
+            description: e.message || 'Não foi possível baixar o modelo selecionado.',
+          })
+          setUploading(false)
+          setScanningStatus('')
+          return
+        }
       }
 
       if (!finalFile) {
         toast({
           variant: 'destructive',
           title: 'Nenhum arquivo',
-          description: 'Por favor, selecione um arquivo válido.',
+          description: 'Por favor, selecione um arquivo ou forneça um modelo válido.',
         })
         setUploading(false)
         return
       }
 
-      // @ts-expect-error - folderNumber parameter might not be typed yet in m365Service
       const result = await m365Service.uploadStructuredDocument(
         finalFile,
-        finalFile.name,
+        finalFileName,
         docType,
         propId,
         propTitle,
@@ -404,11 +444,11 @@ export function GedUpload({
             result?.serverRelativeUrl ||
             result?.webUrl ||
             result?.url ||
-            `sharepoint:/${docType}/${file.name}`
+            `sharepoint:/${docType}/${finalFileName}`
 
       await documentsStore.addDocument({
         propertyId: propId,
-        name: finalFile.name,
+        name: finalFileName,
         category: docType,
         entityCode: finalEntityCode || undefined,
         entityName: finalEntityName || undefined,
@@ -424,8 +464,15 @@ export function GedUpload({
         description:
           mode === 'scanner'
             ? 'Documento digitalizado e salvo no SharePoint com sucesso.'
-            : 'Documento enviado e classificado com sucesso no SharePoint.',
+            : mode === 'template'
+              ? 'Documento gerado e salvo com sucesso. Abrindo para edição...'
+              : 'Documento enviado e classificado com sucesso no SharePoint.',
       })
+
+      if (mode === 'template' && typeof result !== 'string' && result.webUrl) {
+        window.open(result.webUrl, '_blank')
+      }
+
       setFile(null)
       setEntityCode('')
       setSelectedOwner(null)
@@ -778,13 +825,34 @@ export function GedUpload({
         </div>
       )}
 
-      {mode === 'file' ? (
+      {mode === 'file' && (
         <div className="grid gap-2">
           <Label>Arquivo Selecionado</Label>
           <Input id="file-upload" type="file" onChange={handleFileChange} disabled={!hasSpAccess} />
         </div>
-      ) : (
-        <div className="space-y-4 p-4 border rounded-lg bg-muted/20">
+      )}
+
+      {mode === 'template' && (
+        <div className="grid gap-2 animate-fade-in">
+          <Label>Nome do Novo Arquivo</Label>
+          <div className="flex items-center gap-2">
+            <Input
+              value={customFileName}
+              onChange={(e) => setCustomFileName(e.target.value)}
+              placeholder="Ex: Contrato de Prestação de Serviço"
+              disabled={!hasSpAccess}
+            />
+            <span className="text-sm text-muted-foreground font-medium whitespace-nowrap">
+              {template?.name?.includes('.')
+                ? template.name.substring(template.name.lastIndexOf('.'))
+                : ''}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {mode === 'scanner' && (
+        <div className="space-y-4 p-4 border rounded-lg bg-muted/20 animate-fade-in">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <Printer className="h-4 w-4 text-primary" />
@@ -877,6 +945,8 @@ export function GedUpload({
         onClick={handleUpload}
         disabled={
           (mode === 'file' && !file) ||
+          (mode === 'template' && (!template || !customFileName.trim())) ||
+          (mode === 'scanner' && !customFileName.trim()) ||
           !propertyId ||
           !docType ||
           uploading ||
@@ -898,6 +968,11 @@ export function GedUpload({
           <>
             <Printer className="h-4 w-4 shrink-0" />
             <span className="truncate">Digitalizar e Enviar (GED)</span>
+          </>
+        ) : mode === 'template' ? (
+          <>
+            <FileText className="h-4 w-4 shrink-0" />
+            <span className="truncate">Gerar Documento e Editar</span>
           </>
         ) : (
           <>
