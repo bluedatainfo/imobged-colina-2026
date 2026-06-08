@@ -60,6 +60,7 @@ const DOCUMENT_TYPES = [
 
 const getOwnerName = (property: any) => {
   if (!property) return 'Não informado'
+  if (property.isDb && property.title) return property.title
   if (property.proprietario) return property.proprietario
   if ((property as any).Proprietario) return (property as any).Proprietario
   if (property.nomeProprietario) return property.nomeProprietario
@@ -79,13 +80,14 @@ const getOwnerName = (property: any) => {
 
 const getAddress = (property: any) => {
   if (!property) return 'Endereço não informado'
+  if (property.isDb && property.address) return property.address
   const parts = []
   if (property.endereco) parts.push(property.endereco)
   if (property.numero) parts.push(property.numero)
   if (property.bairro) parts.push(property.bairro)
   if (property.cidade) parts.push(property.cidade)
   if (property.uf) parts.push(property.uf)
-  return parts.length > 0 ? parts.join(', ') : 'Endereço não informado'
+  return parts.length > 0 ? parts.join(', ') : property.address || 'Endereço não informado'
 }
 
 export function GedUpload({
@@ -164,35 +166,65 @@ export function GedUpload({
       setLoadingProperties(true)
       try {
         const isNumeric = /^\d+$/.test(searchQuery.trim())
-        const url = searchQuery
-          ? isNumeric
-            ? `http://192.168.10.225:9000/imoveis?id=${encodeURIComponent(searchQuery.trim())}`
-            : `http://192.168.10.225:9000/imoveis?name=${encodeURIComponent(searchQuery.trim())}`
-          : 'http://192.168.10.225:9000/imoveis'
 
-        let response = await fetch(url)
+        let erpProperties: any[] = []
+        try {
+          const url = searchQuery
+            ? isNumeric
+              ? `http://192.168.10.225:9000/imoveis?id=${encodeURIComponent(searchQuery.trim())}`
+              : `http://192.168.10.225:9000/imoveis?name=${encodeURIComponent(searchQuery.trim())}`
+            : 'http://192.168.10.225:9000/imoveis'
 
-        // Fallback caso a API use 'code' no lugar de 'id' para buscas numéricas
-        if (isNumeric && response.ok) {
-          const clonedResponse = response.clone()
-          const data = await clonedResponse.json()
-          if (Array.isArray(data) && data.length === 0) {
-            const fallbackUrl = `http://192.168.10.225:9000/imoveis?code=${encodeURIComponent(searchQuery.trim())}`
-            const fallbackResponse = await fetch(fallbackUrl)
-            if (fallbackResponse.ok) {
-              response = fallbackResponse
+          let response = await fetch(url)
+
+          // Fallback caso a API use 'code' no lugar de 'id' para buscas numéricas
+          if (isNumeric && response.ok) {
+            const clonedResponse = response.clone()
+            const data = await clonedResponse.json()
+            if (Array.isArray(data) && data.length === 0) {
+              const fallbackUrl = `http://192.168.10.225:9000/imoveis?code=${encodeURIComponent(searchQuery.trim())}`
+              const fallbackResponse = await fetch(fallbackUrl)
+              if (fallbackResponse.ok) {
+                response = fallbackResponse
+              }
             }
           }
+
+          if (response.ok) {
+            const data = await response.json()
+            erpProperties = Array.isArray(data) ? data : []
+          }
+        } catch (error) {
+          console.warn('Erro ao buscar imóveis do servidor local', error)
         }
 
-        if (response.ok) {
-          const data = await response.json()
-          setServerProperties(Array.isArray(data) ? data : [])
-        } else {
-          setServerProperties([])
+        let query = supabase.from('properties').select('*')
+        if (searchQuery.trim()) {
+          query = query.or(
+            `title.ilike.%${searchQuery.trim()}%,address.ilike.%${searchQuery.trim()}%,id.ilike.%${searchQuery.trim()}%`,
+          )
         }
+        const { data: dbData } = await query.limit(50)
+
+        const dbProperties = (dbData || []).map((p) => ({
+          ...p,
+          code: p.id,
+          isDb: true,
+        }))
+
+        // Ensure unique combinations
+        const combined = [...dbProperties]
+        const dbIds = new Set(dbProperties.map((p) => String(p.id).toLowerCase()))
+
+        erpProperties.forEach((p) => {
+          if (!dbIds.has(String(p.code || p.id).toLowerCase())) {
+            combined.push(p)
+          }
+        })
+
+        setServerProperties(combined)
       } catch (error) {
-        console.error('Erro ao buscar imóveis do servidor local', error)
+        console.error('Erro ao buscar imóveis', error)
         setServerProperties([])
       } finally {
         setLoadingProperties(false)
@@ -216,7 +248,12 @@ export function GedUpload({
       .filter((p: any) => {
         const idStr = String(p.code || p.id || '').toLowerCase()
         const nameStr = getOwnerName(p).toLowerCase()
-        return idStr.includes(lowerQuery) || nameStr.includes(lowerQuery)
+        const addressStr = getAddress(p).toLowerCase()
+        return (
+          idStr.includes(lowerQuery) ||
+          nameStr.includes(lowerQuery) ||
+          addressStr.includes(lowerQuery)
+        )
       })
       .slice(0, 50)
   }, [serverProperties, searchQuery])
@@ -521,7 +558,7 @@ export function GedUpload({
                 </span>
               ) : (
                 <span className="text-muted-foreground">
-                  Selecione ou busque o imóvel no servidor...
+                  Selecione ou busque o imóvel (ERP/Novos)...
                 </span>
               )}
               <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -530,7 +567,7 @@ export function GedUpload({
           <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
             <Command shouldFilter={false}>
               <CommandInput
-                placeholder="Buscar imóvel por ID ou Nome..."
+                placeholder="Buscar imóvel por ID, Nome ou Endereço..."
                 value={searchQuery}
                 onValueChange={setSearchQuery}
               />
@@ -539,10 +576,10 @@ export function GedUpload({
                   {loadingProperties ? (
                     <div className="flex items-center justify-center py-2 text-sm text-muted-foreground">
                       <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      Buscando no servidor local...
+                      Buscando imóveis...
                     </div>
                   ) : (
-                    'Nenhum imóvel encontrado no servidor local.'
+                    'Nenhum imóvel encontrado.'
                   )}
                 </CommandEmpty>
                 <CommandGroup>
@@ -564,10 +601,15 @@ export function GedUpload({
                             propertyId === (p.code || p.id) ? 'opacity-100' : 'opacity-0',
                           )}
                         />
-                        <span className="font-medium text-sm truncate text-foreground">
+                        <span className="font-medium text-sm truncate text-foreground flex items-center gap-2">
                           <span>
                             {p.code || p.id} - {getOwnerName(p)}
                           </span>
+                          {p.isDb && (
+                            <span className="bg-primary/10 text-primary text-[10px] px-1.5 py-0.5 rounded uppercase font-semibold tracking-wider">
+                              Novo
+                            </span>
+                          )}
                         </span>
                       </div>
                       <div className="flex items-center text-xs text-muted-foreground gap-1.5 w-full pl-6">
