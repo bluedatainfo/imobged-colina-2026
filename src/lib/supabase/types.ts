@@ -476,6 +476,7 @@ export type Database = {
           name: string
           property_id: string
           review_notes: string | null
+          status: string
           updated_at: string
         }
         Insert: {
@@ -488,6 +489,7 @@ export type Database = {
           name: string
           property_id: string
           review_notes?: string | null
+          status?: string
           updated_at?: string
         }
         Update: {
@@ -500,6 +502,7 @@ export type Database = {
           name?: string
           property_id?: string
           review_notes?: string | null
+          status?: string
           updated_at?: string
         }
         Relationships: [
@@ -853,6 +856,7 @@ export const Constants = {
 //   created_at: timestamp with time zone (not null, default: now())
 //   updated_at: timestamp with time zone (not null, default: now())
 //   review_notes: text (nullable)
+//   status: text (not null, default: 'pending'::text)
 // Table: sharepoint_configs
 //   id: uuid (not null, default: gen_random_uuid())
 //   document_type: text (not null)
@@ -970,6 +974,25 @@ export const Constants = {
 //     WITH CHECK: true
 
 // --- DATABASE FUNCTIONS ---
+// FUNCTION handle_new_app_user()
+//   CREATE OR REPLACE FUNCTION public.handle_new_app_user()
+//    RETURNS trigger
+//    LANGUAGE plpgsql
+//    SECURITY DEFINER
+//   AS $function$
+//   BEGIN
+//     INSERT INTO public.app_users (id, email, name, role)
+//     VALUES (
+//       NEW.id::text,
+//       NEW.email,
+//       COALESCE(NEW.raw_user_meta_data->>'name', NEW.raw_user_meta_data->>'full_name', NEW.email),
+//       'Vistoriador'
+//     )
+//     ON CONFLICT (id) DO NOTHING;
+//     RETURN NEW;
+//   END;
+//   $function$
+//
 // FUNCTION set_pre_registrations_code()
 //   CREATE OR REPLACE FUNCTION public.set_pre_registrations_code()
 //    RETURNS trigger

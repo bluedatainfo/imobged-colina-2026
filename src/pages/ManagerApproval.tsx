@@ -1,1122 +1,495 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import { supabase } from '@/lib/supabase/client'
 import {
-  Check,
-  X,
-  FileText,
-  UserCheck,
-  Eye,
-  AlertCircle,
-  Clock,
-  ChevronLeft,
-  FolderOpen,
-  User,
-  Users,
-  FileSignature,
-  FolderSearch,
-  Loader2,
-  MessageSquare,
-  ArrowLeftRight,
-} from 'lucide-react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Label } from '@/components/ui/label'
+import {
+  Eye,
+  CheckCircle,
+  XCircle,
+  Home,
+  Building,
+  FileText,
+  Loader2,
+  MapPin,
+  DollarSign,
+} from 'lucide-react'
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
+  DialogDescription,
 } from '@/components/ui/dialog'
-import { Textarea } from '@/components/ui/textarea'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { useToast } from '@/hooks/use-toast'
-import useMainStore, { mainStore, isSlaBreached, Property } from '@/stores/main'
-import useDocumentsStore, { documentsStore } from '@/stores/documents'
-import useContractsStore, { contractsStore } from '@/stores/contracts'
-import useEntitiesStore from '@/stores/entities'
-import { useAuth } from '@/contexts/AuthContext'
-import { candidatesService } from '@/services/candidates'
+import { Textarea } from '@/components/ui/textarea'
 
-const formatDossierId = (propertyId: string, allProperties: any[]) => {
-  if (propertyId.startsWith('MAN')) return propertyId
-  const sorted = [...allProperties].sort((a, b) => {
-    return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime()
-  })
-  const index = sorted.findIndex((p) => p.id === propertyId)
-  if (index === -1) return `MAN00000`
-  return `MAN${String(index + 1).padStart(5, '0')}`
+const formatCurrency = (amount: number | string | null | undefined) => {
+  if (amount === null || amount === undefined || amount === '') return 'Não informado'
+  const value = typeof amount === 'string' ? parseFloat(amount) : amount
+  if (isNaN(value)) return 'Não informado'
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  }).format(value)
 }
 
-const isInteressado = (p: any, tenantsList: any[]) => {
-  if (p.tenant_id || p.tenantId) return true
-  if (!p.tenant) return true
-  return !tenantsList.some((t: any) => t.fullName === p.tenant)
+const formatCpfCnpj = (v: string | null | undefined) => {
+  if (!v) return 'Não informado'
+  const numbers = v.replace(/\D/g, '')
+  if (numbers.length <= 11) {
+    return numbers
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d{1,2})/, '$1-$2')
+      .slice(0, 14)
+  }
+  return numbers
+    .replace(/^(\d{2})(\d)/, '$1.$2')
+    .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+    .replace(/\.(\d{3})(\d)/, '.$1/$2')
+    .replace(/(\d{4})(\d)/, '$1-$2')
+    .slice(0, 18)
 }
-import { m365Service } from '@/lib/m365'
-import { DocumentViewer } from '@/components/DocumentViewer'
-import { supabase } from '@/lib/supabase/client'
 
-const FormCard = ({ title, entity }: { title: string; entity: any }) => {
-  if (!entity?.form_data) return null
+export default function ManagerApproval() {
+  const [candidates, setCandidates] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const { toast } = useToast()
 
-  const validEntries = Object.entries(entity.form_data).filter(([key, value]) => {
-    if (key.startsWith('@') || key.startsWith('OData_') || key.toLowerCase().startsWith('odata.'))
-      return false
-    const ignore = [
-      'id',
-      'title',
-      'created',
-      'modified',
-      'authorid',
-      'editorid',
-      'attachments',
-      'guid',
-      'complianceassetid',
-      'filesystemobjecttype',
-      'iteminternalid',
-      'contenttypeid',
-      'contenttype',
-      'odata.type',
-      'odata.id',
-      'odata.etag',
-      'odata.editlink',
-      'serverredirectedembeduri',
-      'serverredirectedembedurl',
-    ]
-    if (ignore.includes(key.toLowerCase())) return false
-    if (value === null || value === '' || value === undefined) return false
-    if (typeof value === 'object') return false
-    return true
-  })
+  const [selectedCandidate, setSelectedCandidate] = useState<any>(null)
+  const [property, setProperty] = useState<any>(null)
+  const [loadingProperty, setLoadingProperty] = useState(false)
 
-  if (validEntries.length === 0) return null
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false)
+  const [rejectReason, setRejectReason] = useState('')
+  const [processing, setProcessing] = useState(false)
+
+  const fetchCandidates = async () => {
+    setLoading(true)
+    try {
+      const { data, error } = await supabase
+        .from('pre_registrations')
+        .select('*')
+        .eq('status', 'Em Análise da Gerência')
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      setCandidates(data || [])
+    } catch (err: any) {
+      toast({ title: 'Erro ao buscar dados', description: err.message, variant: 'destructive' })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchCandidates()
+  }, [])
+
+  const handleOpenDetails = async (candidate: any) => {
+    setSelectedCandidate(candidate)
+    setProperty(null)
+    setLoadingProperty(true)
+
+    try {
+      const { data, error } = await supabase
+        .from('properties')
+        .select('*')
+        .eq('tenant_id', candidate.id)
+        .maybeSingle()
+
+      if (error) throw error
+      setProperty(data)
+    } catch (err: any) {
+      console.error('Error fetching property:', err)
+      toast({ title: 'Erro ao buscar imóvel', description: err.message, variant: 'destructive' })
+    } finally {
+      setLoadingProperty(false)
+    }
+  }
+
+  const handleApprove = async () => {
+    if (!selectedCandidate) return
+    setProcessing(true)
+    try {
+      const { error } = await supabase
+        .from('pre_registrations')
+        .update({ status: 'Aprovado' })
+        .eq('id', selectedCandidate.id)
+
+      if (error) throw error
+
+      if (property) {
+        const { error: propError } = await supabase
+          .from('properties')
+          .update({ status: 'Confecção de Contrato' })
+          .eq('id', property.id)
+        if (propError) throw propError
+      }
+
+      toast({
+        title: 'Dossiê Aprovado',
+        description: 'O processo foi movido para Confecção de Contrato.',
+      })
+      setSelectedCandidate(null)
+      fetchCandidates()
+    } catch (err: any) {
+      toast({ title: 'Erro ao aprovar', description: err.message, variant: 'destructive' })
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  const handleReject = async () => {
+    if (!selectedCandidate || !rejectReason.trim()) return
+    setProcessing(true)
+    try {
+      const { error } = await supabase
+        .from('pre_registrations')
+        .update({ status: 'Rejeitado' })
+        .eq('id', selectedCandidate.id)
+
+      if (error) throw error
+
+      if (property) {
+        const { error: propError } = await supabase
+          .from('properties')
+          .update({ status: 'Disponível' })
+          .eq('id', property.id)
+        if (propError) throw propError
+      }
+
+      await supabase.functions.invoke('send-rejection-email', {
+        body: { candidateId: selectedCandidate.id, reason: rejectReason },
+      })
+
+      toast({ title: 'Dossiê Rejeitado', description: 'O interessado foi notificado.' })
+      setRejectDialogOpen(false)
+      setSelectedCandidate(null)
+      setRejectReason('')
+      fetchCandidates()
+    } catch (err: any) {
+      toast({ title: 'Erro ao rejeitar', description: err.message, variant: 'destructive' })
+    } finally {
+      setProcessing(false)
+    }
+  }
 
   return (
-    <Card className="shadow-sm border-blue-200 bg-blue-50/20 mb-6 animate-in fade-in slide-in-from-bottom-2">
-      <CardHeader className="pb-3 border-b border-blue-100 bg-white/50">
-        <CardTitle className="text-lg flex items-center gap-2 text-blue-900">
-          <FileText className="h-5 w-5 text-blue-600" />
-          Ficha Cadastral ({title})
-        </CardTitle>
-        <CardDescription className="text-blue-700/70">
-          Informações preenchidas no formulário de pré-cadastro original
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="p-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {validEntries.map(([key, value]) => {
-            const formattedKey = key
-              .replace(/_x0020_/g, ' ')
-              .replace(/_x002d_/g, '-')
-              .replace(/([A-Z])/g, ' $1')
-              .trim()
-              .replace(/^./, (str) => str.toUpperCase())
-
-            return (
-              <div
-                key={key}
-                className="space-y-1 bg-white p-3 rounded-md border border-blue-100 shadow-sm hover:border-blue-300 transition-colors"
-              >
-                <span
-                  className="text-[10px] font-semibold text-blue-800/70 uppercase tracking-wider block truncate"
-                  title={formattedKey}
-                >
-                  {formattedKey}
-                </span>
-                <p className="text-sm font-medium text-slate-700 break-words">{String(value)}</p>
-              </div>
-            )
-          })}
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
-const DocItem = ({
-  name,
-  badge,
-  hasNotes,
-  isFolder,
-  onClick,
-}: {
-  name: string
-  badge?: string
-  hasNotes?: boolean
-  isFolder?: boolean
-  onClick: () => void
-}) => (
-  <div
-    className="flex items-center gap-3 p-3 border rounded-lg bg-background hover:bg-accent transition-colors group cursor-pointer shadow-sm relative overflow-hidden"
-    onClick={onClick}
-  >
-    {hasNotes && <div className="absolute top-0 left-0 w-1 h-full bg-amber-500"></div>}
-    <div
-      className={`p-2 rounded-md ${
-        hasNotes
-          ? 'bg-amber-100 text-amber-700'
-          : isFolder
-            ? 'bg-purple-100 text-purple-700'
-            : 'bg-blue-100/50 text-blue-700'
-      }`}
-    >
-      {hasNotes ? (
-        <MessageSquare className="h-4 w-4" />
-      ) : isFolder ? (
-        <FolderOpen className="h-4 w-4" />
-      ) : (
-        <FileText className="h-4 w-4" />
-      )}
-    </div>
-    <div className="flex-1 flex flex-col min-w-0">
-      <span className="text-sm font-medium truncate" title={name}>
-        {name}
-      </span>
-      {badge && (
-        <span className="text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5">
-          {badge}
-        </span>
-      )}
-    </div>
-    {hasNotes && (
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <AlertCircle className="w-4 h-4 text-amber-500 mr-2 shrink-0" />
-        </TooltipTrigger>
-        <TooltipContent>Documento possui notas de revisão pendentes</TooltipContent>
-      </Tooltip>
-    )}
-    <Button
-      variant="ghost"
-      size="icon"
-      className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-    >
-      {isFolder ? (
-        <FolderOpen className="h-4 w-4 text-muted-foreground" />
-      ) : (
-        <Eye className="h-4 w-4 text-muted-foreground" />
-      )}
-    </Button>
-  </div>
-)
-
-const ManagerApproval = () => {
-  const { toast } = useToast()
-  const { user } = useAuth()
-  const store = useMainStore()
-  const { documents } = useDocumentsStore()
-  const { contracts } = useContractsStore()
-  const { owners, tenants } = useEntitiesStore()
-
-  const approvals = useMemo(() => {
-    return store.properties
-      .filter((p) => p.status === 'Análise Gerencial')
-      .sort((a, b) => {
-        const dateA = new Date(a.createdAt || a.slaStart || a.updatedAt || 0).getTime()
-        const dateB = new Date(b.createdAt || b.slaStart || b.updatedAt || 0).getTime()
-        return dateB - dateA
-      })
-  }, [store.properties])
-
-  const interessados = useMemo(
-    () => approvals.filter((p) => isInteressado(p, tenants)),
-    [approvals, tenants],
-  )
-  const locatarios = useMemo(
-    () => approvals.filter((p) => !isInteressado(p, tenants)),
-    [approvals, tenants],
-  )
-
-  const [selectedHub, setSelectedHub] = useState<Property | null>(null)
-  const [viewingItem, setViewingItem] = useState<{
-    type: 'document' | 'contract' | 'sp_file'
-    id: string
-    name?: string
-    siteId?: string
-    driveId?: string
-    webUrl?: string
-  } | null>(null)
-
-  const [rejectId, setRejectId] = useState<string | null>(null)
-  const [rejectReason, setRejectReason] = useState('')
-
-  const [spFiles, setSpFiles] = useState<any[]>([])
-  const [rawSpFiles, setRawSpFiles] = useState<any[]>([])
-  const [scanningSp, setScanningSp] = useState(false)
-  const [activeFolderFiles, setActiveFolderFiles] = useState<any[] | null>(null)
-  const [folderHistory, setFolderHistory] = useState<{ id: string; name: string; files: any[] }[]>(
-    [],
-  )
-  const [loadingFolder, setLoadingFolder] = useState<string | null>(null)
-
-  const [spOwnerDocs, setSpOwnerDocs] = useState<any[] | null>(null)
-  const [spTenantDocs, setSpTenantDocs] = useState<any[] | null>(null)
-  const [scanningSpEntities, setScanningSpEntities] = useState(false)
-
-  const [hubTenant, setHubTenant] = useState<any>(null)
-  const [hubGuarantor, setHubGuarantor] = useState<any>(null)
-  const [hubOwner, setHubOwner] = useState<any>(null)
-
-  const ownerEntity = useMemo(() => {
-    const oId = (selectedHub as any)?.owner_id || selectedHub?.ownerId
-    return oId ? owners.find((o) => o.id === oId) : null
-  }, [selectedHub, owners])
-  const tenantEntity = useMemo(() => {
-    return selectedHub?.tenant ? tenants.find((t) => t.fullName === selectedHub.tenant) : null
-  }, [selectedHub, tenants])
-
-  const ownerDocs = useMemo(() => {
-    if (!selectedHub) return []
-    const docs = documents.filter(
-      (d) =>
-        (d.propertyId === selectedHub.id && d.category === 'OWNER_DOCUMENT') ||
-        (ownerEntity && d.entityCode === ownerEntity.code && d.category === 'OWNER_DOCUMENT'),
-    )
-    return Array.from(new Set(docs.map((a) => a.id))).map((id) => docs.find((a) => a.id === id)!)
-  }, [selectedHub, documents, ownerEntity])
-
-  const tenantDocs = useMemo(() => {
-    if (!selectedHub) return []
-    const docs = documents.filter(
-      (d) =>
-        (d.propertyId === selectedHub.id && d.category === 'TENANT_DOCUMENT') ||
-        (tenantEntity && d.entityCode === tenantEntity.code && d.category === 'TENANT_DOCUMENT') ||
-        (hubTenant && d.entityCode === hubTenant.id && d.category === 'TENANT_DOCUMENT'),
-    )
-    return Array.from(new Set(docs.map((a) => a.id))).map((id) => docs.find((a) => a.id === id)!)
-  }, [selectedHub, documents, tenantEntity, hubTenant])
-
-  const guarantorDocs = useMemo(() => {
-    if (!selectedHub) return []
-    const docs = documents.filter(
-      (d) =>
-        (d.propertyId === selectedHub.id && d.category === 'GUARANTEE_DOCUMENT') ||
-        (hubGuarantor && d.entityCode === hubGuarantor.id && d.category === 'GUARANTEE_DOCUMENT'),
-    )
-    return Array.from(new Set(docs.map((a) => a.id))).map((id) => docs.find((a) => a.id === id)!)
-  }, [selectedHub, documents, hubGuarantor])
-
-  useEffect(() => {
-    let isMounted = true
-
-    if (selectedHub) {
-      // Limpeza imediata de estado para evitar resíduos de visualizações anteriores
-      setHubTenant(null)
-      setHubGuarantor(null)
-      setHubOwner(null)
-
-      const fetchHubEntities = async () => {
-        // Buscamos diretamente do DB para ter certeza de pegar a versão mais recente das vinculações
-        const { data: propData } = await supabase
-          .from('properties')
-          .select('tenant_id, guarantor_id, owner_id')
-          .eq('id', selectedHub.id)
-          .maybeSingle()
-
-        if (!isMounted) return
-
-        const tId =
-          propData?.tenant_id || (selectedHub as any).tenant_id || (selectedHub as any).tenantId
-        const gId =
-          propData?.guarantor_id ||
-          (selectedHub as any).guarantor_id ||
-          (selectedHub as any).guarantorId
-        const oId =
-          propData?.owner_id || (selectedHub as any).owner_id || (selectedHub as any).ownerId
-
-        if (tId) {
-          const { data } = await supabase
-            .from('pre_registrations')
-            .select('*')
-            .eq('id', tId)
-            .maybeSingle()
-          if (isMounted) setHubTenant(data)
-        } else {
-          if (isMounted) setHubTenant(null)
-        }
-
-        if (gId) {
-          const { data } = await supabase
-            .from('pre_registrations')
-            .select('*')
-            .eq('id', gId)
-            .maybeSingle()
-          if (isMounted) setHubGuarantor(data)
-        } else {
-          if (isMounted) setHubGuarantor(null)
-        }
-
-        if (oId) {
-          const { data } = await supabase.from('owners').select('*').eq('id', oId).maybeSingle()
-          if (isMounted) setHubOwner(data)
-        } else {
-          if (isMounted) setHubOwner(null)
-        }
-      }
-      fetchHubEntities()
-    } else {
-      setHubTenant(null)
-      setHubGuarantor(null)
-      setHubOwner(null)
-    }
-
-    return () => {
-      isMounted = false
-    }
-  }, [selectedHub])
-
-  useEffect(() => {
-    if (selectedHub) {
-      let isMounted = true
-      setScanningSpEntities(true)
-
-      const fetchAndSyncEntities = async () => {
-        try {
-          const [oDocs, tDocs] = await Promise.all([
-            ownerEntity
-              ? m365Service.getEntityDocuments('OWNER_DOCUMENT', ownerEntity.code)
-              : Promise.resolve(null),
-            tenantEntity
-              ? m365Service.getEntityDocuments('TENANT_DOCUMENT', tenantEntity.code)
-              : Promise.resolve(null),
-          ])
-
-          if (!isMounted) return
-
-          const syncMissing = async (spFiles: any[], category: string, entity: any) => {
-            if (!spFiles || !entity) return
-            for (const spFile of spFiles) {
-              const currentDocs = documentsStore.getState().documents
-              const exists = currentDocs.some(
-                (d) =>
-                  d.name.toLowerCase() === spFile.name.toLowerCase() &&
-                  d.category === category &&
-                  d.entityCode === entity.code,
-              )
-              if (!exists) {
-                await documentsStore.addDocument({
-                  propertyId: selectedHub.id,
-                  name: spFile.name,
-                  category: category,
-                  entityCode: entity.code,
-                  entityName: entity.fullName,
-                  filePath: spFile.name,
-                })
-              }
-            }
-          }
-
-          if (oDocs) await syncMissing(oDocs, 'OWNER_DOCUMENT', ownerEntity)
-          if (tDocs) await syncMissing(tDocs, 'TENANT_DOCUMENT', tenantEntity)
-
-          if (isMounted) {
-            setSpOwnerDocs(oDocs)
-            setSpTenantDocs(tDocs)
-            setScanningSpEntities(false)
-          }
-        } catch (e) {
-          console.error('Error fetching entity docs', e)
-          if (isMounted) setScanningSpEntities(false)
-        }
-      }
-
-      fetchAndSyncEntities()
-    } else {
-      setSpOwnerDocs(null)
-      setSpTenantDocs(null)
-    }
-  }, [selectedHub, ownerEntity, tenantEntity])
-
-  const finalOwnerDocs = useMemo(() => {
-    if (spOwnerDocs === null) return ownerDocs
-    return ownerDocs.filter((d) =>
-      spOwnerDocs.some((sp) => sp.name.toLowerCase() === d.name.toLowerCase()),
-    )
-  }, [ownerDocs, spOwnerDocs])
-
-  const finalTenantDocs = useMemo(() => {
-    if (spTenantDocs === null) return tenantDocs
-    return tenantDocs.filter((d) =>
-      spTenantDocs.some((sp) => sp.name.toLowerCase() === d.name.toLowerCase()),
-    )
-  }, [tenantDocs, spTenantDocs])
-
-  const uploadedContracts = selectedHub
-    ? documents.filter((d) => d.propertyId === selectedHub.id && d.category.startsWith('CONTRACT_'))
-    : []
-  const systemContracts = selectedHub
-    ? contracts.filter((c) => c.propertyId === selectedHub.id && c.status !== 'Rescindido')
-    : []
-
-  const hasPendingNotes = useMemo(() => {
-    if (!selectedHub) return false
-    const allDocs = [...finalOwnerDocs, ...finalTenantDocs, ...guarantorDocs, ...uploadedContracts]
-    const hasDocNotes = allDocs.some((d) => d.reviewNotes && d.reviewNotes.trim() !== '')
-    const hasContractNotes = systemContracts.some(
-      (c) => c.reviewNotes && c.reviewNotes.trim() !== '',
-    )
-    return hasDocNotes || hasContractNotes
-  }, [finalOwnerDocs, finalTenantDocs, systemContracts, uploadedContracts, selectedHub])
-
-  useEffect(() => {
-    let isMounted = true
-    if (selectedHub) {
-      setScanningSp(true)
-      m365Service
-        .searchFilesByPropertyId(selectedHub.id)
-        .then((files) => {
-          if (isMounted) {
-            setRawSpFiles(files)
-            setScanningSp(false)
-          }
-        })
-        .catch(() => {
-          if (isMounted) setScanningSp(false)
-        })
-    } else {
-      setRawSpFiles([])
-      setScanningSp(false)
-    }
-    return () => {
-      isMounted = false
-    }
-  }, [selectedHub])
-
-  useEffect(() => {
-    if (!selectedHub) {
-      setSpFiles([])
-      setActiveFolderFiles(null)
-      setFolderHistory([])
-      return
-    }
-    const isShortNumeric = /^\d{1,6}$/.test(selectedHub.id)
-    const filteredFiles = rawSpFiles.filter((f: any) => {
-      if (!isShortNumeric) return true
-
-      const pathStr = (f.parentReference?.path || f.webUrl || '').toLowerCase()
-      const nameStr = (f.name || '').toLowerCase()
-      const tenantName = (selectedHub.tenant || '').toLowerCase()
-      const ownerName = (hubOwner?.full_name || ownerEntity?.fullName || '').toLowerCase()
-
-      const exactFolderMatch =
-        pathStr.endsWith(`/${selectedHub.id}`) || pathStr.includes(`/${selectedHub.id}/`)
-      const hasTenant = tenantName && (pathStr.includes(tenantName) || nameStr.includes(tenantName))
-      const hasOwner = ownerName && (pathStr.includes(ownerName) || nameStr.includes(ownerName))
-
-      return exactFolderMatch || hasTenant || hasOwner
-    })
-    setSpFiles(filteredFiles)
-    setActiveFolderFiles(null)
-    setFolderHistory([])
-  }, [rawSpFiles, selectedHub, hubOwner, ownerEntity])
-
-  const handleFolderClick = async (folder: any) => {
-    setLoadingFolder(folder.id)
-    try {
-      const children = await m365Service.getDriveItemChildren(
-        folder.siteId,
-        folder.driveId,
-        folder.id,
-      )
-      setFolderHistory((prev) => [
-        ...prev,
-        {
-          id: folder.id,
-          name: folder.name,
-          files: activeFolderFiles || spFiles,
-        },
-      ])
-      setActiveFolderFiles(children)
-    } catch (e) {
-      toast({
-        title: 'Erro',
-        description: 'Não foi possível abrir a pasta',
-        variant: 'destructive',
-      })
-    } finally {
-      setLoadingFolder(null)
-    }
-  }
-
-  const handleBackFolder = () => {
-    setFolderHistory((prev) => {
-      const newHistory = [...prev]
-      const last = newHistory.pop()
-      if (last) {
-        setActiveFolderFiles(newHistory.length === 0 ? null : last.files)
-      }
-      return newHistory
-    })
-    if (folderHistory.length === 1) {
-      setActiveFolderFiles(null)
-    }
-  }
-
-  const handleApprove = async (id: string) => {
-    mainStore.updateProperty(id, { status: 'Vistoria', isResubmission: false })
-
-    if (hubTenant?.id) {
-      candidatesService.updateStatus(hubTenant.id, 'Aguardando Vistoria').catch(console.error)
-    }
-    if (hubGuarantor?.id) {
-      candidatesService.updateStatus(hubGuarantor.id, 'Aguardando Vistoria').catch(console.error)
-    }
-
-    systemContracts.forEach((c) => {
-      if (c.status === 'Em Análise') {
-        contractsStore.updateStatus(c.id, 'Aprovado para Ajuste')
-      }
-    })
-
-    mainStore.addAuditLog({
-      propertyId: id,
-      action: 'Aprovação Gerencial (Hub)',
-      user: user?.name || 'Sistema',
-      details:
-        'Documentação validada no Hub SharePoint. Handoff para vistoria e contratos liberados.',
-    })
-
-    const displayId = formatDossierId(id, store.properties)
-    m365Service.syncToList('Audit Log', `Aprovação do Imóvel ID: ${displayId} por ${user?.name}`)
-    m365Service.sendEmail(
-      `${store.settings.administrativeEmails}, ${store.settings.operationalEmails}`,
-      `Documentação Aprovada - Imóvel ID: ${displayId}`,
-      'A gerência aprovou a documentação. Próximo passo: Vistoria.',
-    )
-
-    toast({
-      title: 'Dossiê Aprovado',
-      description: 'O imóvel foi movido para a etapa de Vistoria com sucesso.',
-    })
-    setSelectedHub(null)
-  }
-
-  const handleRejectConfirm = async () => {
-    if (!rejectReason.trim()) {
-      toast({
-        variant: 'destructive',
-        title: 'Motivo obrigatório',
-        description: 'Informe o motivo da rejeição.',
-      })
-      return
-    }
-
-    if (rejectId) {
-      if (hubTenant?.id) {
-        candidatesService.updateStatus(hubTenant.id, 'Documentação Pendente').catch(console.error)
-      }
-      if (hubGuarantor?.id) {
-        candidatesService
-          .updateStatus(hubGuarantor.id, 'Documentação Pendente')
-          .catch(console.error)
-      }
-
-      const allNotes: string[] = []
-      finalOwnerDocs.forEach((d) => {
-        if (d.reviewNotes) allNotes.push(`- Proprietário (${d.name}): ${d.reviewNotes}`)
-      })
-      finalTenantDocs.forEach((d) => {
-        const label = isInteressado(selectedHub, tenants) ? 'Interessado' : 'Locatário'
-        if (d.reviewNotes) allNotes.push(`- ${label} (${d.name}): ${d.reviewNotes}`)
-      })
-      guarantorDocs.forEach((d) => {
-        if (d.reviewNotes) allNotes.push(`- Fiador (${d.name}): ${d.reviewNotes}`)
-      })
-      systemContracts.forEach((c) => {
-        if (c.reviewNotes) allNotes.push(`- Contrato (${c.documentName}): ${c.reviewNotes}`)
-      })
-      uploadedContracts.forEach((d) => {
-        if (d.reviewNotes) allNotes.push(`- Contrato Importado (${d.name}): ${d.reviewNotes}`)
-      })
-
-      const notesText =
-        allNotes.length > 0 ? `\n\nApontamentos nos Documentos:\n${allNotes.join('\n')}` : ''
-      const finalReason = `${rejectReason}${notesText}`
-
-      mainStore.updateProperty(rejectId, { status: 'Pendente/Rascunho', isResubmission: false })
-
-      systemContracts.forEach((c) => {
-        if (c.status === 'Em Análise') {
-          contractsStore.updateStatus(c.id, 'Rascunho')
-        }
-      })
-
-      mainStore.addAuditLog({
-        propertyId: rejectId,
-        action: 'Documentação Rejeitada',
-        user: user?.name || 'Sistema',
-        details: `Motivo Geral: ${rejectReason}${
-          notesText ? ' (Ver apontamentos nos documentos)' : ''
-        }`,
-      })
-
-      const displayId = formatDossierId(rejectId, store.properties)
-      m365Service.syncToList('Audit Log', `Rejeição do Imóvel ID: ${displayId} por ${user?.name}`)
-      m365Service.sendEmail(
-        `${store.settings.administrativeEmails}, ${store.settings.managementEmails}`,
-        `Documentação Rejeitada - Imóvel ID: ${displayId}`,
-        `Motivo: ${finalReason}\n\nPor favor, corrija as informações e reenvie para análise.`,
-      )
-
-      toast({
-        title: 'Dossiê Rejeitado',
-        description: 'A análise foi reprovada e devolvida para correção.',
-      })
-    }
-    setRejectId(null)
-    setRejectReason('')
-    setSelectedHub(null)
-  }
-
-  if (selectedHub) {
-    return (
-      <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
-        <div className="flex items-center gap-4">
-          <Button variant="outline" size="icon" onClick={() => setSelectedHub(null)}>
-            <ChevronLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Hub de Validação</h1>
-            <p className="text-muted-foreground">
-              Analisando dossiê do imóvel: <strong>{selectedHub.title}</strong> (ID:{' '}
-              {formatDossierId(selectedHub.id, store.properties)})
-            </p>
-          </div>
-        </div>
-
-        {hubTenant?.form_data && (
-          <FormCard
-            title={isInteressado(selectedHub, tenants) ? 'Interessado' : 'Locatário'}
-            entity={hubTenant}
-          />
-        )}
-        {hubGuarantor?.form_data && <FormCard title="Fiador" entity={hubGuarantor} />}
-
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          <Card className="shadow-sm">
-            <CardHeader className="bg-muted/30 pb-4 border-b">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <User className="h-5 w-5 text-primary" /> Proprietário
-              </CardTitle>
-              <CardDescription>
-                Documentos vinculados (
-                {hubOwner?.full_name ||
-                  ownerEntity?.fullName ||
-                  (ownerEntity as any)?.full_name ||
-                  'Não definido'}
-                )
-              </CardDescription>{' '}
-            </CardHeader>
-            <CardContent className="p-4 space-y-3">
-              {scanningSpEntities ? (
-                <div className="flex justify-center p-4">
-                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                </div>
-              ) : finalOwnerDocs.length > 0 ? (
-                finalOwnerDocs.map((doc) => (
-                  <DocItem
-                    key={doc.id}
-                    name={doc.name}
-                    hasNotes={!!doc.reviewNotes}
-                    onClick={() => setViewingItem({ type: 'document', id: doc.id })}
-                  />
-                ))
-              ) : (
-                <p className="text-sm text-muted-foreground italic text-center p-4">
-                  Nenhum documento de proprietário localizado no GED.
-                </p>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-sm">
-            <CardHeader className="bg-muted/30 pb-4 border-b">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Users className="h-5 w-5 text-primary" />{' '}
-                {isInteressado(selectedHub, tenants) ? 'Interessado' : 'Locatário'}
-              </CardTitle>
-              <CardDescription>
-                {hubTenant?.full_name || selectedHub.tenant || 'Não informado'}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-4 space-y-3">
-              {scanningSpEntities ? (
-                <div className="flex justify-center p-4">
-                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                </div>
-              ) : finalTenantDocs.length > 0 ? (
-                finalTenantDocs.map((doc) => (
-                  <DocItem
-                    key={doc.id}
-                    name={doc.name}
-                    hasNotes={!!doc.reviewNotes}
-                    onClick={() => setViewingItem({ type: 'document', id: doc.id })}
-                  />
-                ))
-              ) : (
-                <p className="text-sm text-muted-foreground italic text-center p-4">
-                  Nenhum documento de{' '}
-                  {isInteressado(selectedHub, tenants) ? 'interessado' : 'locatário'} localizado no
-                  GED.
-                </p>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-sm">
-            <CardHeader className="bg-muted/30 pb-4 border-b">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <UserCheck className="h-5 w-5 text-primary" /> Fiador
-              </CardTitle>
-              <CardDescription>{hubGuarantor?.full_name || 'Sem fiador vinculado'}</CardDescription>
-            </CardHeader>
-            <CardContent className="p-4 space-y-3">
-              {guarantorDocs.length > 0 ? (
-                guarantorDocs.map((doc) => (
-                  <DocItem
-                    key={doc.id}
-                    name={doc.name}
-                    hasNotes={!!doc.reviewNotes}
-                    onClick={() => setViewingItem({ type: 'document', id: doc.id })}
-                  />
-                ))
-              ) : (
-                <p className="text-sm text-muted-foreground italic text-center p-4">
-                  Nenhum documento de garantia localizado.
-                </p>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-sm border-blue-200">
-            <CardHeader className="bg-blue-50/50 pb-4 border-b border-blue-100">
-              <CardTitle className="flex items-center gap-2 text-lg text-blue-900">
-                <FileSignature className="h-5 w-5 text-blue-600" /> Documentos Imóvel
-              </CardTitle>
-              <CardDescription>Minuta gerada ou contrato importado</CardDescription>
-            </CardHeader>
-            <CardContent className="p-4 space-y-3">
-              {systemContracts.length > 0 || uploadedContracts.length > 0 ? (
-                <>
-                  {systemContracts.map((c) => (
-                    <DocItem
-                      key={c.id}
-                      name={c.documentName}
-                      badge="Ciclo de Contratos"
-                      hasNotes={!!c.reviewNotes}
-                      onClick={() => setViewingItem({ type: 'contract', id: c.id })}
-                    />
-                  ))}
-                  {uploadedContracts.map((doc) => (
-                    <DocItem
-                      key={doc.id}
-                      name={doc.name}
-                      badge="Contrato Importado"
-                      hasNotes={!!doc.reviewNotes}
-                      onClick={() => setViewingItem({ type: 'document', id: doc.id })}
-                    />
-                  ))}
-                </>
-              ) : (
-                <p className="text-sm text-muted-foreground italic text-center p-4">
-                  Nenhum contrato vinculado a este imóvel.
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {scanningSp ? (
-          <div className="flex items-center justify-center p-8 text-muted-foreground text-sm border border-dashed rounded-lg bg-muted/20">
-            <Loader2 className="w-5 h-5 animate-spin mr-3 text-primary" />
-            Buscando arquivos físicos adicionais vinculados a este imóvel no SharePoint...
-          </div>
-        ) : spFiles.length > 0 ? (
-          <Card className="shadow-sm border-purple-200 mt-6 animate-fade-in-up">
-            <CardHeader className="bg-purple-50/50 pb-4 border-b border-purple-100">
-              <CardTitle className="flex items-center gap-2 text-lg text-purple-900">
-                <FolderSearch className="h-5 w-5 text-purple-600" /> Arquivos Físicos no SharePoint
-              </CardTitle>
-              <CardDescription>
-                Resultado da pesquisa híbrida automática na pasta do imóvel e arredores
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-4">
-              {folderHistory.length > 0 && (
-                <div className="flex items-center gap-2 mb-4 text-sm text-muted-foreground bg-muted/30 p-2 rounded-md">
-                  <Button variant="ghost" size="sm" onClick={handleBackFolder} className="h-8 px-2">
-                    <ChevronLeft className="w-4 h-4 mr-1" /> Voltar
-                  </Button>
-                  <div className="flex items-center text-purple-900 font-medium">
-                    <FolderOpen className="w-4 h-4 mr-2" />
-                    {folderHistory[folderHistory.length - 1].name}
-                  </div>
-                </div>
-              )}
-
-              {loadingFolder ? (
-                <div className="flex justify-center items-center p-8">
-                  <Loader2 className="w-6 h-6 animate-spin text-purple-600 mr-2" />
-                  <span className="text-sm text-muted-foreground">
-                    Carregando conteúdo da pasta...
-                  </span>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                  {(activeFolderFiles || spFiles).map((file) => {
-                    const isDocStore = documents.some((d) => d.name === file.name)
-                    const isContractStore = contracts.some((c) => c.documentName === file.name)
-                    if (isDocStore || isContractStore) return null
-
-                    const isFolder = !!file.folder
-
-                    return (
-                      <DocItem
-                        key={file.id}
-                        name={file.name}
-                        badge={isFolder ? 'Pasta SharePoint' : 'SharePoint Online'}
-                        isFolder={isFolder}
-                        onClick={() => {
-                          if (isFolder) {
-                            handleFolderClick(file)
-                          } else {
-                            setViewingItem({
-                              type: 'sp_file',
-                              id: file.id,
-                              name: file.name,
-                              siteId: file.siteId,
-                              driveId: file.driveId,
-                              webUrl: file.webUrl,
-                            })
-                          }
-                        }}
-                      />
-                    )
-                  })}
-                  {(activeFolderFiles || spFiles).filter(
-                    (f) =>
-                      !documents.some((d) => d.name === f.name) &&
-                      !contracts.some((c) => c.documentName === f.name),
-                  ).length === 0 && (
-                    <p className="col-span-full text-sm text-muted-foreground italic text-center p-4 bg-muted/20 rounded-md">
-                      {activeFolderFiles
-                        ? 'Esta pasta está vazia.'
-                        : 'Todos os arquivos encontrados já estão listados nos cards acima.'}
-                    </p>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ) : null}
-
-        <div className="flex flex-col sm:flex-row justify-end gap-4 pt-6 border-t">
-          <Button variant="outline" onClick={() => setSelectedHub(null)}>
-            Voltar para Lista
-          </Button>
-          <Button variant="destructive" onClick={() => setRejectId(selectedHub.id)}>
-            <X className="h-4 w-4 mr-2" /> Rejeitar Documentação
-          </Button>
-
-          {hasPendingNotes ? (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="inline-block cursor-not-allowed w-full sm:w-auto">
-                  <Button
-                    className="bg-emerald-600/50 text-white pointer-events-none w-full"
-                    tabIndex={-1}
-                  >
-                    <Check className="h-4 w-4 mr-2" /> Aprovar e Enviar p/ Vistoria
-                  </Button>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent className="bg-destructive text-destructive-foreground border-destructive">
-                <p className="font-semibold text-sm mb-1">Aprovação Bloqueada</p>
-                <p className="text-xs">
-                  Existem anotações pendentes nos documentos. Rejeite o dossiê para correções.
-                </p>
-              </TooltipContent>
-            </Tooltip>
-          ) : (
-            <Button
-              className="bg-emerald-600 hover:bg-emerald-700 text-white w-full sm:w-auto"
-              onClick={() => handleApprove(selectedHub.id)}
-            >
-              <Check className="h-4 w-4 mr-2" /> Aprovar e Enviar p/ Vistoria
-            </Button>
-          )}
-        </div>
-
-        <DocumentViewer
-          open={!!viewingItem}
-          onClose={() => setViewingItem(null)}
-          viewItem={viewingItem}
-        />
-
-        <Dialog open={!!rejectId} onOpenChange={(val) => !val && setRejectId(null)}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <AlertCircle className="h-5 w-5 text-destructive" /> Rejeitar Documentação
-              </DialogTitle>
-              <DialogDescription>
-                Informe o motivo da rejeição. As notas inseridas individualmente nos documentos
-                serão enviadas aos gestores automaticamente.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="py-4">
-              <Textarea
-                placeholder="Ex: Faltou enviar o verso do RG ou o comprovante está ilegível..."
-                value={rejectReason}
-                onChange={(e) => setRejectReason(e.target.value)}
-                className="min-h-[100px]"
-              />
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setRejectId(null)}>
-                Cancelar
-              </Button>
-              <Button variant="destructive" onClick={handleRejectConfirm}>
-                Confirmar Rejeição
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+    <div className="container mx-auto py-6 space-y-6 max-w-6xl animate-in fade-in duration-500">
+      <div className="flex flex-col gap-2">
+        <h1 className="text-3xl font-bold tracking-tight text-primary flex items-center gap-2">
+          <CheckCircle className="w-8 h-8" />
+          Hub de Validação Gerencial
+        </h1>
+        <p className="text-muted-foreground">Analise e aprove os dossiês de locação submetidos.</p>
       </div>
-    )
-  }
 
-  const renderList = (items: any[], type: 'interessado' | 'locatario') => {
-    if (items.length === 0) {
-      return (
-        <Card className="p-12 text-center text-muted-foreground flex flex-col items-center shadow-sm">
-          <Check className="h-12 w-12 mb-4 text-emerald-500 opacity-50" />
-          <p className="text-lg font-medium text-foreground">Todas as análises concluídas!</p>
-          <p>Não há documentação pendente nesta categoria.</p>
-        </Card>
-      )
-    }
-
-    return (
-      <div className="grid gap-4">
-        {items.map((item) => {
-          const breached = isSlaBreached(item.slaStart, store.settings.slaHours)
-          return (
-            <Card
-              key={item.id}
-              className={`flex flex-col md:flex-row gap-4 p-5 items-center md:items-start ${
-                breached ? 'border-destructive bg-destructive/5' : ''
-              }`}
-            >
-              <div className="flex-1 space-y-4 w-full">
-                <div className="flex items-start gap-4">
-                  <div
-                    className={`p-3 rounded-xl shrink-0 ${
-                      breached ? 'bg-destructive/20' : 'bg-primary/10'
-                    }`}
-                  >
-                    <UserCheck
-                      className={`h-6 w-6 ${breached ? 'text-destructive' : 'text-primary'}`}
-                    />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-lg">{item.title}</h3>
-                    <p className="text-sm text-muted-foreground mt-0.5 flex flex-wrap gap-x-2 gap-y-1">
-                      <span>
-                        ID:{' '}
-                        <span className="font-mono bg-muted px-1 py-0.5 rounded" title={item.id}>
-                          {formatDossierId(item.id, store.properties)}
-                        </span>
-                      </span>
-                      <span>
-                        • {type === 'interessado' ? 'Interessado' : 'Locatário'}:{' '}
-                        <strong>{item.tenant || 'Aguardando'}</strong>
-                      </span>
-                      {((item as any).guarantor_id || (item as any).guarantorId) && (
-                        <span>
-                          •{' '}
-                          <Badge variant="secondary" className="text-xs h-5">
-                            Com Fiador
-                          </Badge>
-                        </span>
-                      )}
-                    </p>
-                    <div className="flex gap-2 pt-3 flex-wrap">
-                      <Badge
-                        variant="outline"
-                        className="border-amber-500 text-amber-600 bg-amber-50"
-                      >
-                        Análise Gerencial
-                      </Badge>
-                      {item.isResubmission && (
+      <Card>
+        <CardHeader>
+          <CardTitle>Dossiês Pendentes</CardTitle>
+          <CardDescription>Lista de interessados aguardando análise para locação</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="flex justify-center p-8">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          ) : candidates.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg">
+              <CheckCircle className="w-12 h-12 mx-auto mb-3 opacity-20" />
+              <p>Nenhum dossiê pendente no momento.</p>
+            </div>
+          ) : (
+            <div className="border rounded-md">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>Documento</TableHead>
+                    <TableHead>Contato</TableHead>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {candidates.map((c) => (
+                    <TableRow key={c.id}>
+                      <TableCell className="font-medium">{c.full_name}</TableCell>
+                      <TableCell>{formatCpfCnpj(c.cpf || c.cnpj)}</TableCell>
+                      <TableCell>
+                        <div className="text-sm">{c.email || '-'}</div>
+                        <div className="text-xs text-muted-foreground">{c.phone || '-'}</div>
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {new Date(c.created_at).toLocaleDateString('pt-BR')}
+                      </TableCell>
+                      <TableCell>
                         <Badge
                           variant="outline"
-                          className="border-purple-500 text-purple-700 bg-purple-50 animate-in fade-in"
+                          className="bg-amber-50 text-amber-600 border-amber-200"
                         >
-                          <ArrowLeftRight className="w-3 h-3 mr-1" /> Nova Análise (Retorno)
+                          {c.status}
                         </Badge>
-                      )}
-                      {breached && (
-                        <Badge variant="destructive" className="animate-pulse">
-                          <AlertCircle className="w-3 h-3 mr-1" /> SLA Violado (&gt;{' '}
-                          {store.settings.slaHours}h)
-                        </Badge>
-                      )}
-                      {item.slaStart && !breached && (
-                        <span className="text-xs text-muted-foreground flex items-center mt-1">
-                          <Clock className="w-3 h-3 mr-1" /> SLA Em Dia
-                        </span>
-                      )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="ghost" size="sm" onClick={() => handleOpenDetails(c)}>
+                          <Eye className="w-4 h-4 mr-2" />
+                          Ficha Detalhada
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Sheet open={!!selectedCandidate} onOpenChange={(val) => !val && setSelectedCandidate(null)}>
+        <SheetContent className="w-full sm:max-w-xl flex flex-col p-0 border-l">
+          <div className="p-6 border-b bg-muted/30">
+            <SheetHeader>
+              <div className="flex justify-between items-start gap-4">
+                <div>
+                  <SheetTitle className="text-2xl">Ficha Detalhada</SheetTitle>
+                  <SheetDescription className="mt-1">Análise de Dossiê de Locação</SheetDescription>
+                </div>
+                <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200">
+                  {selectedCandidate?.status}
+                </Badge>
+              </div>
+            </SheetHeader>
+          </div>
+
+          <ScrollArea className="flex-1 p-6">
+            <div className="space-y-8">
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold flex items-center gap-2 border-b pb-2">
+                  <FileText className="w-5 h-5 text-primary" /> Informações do Interessado
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-muted-foreground text-xs">Nome / Razão Social</Label>
+                    <div className="font-medium">{selectedCandidate?.full_name}</div>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground text-xs">CPF / CNPJ</Label>
+                    <div className="font-medium">
+                      {formatCpfCnpj(selectedCandidate?.cpf || selectedCandidate?.cnpj)}
                     </div>
                   </div>
+                  <div>
+                    <Label className="text-muted-foreground text-xs">Email</Label>
+                    <div className="font-medium truncate" title={selectedCandidate?.email || '-'}>
+                      {selectedCandidate?.email || '-'}
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground text-xs">Telefone</Label>
+                    <div className="font-medium">{selectedCandidate?.phone || '-'}</div>
+                  </div>
                 </div>
+
+                {selectedCandidate?.documents_link && (
+                  <div className="mt-2">
+                    <Button variant="outline" className="w-full justify-start" asChild>
+                      <a
+                        href={selectedCandidate.documents_link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <FileText className="w-4 h-4 mr-2" />
+                        Ver Documentos Anexados
+                      </a>
+                    </Button>
+                  </div>
+                )}
               </div>
 
-              <div className="flex flex-col gap-2 w-full md:w-56 shrink-0 mt-4 md:mt-0">
-                <Button
-                  size="lg"
-                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
-                  onClick={() => setSelectedHub(item)}
-                >
-                  <FolderOpen className="h-4 w-4 mr-2" /> Analisar Dossiê
-                </Button>
-                <p className="text-xs text-center text-muted-foreground px-2">
-                  Acesse os documentos reais vinculados
-                </p>
+              {/* Property Details Section */}
+              <div className="space-y-4 bg-muted/20 p-5 rounded-lg border">
+                <h3 className="text-lg font-semibold flex items-center gap-2 border-b pb-2 border-border/50">
+                  <Building className="w-5 h-5 text-primary" /> Imóvel Pretendido
+                </h3>
+
+                {loadingProperty ? (
+                  <div className="flex items-center gap-2 text-muted-foreground py-4 justify-center">
+                    <Loader2 className="w-4 h-4 animate-spin" /> Buscando imóvel vinculado...
+                  </div>
+                ) : property ? (
+                  <div className="space-y-4 animate-in fade-in">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <h4 className="font-medium text-lg">{property.title}</h4>
+                        <div className="flex items-center text-sm text-muted-foreground mt-1 gap-1">
+                          <MapPin className="w-4 h-4 shrink-0" />
+                          <span>{property.address}</span>
+                        </div>
+                      </div>
+                      <Badge>{property.type}</Badge>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 bg-background p-4 rounded-md border shadow-sm">
+                      <div>
+                        <Label className="text-muted-foreground text-xs flex items-center gap-1">
+                          <DollarSign className="w-3 h-3" /> Valor do Aluguel
+                        </Label>
+                        <div className="font-semibold text-lg text-primary mt-0.5">
+                          {formatCurrency(property.rent_value)}
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-muted-foreground text-xs flex items-center gap-1">
+                          <CheckCircle className="w-3 h-3" /> Status do Imóvel
+                        </Label>
+                        <div className="font-medium mt-0.5">{property.status}</div>
+                      </div>
+                    </div>
+
+                    {property.details && Object.keys(property.details).length > 0 && (
+                      <div className="pt-2 border-t border-border/50">
+                        <Label className="text-muted-foreground text-xs mb-2 block">
+                          Detalhes Adicionais
+                        </Label>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                          {property.details.condo !== undefined && (
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Condomínio:</span>
+                              <span className="font-medium">
+                                {formatCurrency(property.details.condo)}
+                              </span>
+                            </div>
+                          )}
+                          {property.details.iptu !== undefined && (
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">IPTU:</span>
+                              <span className="font-medium">
+                                {formatCurrency(property.details.iptu)}
+                              </span>
+                            </div>
+                          )}
+                          {property.details.contractTerm && (
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Prazo:</span>
+                              <span className="font-medium">{property.details.contractTerm}</span>
+                            </div>
+                          )}
+                          {property.details.gestaoRealCode && (
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Cód. Gestão Real:</span>
+                              <span className="font-medium">{property.details.gestaoRealCode}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center py-6 text-muted-foreground bg-background rounded-md border border-dashed">
+                    <Home className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                    <p>Nenhum imóvel vinculado</p>
+                  </div>
+                )}
               </div>
-            </Card>
-          )
-        })}
-      </div>
-    )
-  }
 
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Análise do Gerente</h1>
-        <p className="text-muted-foreground">
-          Abra o Hub de Validação para conferir a documentação completa de proprietários,
-          interessados e locatários antes da vistoria.
-        </p>
-      </div>
+              {selectedCandidate?.form_data &&
+                Object.keys(selectedCandidate.form_data).length > 0 && (
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold flex items-center gap-2 border-b pb-2">
+                      <FileText className="w-5 h-5 text-primary" /> Dados do Formulário
+                    </h3>
+                    <div className="bg-muted/30 p-4 rounded-md text-xs font-mono overflow-auto max-h-[200px] border">
+                      <pre>{JSON.stringify(selectedCandidate.form_data, null, 2)}</pre>
+                    </div>
+                  </div>
+                )}
+            </div>
+          </ScrollArea>
 
-      <Tabs defaultValue="interessados" className="w-full">
-        <TabsList className="mb-4 grid w-full md:w-[400px] grid-cols-2">
-          <TabsTrigger value="interessados">Interessados ({interessados.length})</TabsTrigger>
-          <TabsTrigger value="locatarios">Locatários ({locatarios.length})</TabsTrigger>
-        </TabsList>
-        <TabsContent value="interessados" className="mt-0">
-          {renderList(interessados, 'interessado')}
-        </TabsContent>
-        <TabsContent value="locatarios" className="mt-0">
-          {renderList(locatarios, 'locatario')}
-        </TabsContent>
-      </Tabs>
+          <div className="p-6 border-t bg-background flex gap-3 justify-end">
+            <Button
+              variant="outline"
+              className="flex-1 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+              onClick={() => setRejectDialogOpen(true)}
+            >
+              <XCircle className="w-4 h-4 mr-2" /> Rejeitar
+            </Button>
+            <Button
+              className="flex-1 bg-green-600 hover:bg-green-700"
+              onClick={handleApprove}
+              disabled={processing}
+            >
+              {processing ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <CheckCircle className="w-4 h-4 mr-2" />
+              )}
+              Aprovar Dossiê
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rejeitar Dossiê</DialogTitle>
+            <DialogDescription>
+              Informe o motivo da rejeição. O interessado receberá um email com estas informações.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <Label>Motivo da Rejeição / Ajustes Necessários</Label>
+              <Textarea
+                placeholder="Ex: Faltam comprovantes de renda dos últimos 3 meses..."
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                rows={4}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setRejectDialogOpen(false)}
+              disabled={processing}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleReject}
+              disabled={processing || !rejectReason.trim()}
+            >
+              {processing && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Confirmar Rejeição
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
-
-export default ManagerApproval
