@@ -22,6 +22,8 @@ import {
   Loader2,
   MapPin,
   DollarSign,
+  ExternalLink,
+  FolderOpen,
 } from 'lucide-react'
 import {
   Sheet,
@@ -41,6 +43,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useToast } from '@/hooks/use-toast'
 import { Textarea } from '@/components/ui/textarea'
+import { m365Service } from '@/lib/m365'
 
 const formatCurrency = (amount: number | string | null | undefined) => {
   if (amount === null || amount === undefined || amount === '') return 'Não informado'
@@ -78,10 +81,14 @@ export default function ManagerApproval() {
   const [selectedCandidate, setSelectedCandidate] = useState<any>(null)
   const [property, setProperty] = useState<any>(null)
   const [loadingProperty, setLoadingProperty] = useState(false)
+  const [propertyDocs, setPropertyDocs] = useState<any[]>([])
 
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false)
   const [rejectReason, setRejectReason] = useState('')
   const [processing, setProcessing] = useState(false)
+
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [loadingPreviewId, setLoadingPreviewId] = useState<string | null>(null)
 
   const fetchCandidates = async () => {
     setLoading(true)
@@ -119,6 +126,16 @@ export default function ManagerApproval() {
 
       if (error) throw error
       setProperty(data)
+
+      if (data) {
+        const { data: docs } = await supabase
+          .from('property_documents')
+          .select('*')
+          .eq('property_id', data.id)
+        setPropertyDocs(docs || [])
+      } else {
+        setPropertyDocs([])
+      }
     } catch (err: any) {
       console.error('Error fetching property:', err)
       toast({ title: 'Erro ao buscar imóvel', description: err.message, variant: 'destructive' })
@@ -192,6 +209,62 @@ export default function ManagerApproval() {
     } finally {
       setProcessing(false)
     }
+  }
+
+  const handlePreviewDoc = async (doc: any) => {
+    setLoadingPreviewId(doc.id)
+    try {
+      const url = await m365Service.getFilePreviewUrl(doc.file_path, doc.category)
+      if (url) {
+        setPreviewUrl(url)
+      } else {
+        toast({
+          title: 'Aviso',
+          description: 'Não foi possível gerar preview do arquivo.',
+          variant: 'destructive',
+        })
+      }
+    } catch (err: any) {
+      toast({ title: 'Erro ao abrir documento', description: err.message, variant: 'destructive' })
+    } finally {
+      setLoadingPreviewId(null)
+    }
+  }
+
+  const renderDocGroup = (title: string, docs: any[]) => {
+    if (docs.length === 0) return null
+    return (
+      <div className="space-y-2 mt-4">
+        <Label className="text-muted-foreground text-xs font-semibold uppercase">{title}</Label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {docs.map((doc) => (
+            <div
+              key={doc.id}
+              className="flex items-center justify-between p-2 bg-background border rounded-md shadow-sm hover:border-primary/50 transition-colors"
+            >
+              <div className="flex items-center gap-2 overflow-hidden">
+                <FileText className="w-4 h-4 text-blue-500 shrink-0" />
+                <span className="text-sm truncate font-medium" title={doc.name}>
+                  {doc.name}
+                </span>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="w-7 h-7 shrink-0"
+                onClick={() => handlePreviewDoc(doc)}
+              >
+                {loadingPreviewId === doc.id ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <ExternalLink className="w-4 h-4" />
+                )}
+              </Button>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -414,6 +487,49 @@ export default function ManagerApproval() {
                 )}
               </div>
 
+              {/* Documentação GED SharePoint */}
+              {property && (
+                <div className="space-y-4 bg-muted/20 p-5 rounded-lg border">
+                  <h3 className="text-lg font-semibold flex items-center gap-2 border-b pb-2 border-border/50">
+                    <FolderOpen className="w-5 h-5 text-primary" /> Documentos GED (SharePoint)
+                  </h3>
+                  {loadingProperty ? (
+                    <div className="flex items-center gap-2 text-muted-foreground py-4 justify-center">
+                      <Loader2 className="w-4 h-4 animate-spin" /> Carregando documentos...
+                    </div>
+                  ) : propertyDocs.length === 0 ? (
+                    <div className="text-center py-6 text-muted-foreground bg-background rounded-md border border-dashed">
+                      <FolderOpen className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                      <p>Nenhum documento anexado ao imóvel</p>
+                    </div>
+                  ) : (
+                    <div className="animate-in fade-in">
+                      {renderDocGroup(
+                        'Proprietário',
+                        propertyDocs.filter((d) => d.category === 'OWNER_DOCUMENT'),
+                      )}
+                      {renderDocGroup(
+                        'Interessado/Locatário',
+                        propertyDocs.filter((d) => d.category === 'TENANT_DOCUMENT'),
+                      )}
+                      {renderDocGroup(
+                        'Fiador',
+                        propertyDocs.filter((d) => d.category === 'GUARANTEE_DOCUMENT'),
+                      )}
+                      {renderDocGroup(
+                        'Documentos GED-Ciclo',
+                        propertyDocs.filter(
+                          (d) =>
+                            !['OWNER_DOCUMENT', 'TENANT_DOCUMENT', 'GUARANTEE_DOCUMENT'].includes(
+                              d.category,
+                            ),
+                        ),
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {selectedCandidate?.form_data &&
                 Object.keys(selectedCandidate.form_data).length > 0 && (
                   <div className="space-y-4">
@@ -451,6 +567,35 @@ export default function ManagerApproval() {
           </div>
         </SheetContent>
       </Sheet>
+
+      <Dialog open={!!previewUrl} onOpenChange={(val) => !val && setPreviewUrl(null)}>
+        <DialogContent className="max-w-4xl w-[90vw] h-[85vh] flex flex-col p-0">
+          <DialogHeader className="p-4 border-b shrink-0">
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="w-5 h-5 text-blue-600" /> Visualização de Documento
+            </DialogTitle>
+            <DialogDescription>
+              Documento visualizado diretamente do SharePoint Online
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-hidden bg-muted/10 relative">
+            {previewUrl && (
+              <iframe
+                src={previewUrl}
+                className="w-full h-full border-0 bg-white"
+                title="Document Preview"
+                allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+              />
+            )}
+          </div>
+          <DialogFooter className="p-4 border-t bg-background shrink-0 sm:justify-end">
+            <Button variant="outline" onClick={() => window.open(previewUrl!, '_blank')}>
+              <ExternalLink className="w-4 h-4 mr-2" /> Abrir em Nova Guia
+            </Button>
+            <Button onClick={() => setPreviewUrl(null)}>Fechar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
         <DialogContent>
