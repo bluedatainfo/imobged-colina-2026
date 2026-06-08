@@ -24,6 +24,7 @@ import {
   DollarSign,
   ExternalLink,
   FolderOpen,
+  User,
 } from 'lucide-react'
 import {
   Sheet,
@@ -120,7 +121,7 @@ export default function ManagerApproval() {
     try {
       const { data, error } = await supabase
         .from('properties')
-        .select('*')
+        .select('*, owners(*)')
         .eq('tenant_id', candidate.id)
         .maybeSingle()
 
@@ -422,6 +423,42 @@ export default function ManagerApproval() {
                         </div>
                       </div>
                       <Badge>{property.type}</Badge>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 bg-background p-4 rounded-md border shadow-sm mb-4">
+                      <div>
+                        <Label className="text-muted-foreground text-xs flex items-center gap-1">
+                          <User className="w-3 h-3" /> Proprietário
+                        </Label>
+                        <div
+                          className="font-medium mt-0.5 text-sm truncate"
+                          title={
+                            (Array.isArray(property.owners)
+                              ? property.owners[0]?.full_name
+                              : property.owners?.full_name) ||
+                            property.details?.ownerName ||
+                            'Não informado'
+                          }
+                        >
+                          {(Array.isArray(property.owners)
+                            ? property.owners[0]?.full_name
+                            : property.owners?.full_name) ||
+                            property.details?.ownerName ||
+                            'Não informado'}
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-muted-foreground text-xs flex items-center gap-1">
+                          <CheckCircle className="w-3 h-3" /> CPF do Proprietário
+                        </Label>
+                        <div className="font-medium mt-0.5 text-sm">
+                          {formatCpfCnpj(
+                            (Array.isArray(property.owners)
+                              ? property.owners[0]?.cpf
+                              : property.owners?.cpf) || property.details?.ownerCpf,
+                          )}
+                        </div>
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4 bg-background p-4 rounded-md border shadow-sm">

@@ -130,6 +130,7 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
 
   const [newPropData, setNewPropData] = useState({
     ownerName: '',
+    ownerCpf: '',
     gestaoRealCode: '',
     address: '',
     neighborhood: '',
@@ -306,8 +307,13 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
           finalOwnerId = oData.id
         }
       } else {
-        if (!newPropData.gestaoRealCode || !newPropData.address)
-          throw new Error('Preencha o Código do Imóvel no GESTÃO REAL e o Endereço.')
+        if (
+          !newPropData.ownerName ||
+          !newPropData.ownerCpf ||
+          !newPropData.gestaoRealCode ||
+          !newPropData.address
+        )
+          throw new Error('Preencha o Nome, CPF do Proprietário, Código do Imóvel e o Endereço.')
 
         const generateShortId = () => {
           const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
@@ -323,6 +329,7 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
           .insert({
             code: 'MN-' + generateShortId().substring(0, 6),
             full_name: newPropData.ownerName || `Proprietário (Cód: ${newPropData.gestaoRealCode})`,
+            cpf: newPropData.ownerCpf || null,
           })
           .select()
           .single()
@@ -336,6 +343,8 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
         rentValue = parseCurrency(newPropData.rentValue)
         finalPropId = newPropData.gestaoRealCode
         details = {
+          ownerName: newPropData.ownerName,
+          ownerCpf: newPropData.ownerCpf,
           gestaoRealCode: newPropData.gestaoRealCode,
           neighborhood: newPropData.neighborhood,
           city: newPropData.city,
@@ -578,6 +587,22 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
               </div>
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 animate-in fade-in slide-in-from-top-2 bg-muted/10 p-4 rounded-lg border">
+                <div className="space-y-2">
+                  <Label>Nome do Proprietário</Label>
+                  <Input
+                    value={newPropData.ownerName}
+                    onChange={(e) => updatePropData('ownerName', e.target.value)}
+                    placeholder="Nome completo do proprietário"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>CPF do Proprietário</Label>
+                  <Input
+                    value={newPropData.ownerCpf}
+                    onChange={(e) => updatePropData('ownerCpf', formatCpfCnpj(e.target.value))}
+                    placeholder="000.000.000-00"
+                  />
+                </div>
                 <div className="space-y-2 sm:col-span-2">
                   <Label>Código do Imóvel no GESTÃO REAL</Label>
                   <Input
@@ -699,7 +724,11 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
             disabled={
               submitting ||
               (propertyMode === 'existing' && !selectedERPProperty) ||
-              (propertyMode === 'new' && (!newPropData.gestaoRealCode || !newPropData.address))
+              (propertyMode === 'new' &&
+                (!newPropData.ownerName ||
+                  !newPropData.ownerCpf ||
+                  !newPropData.gestaoRealCode ||
+                  !newPropData.address))
             }
           >
             {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}

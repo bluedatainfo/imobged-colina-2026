@@ -1036,6 +1036,9 @@ export const Constants = {
 // Table: pre_registrations
 //   CREATE UNIQUE INDEX pre_registrations_code_idx ON public.pre_registrations USING btree (code)
 //   CREATE UNIQUE INDEX pre_registrations_sp_list_id_idx ON public.pre_registrations USING btree (sp_list_id) WHERE (sp_list_id IS NOT NULL)
+// Table: properties
+//   CREATE INDEX idx_properties_address ON public.properties USING btree (address)
+//   CREATE INDEX idx_properties_title ON public.properties USING btree (title)
 // Table: sharepoint_configs
 //   CREATE UNIQUE INDEX sharepoint_configs_document_type_key ON public.sharepoint_configs USING btree (document_type)
 // Table: tenants
