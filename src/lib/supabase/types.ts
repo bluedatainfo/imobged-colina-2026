@@ -956,6 +956,15 @@ export const Constants = {
 //   Policy "authenticated_all_pre_registrations" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
 //     WITH CHECK: true
+//   Policy "authenticated_delete_pre_registrations" (DELETE, PERMISSIVE) roles={authenticated}
+//     USING: true
+//   Policy "authenticated_insert_pre_registrations" (INSERT, PERMISSIVE) roles={authenticated}
+//     WITH CHECK: true
+//   Policy "authenticated_select_pre_registrations" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: true
+//   Policy "authenticated_update_pre_registrations" (UPDATE, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 // Table: properties
 //   Policy "authenticated_all_properties" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
