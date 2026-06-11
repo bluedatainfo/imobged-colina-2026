@@ -1,6 +1,8 @@
+import { getGraphToken } from '@/lib/m365'
+
 export const m365Service = {
   isAuthenticated: () => {
-    return localStorage.getItem('m365_auth') === 'true'
+    return !!localStorage.getItem('m365_token') || localStorage.getItem('m365_auth') === 'true'
   },
 
   login: async () => {
@@ -13,84 +15,142 @@ export const m365Service = {
   },
 
   fetchExcelRows: async (sourceDocId: string, worksheetName?: string) => {
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    const token = getGraphToken()
+    if (!token) {
+      console.warn('No M365 token found.')
+      return []
+    }
 
-    if (sourceDocId === '{278D2721-FF92-4F2A-8B09-82F491B997B0}') {
-      if (worksheetName === 'Fiador') {
-        return [
-          {
-            Nome: 'Carlos Santos',
-            Data: '2023-10-04',
-            Status: 'Análise Completa',
-            Renda: 'R$ 10.000,00',
-            Imovel: 'Sim',
-            Telefone: '(11) 98888-7777',
-            Email: 'carlos.fiador@email.com',
-          },
-          {
-            Nome: 'Ana Paula Ferreira',
-            Data: '2023-10-05',
-            Status: 'Pendente Doc.',
-            Renda: 'R$ 8.500,00',
-            Imovel: 'Não',
-            Telefone: '(11) 97777-6666',
-            Email: 'ana.paula@email.com',
-          },
-        ]
-      } else {
-        return [
-          {
-            Nome: 'João Roberto Silva',
-            Data: '2023-10-01',
-            Status: 'Aprovado',
-            CPF: '111.222.333-44',
-            Email: 'joao.roberto@example.com',
-            'Data de Nascimento': '15/04/1985',
-            Profissão: 'Engenheiro',
-          },
-          {
-            Nome: 'Maria Clara Souza',
-            Data: '2023-10-02',
-            Status: 'Em Análise',
-            CPF: '555.666.777-88',
-            Email: 'maria.clara@example.com',
-            'Data de Nascimento': '22/08/1990',
-            Profissão: 'Médica',
-          },
-          {
-            Nome: 'Pedro Almeida',
-            Data: '2023-10-06',
-            Status: 'Reprovado',
-            CPF: '999.888.777-66',
-            Email: 'pedro.almeida@example.com',
-            'Data de Nascimento': '10/01/1995',
-            Profissão: 'Autônomo',
-          },
-        ]
+    const spConfigStr = localStorage.getItem('main-storage')
+    let sharepointDomain = ''
+    let sitePath = 'locacao'
+    if (spConfigStr) {
+      try {
+        const state = JSON.parse(spConfigStr)
+        if (state.state && state.state.sharepoint) {
+          sharepointDomain = state.state.sharepoint.sharepointDomain || ''
+          if (state.state.sharepoint.sites?.locacao) {
+            sitePath = state.state.sharepoint.sites.locacao
+          }
+        }
+      } catch {
+        /* intentionally ignored */
       }
     }
 
-    if (sourceDocId === '{A049F513-89A2-4366-811C-21B26257CC7C}') {
-      return [
-        {
-          Nome: 'Tech Solutions LTDA',
-          Data: '2023-10-03',
-          Status: 'Aprovado',
-          CNPJ: '12.345.678/0001-90',
-          Email: 'contato@techsolutions.com',
-          'Razão Social': 'Tech Solutions Serviços de Informática LTDA',
-          'Inscrição Estadual': 'Isento',
-        },
-        {
-          Nome: 'Comercial Souza ME',
-          Data: '2023-10-07',
-          Status: 'Pendente Assinatura',
-          CNPJ: '98.765.432/0001-10',
-          Email: 'financeiro@comercialsouza.com.br',
-          'Razão Social': 'Comercial Souza Materiais de Construção ME',
-          'Inscrição Estadual': '123.456.789.000',
-        },
-      ]
+    if (!sharepointDomain) {
+      console.warn('SharePoint domain not configured.')
+      return []
+    }
+
+    const headers = { Authorization: `Bearer ${token}` }
+
+    try {
+      let siteId = ''
+
+      const directRes = await fetch(
+        `https://graph.microsoft.com/v1.0/sites/${sharepointDomain}:/sites/${sitePath}`,
+        { headers },
+      )
+      if (directRes.ok) {
+        const directData = await directRes.json()
+        if (directData.id) siteId = directData.id
+      } else {
+        const searchRes = await fetch(
+          `https://graph.microsoft.com/v1.0/sites?search=${encodeURIComponent(sitePath)}`,
+          { headers },
+        )
+        if (searchRes.ok) {
+          const searchData = await searchRes.json()
+          const site = searchData.value?.find(
+            (s: any) => s.webUrl && s.webUrl.toLowerCase().includes(sitePath.toLowerCase()),
+          )
+          if (site) siteId = site.id
+        }
+      }
+
+      if (!siteId) return []
+
+      const cleanId = sourceDocId.replace(/[{}]/g, '')
+      let targetDriveId = null
+      let targetItemId = null
+
+      const drivesRes = await fetch(`https://graph.microsoft.com/v1.0/sites/${siteId}/drives`, {
+        headers,
+      })
+      if (drivesRes.ok) {
+        const drivesData = await drivesRes.json()
+
+        for (const drive of drivesData.value) {
+          const itemRes = await fetch(
+            `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${drive.id}/items/${cleanId}`,
+            { headers },
+          )
+          if (itemRes.ok) {
+            targetDriveId = drive.id
+            targetItemId = cleanId
+            break
+          }
+          const itemRes2 = await fetch(
+            `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${drive.id}/items/${sourceDocId}`,
+            { headers },
+          )
+          if (itemRes2.ok) {
+            targetDriveId = drive.id
+            targetItemId = sourceDocId
+            break
+          }
+        }
+      }
+
+      if (targetDriveId && targetItemId && worksheetName) {
+        const encodedName = encodeURIComponent(worksheetName)
+        const rangeRes = await fetch(
+          `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${targetDriveId}/items/${targetItemId}/workbook/worksheets('${encodedName}')/usedRange`,
+          { headers },
+        )
+        if (rangeRes.ok) {
+          const rangeData = await rangeRes.json()
+          const rows = rangeData.values
+          if (!rows || rows.length <= 1) return []
+
+          const headersRow = rows[0]
+          const data: any[] = []
+          for (let i = 1; i < rows.length; i++) {
+            const row = rows[i]
+            const obj: any = {}
+            let hasData = false
+            headersRow.forEach((header: string, index: number) => {
+              if (header) {
+                obj[header] = row[index]
+                if (row[index] !== null && row[index] !== '') hasData = true
+              }
+            })
+            if (hasData) data.push(obj)
+          }
+          return data
+        }
+      }
+
+      const listRes = await fetch(
+        `https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${cleanId}/items?expand=fields`,
+        { headers },
+      )
+      if (listRes.ok) {
+        const listData = await listRes.json()
+        return listData.value?.map((v: any) => v.fields || {}) || []
+      }
+
+      const listRes2 = await fetch(
+        `https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${sourceDocId}/items?expand=fields`,
+        { headers },
+      )
+      if (listRes2.ok) {
+        const listData2 = await listRes2.json()
+        return listData2.value?.map((v: any) => v.fields || {}) || []
+      }
+    } catch (e) {
+      console.warn('Failed to fetch Excel rows from M365 API:', e)
     }
 
     return []

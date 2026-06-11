@@ -30,10 +30,6 @@ export default function FormsOnline() {
   const loadData = async (tab: string) => {
     setLoading(true)
     try {
-      if (!m365Service.isAuthenticated()) {
-        await m365Service.login()
-      }
-
       let rows = []
       if (tab === 'pf') {
         rows = await m365Service.fetchExcelRows(
@@ -91,19 +87,21 @@ export default function FormsOnline() {
             ) : (
               filteredData.map((row, idx) => (
                 <TableRow key={idx}>
-                  <TableCell className="font-medium">{row.Nome || row.Name || 'N/A'}</TableCell>
-                  <TableCell>{row.Data || row.Date || 'N/A'}</TableCell>
+                  <TableCell className="font-medium">
+                    {row.Nome || row.Name || row.nome || row.Title || 'N/A'}
+                  </TableCell>
+                  <TableCell>{row.Data || row.Date || row.data || row.Created || 'N/A'}</TableCell>
                   <TableCell>
                     <span
                       className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        row.Status === 'Aprovado'
+                        (row.Status || row.status || '').toLowerCase() === 'aprovado'
                           ? 'bg-green-100 text-green-800'
-                          : row.Status === 'Reprovado'
+                          : (row.Status || row.status || '').toLowerCase() === 'reprovado'
                             ? 'bg-red-100 text-red-800'
                             : 'bg-blue-100 text-blue-800'
                       }`}
                     >
-                      {row.Status || 'Recebido'}
+                      {row.Status || row.status || 'Recebido'}
                     </span>
                   </TableCell>
                   <TableCell className="text-right">
@@ -117,13 +115,20 @@ export default function FormsOnline() {
                         <DialogHeader>
                           <DialogTitle>Detalhes do Formulário</DialogTitle>
                         </DialogHeader>
-                        <div className="grid grid-cols-2 gap-4 mt-4">
-                          {Object.entries(selectedRow || {}).map(([key, value]) => (
-                            <div key={key} className="space-y-1">
-                              <p className="text-sm font-medium text-gray-500">{key}</p>
-                              <p className="text-sm text-gray-900 break-words">{String(value)}</p>
-                            </div>
-                          ))}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 p-1">
+                          {Object.entries(selectedRow || {}).map(([key, value]) => {
+                            if (key.startsWith('@odata') || key.startsWith('ItemInternalId'))
+                              return null
+                            if (typeof value === 'object' && value !== null) return null
+                            return (
+                              <div key={key} className="space-y-1">
+                                <p className="text-sm font-medium text-gray-500">{key}</p>
+                                <p className="text-sm text-gray-900 break-words">
+                                  {value !== null && value !== undefined ? String(value) : '-'}
+                                </p>
+                              </div>
+                            )
+                          })}
                         </div>
                       </DialogContent>
                     </Dialog>
