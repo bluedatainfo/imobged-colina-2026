@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Eye,
   CheckCircle,
@@ -75,8 +76,10 @@ const formatCpfCnpj = (v: string | null | undefined) => {
 }
 
 export default function ManagerApproval() {
-  const [candidates, setCandidates] = useState<any[]>([])
+  const [pendingCandidates, setPendingCandidates] = useState<any[]>([])
+  const [approvedCandidates, setApprovedCandidates] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState('pendentes')
   const { toast } = useToast()
 
   const [selectedCandidate, setSelectedCandidate] = useState<any>(null)
@@ -94,14 +97,24 @@ export default function ManagerApproval() {
   const fetchCandidates = async () => {
     setLoading(true)
     try {
-      const { data, error } = await supabase
-        .from('pre_registrations')
-        .select('*')
-        .eq('status', 'Em Análise da Gerência')
-        .order('created_at', { ascending: false })
+      const [pendingRes, approvedRes] = await Promise.all([
+        supabase
+          .from('pre_registrations')
+          .select('*')
+          .eq('status', 'Em Análise da Gerência')
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('pre_registrations')
+          .select('*')
+          .eq('status', 'Aprovado')
+          .order('updated_at', { ascending: false }),
+      ])
 
-      if (error) throw error
-      setCandidates(data || [])
+      if (pendingRes.error) throw pendingRes.error
+      if (approvedRes.error) throw approvedRes.error
+
+      setPendingCandidates(pendingRes.data || [])
+      setApprovedCandidates(approvedRes.data || [])
     } catch (err: any) {
       toast({ title: 'Erro ao buscar dados', description: err.message, variant: 'destructive' })
     } finally {
@@ -278,68 +291,144 @@ export default function ManagerApproval() {
         <p className="text-muted-foreground">Analise e aprove os dossiês de locação submetidos.</p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Dossiês Pendentes</CardTitle>
-          <CardDescription>Lista de interessados aguardando análise para locação</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex justify-center p-8">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            </div>
-          ) : candidates.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg">
-              <CheckCircle className="w-12 h-12 mx-auto mb-3 opacity-20" />
-              <p>Nenhum dossiê pendente no momento.</p>
-            </div>
-          ) : (
-            <div className="border rounded-md">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>Documento</TableHead>
-                    <TableHead>Contato</TableHead>
-                    <TableHead>Data</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {candidates.map((c) => (
-                    <TableRow key={c.id}>
-                      <TableCell className="font-medium">{c.full_name}</TableCell>
-                      <TableCell>{formatCpfCnpj(c.cpf || c.cnpj)}</TableCell>
-                      <TableCell>
-                        <div className="text-sm">{c.email || '-'}</div>
-                        <div className="text-xs text-muted-foreground">{c.phone || '-'}</div>
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {new Date(c.created_at).toLocaleDateString('pt-BR')}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant="outline"
-                          className="bg-amber-50 text-amber-600 border-amber-200"
-                        >
-                          {c.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="sm" onClick={() => handleOpenDetails(c)}>
-                          <Eye className="w-4 h-4 mr-2" />
-                          Ficha Detalhada
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList className="grid w-full grid-cols-2 md:w-[400px]">
+          <TabsTrigger value="pendentes">Pendentes</TabsTrigger>
+          <TabsTrigger value="aprovados">Aprovados</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="pendentes">
+          <Card>
+            <CardHeader>
+              <CardTitle>Dossiês Pendentes</CardTitle>
+              <CardDescription>
+                Lista de interessados aguardando análise para locação
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="flex justify-center p-8">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                </div>
+              ) : pendingCandidates.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg">
+                  <CheckCircle className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                  <p>Nenhum dossiê pendente no momento.</p>
+                </div>
+              ) : (
+                <div className="border rounded-md">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nome</TableHead>
+                        <TableHead>Documento</TableHead>
+                        <TableHead>Contato</TableHead>
+                        <TableHead>Data</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {pendingCandidates.map((c) => (
+                        <TableRow key={c.id}>
+                          <TableCell className="font-medium">{c.full_name}</TableCell>
+                          <TableCell>{formatCpfCnpj(c.cpf || c.cnpj)}</TableCell>
+                          <TableCell>
+                            <div className="text-sm">{c.email || '-'}</div>
+                            <div className="text-xs text-muted-foreground">{c.phone || '-'}</div>
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {new Date(c.created_at).toLocaleDateString('pt-BR')}
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant="outline"
+                              className="bg-amber-50 text-amber-600 border-amber-200"
+                            >
+                              {c.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="ghost" size="sm" onClick={() => handleOpenDetails(c)}>
+                              <Eye className="w-4 h-4 mr-2" />
+                              Ficha Detalhada
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="aprovados">
+          <Card>
+            <CardHeader>
+              <CardTitle>Dossiês Aprovados</CardTitle>
+              <CardDescription>Histórico de interessados já analisados e aprovados</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="flex justify-center p-8">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                </div>
+              ) : approvedCandidates.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg">
+                  <CheckCircle className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                  <p>Nenhum dossiê aprovado encontrado.</p>
+                </div>
+              ) : (
+                <div className="border rounded-md">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nome</TableHead>
+                        <TableHead>Documento</TableHead>
+                        <TableHead>Contato</TableHead>
+                        <TableHead>Data</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {approvedCandidates.map((c) => (
+                        <TableRow key={c.id}>
+                          <TableCell className="font-medium">{c.full_name}</TableCell>
+                          <TableCell>{formatCpfCnpj(c.cpf || c.cnpj)}</TableCell>
+                          <TableCell>
+                            <div className="text-sm">{c.email || '-'}</div>
+                            <div className="text-xs text-muted-foreground">{c.phone || '-'}</div>
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {new Date(c.updated_at || c.created_at).toLocaleDateString('pt-BR')}
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant="outline"
+                              className="bg-green-50 text-green-600 border-green-200"
+                            >
+                              {c.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="ghost" size="sm" onClick={() => handleOpenDetails(c)}>
+                              <Eye className="w-4 h-4 mr-2" />
+                              Ficha Detalhada
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       <Sheet open={!!selectedCandidate} onOpenChange={(val) => !val && setSelectedCandidate(null)}>
         <SheetContent className="w-full sm:max-w-xl flex flex-col p-0 border-l">
@@ -350,7 +439,14 @@ export default function ManagerApproval() {
                   <SheetTitle className="text-2xl">Ficha Detalhada</SheetTitle>
                   <SheetDescription className="mt-1">Análise de Dossiê de Locação</SheetDescription>
                 </div>
-                <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200">
+                <Badge
+                  variant="outline"
+                  className={
+                    selectedCandidate?.status === 'Aprovado'
+                      ? 'bg-green-50 text-green-600 border-green-200'
+                      : 'bg-amber-50 text-amber-600 border-amber-200'
+                  }
+                >
                   {selectedCandidate?.status}
                 </Badge>
               </div>
@@ -581,27 +677,29 @@ export default function ManagerApproval() {
             </div>
           </ScrollArea>
 
-          <div className="p-6 border-t bg-background flex gap-3 justify-end">
-            <Button
-              variant="outline"
-              className="flex-1 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-              onClick={() => setRejectDialogOpen(true)}
-            >
-              <XCircle className="w-4 h-4 mr-2" /> Rejeitar
-            </Button>
-            <Button
-              className="flex-1 bg-green-600 hover:bg-green-700"
-              onClick={handleApprove}
-              disabled={processing}
-            >
-              {processing ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <CheckCircle className="w-4 h-4 mr-2" />
-              )}
-              Aprovar Dossiê
-            </Button>
-          </div>
+          {selectedCandidate?.status === 'Em Análise da Gerência' && (
+            <div className="p-6 border-t bg-background flex gap-3 justify-end">
+              <Button
+                variant="outline"
+                className="flex-1 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                onClick={() => setRejectDialogOpen(true)}
+              >
+                <XCircle className="w-4 h-4 mr-2" /> Rejeitar
+              </Button>
+              <Button
+                className="flex-1 bg-green-600 hover:bg-green-700"
+                onClick={handleApprove}
+                disabled={processing}
+              >
+                {processing ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                )}
+                Aprovar Dossiê
+              </Button>
+            </div>
+          )}
         </SheetContent>
       </Sheet>
 
