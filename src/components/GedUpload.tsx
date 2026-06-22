@@ -247,58 +247,83 @@ export function GedUpload({
     return serverProperties
       .filter((p: any) => {
         const idStr = String(p.code || p.id || '').toLowerCase()
-        const nameStr = getOwnerName(p).toLowerCase()
-        const addressStr = getAddress(p).toLowerCase()
+        const normalizeStr = (str: any) =>
+          str
+            ? String(str)
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .toLowerCase()
+            : ''
+
+        const normalizedQuery = normalizeStr(searchQuery)
+        const nameStr = normalizeStr(getOwnerName(p))
+        const addressStr = normalizeStr(getAddress(p))
         return (
-          idStr.includes(lowerQuery) ||
-          nameStr.includes(lowerQuery) ||
-          addressStr.includes(lowerQuery)
+          idStr.includes(normalizedQuery) ||
+          nameStr.includes(normalizedQuery) ||
+          addressStr.includes(normalizedQuery)
         )
       })
       .slice(0, 50)
   }, [serverProperties, searchQuery])
 
   const localServerOwners = useMemo(() => {
-    const candidates = dbCandidates
-      .filter((c) => c.category === 'PF' || c.category === 'PJ')
-      .map((c) => ({
-        id: c.id,
-        code: c.code || c.id,
-        fullName: c.full_name + ' (Candidato)',
-        title: c.full_name,
-      }))
+    const candidates = dbCandidates.map((c) => ({
+      id: c.id,
+      code: c.code || c.id,
+      fullName: c.full_name + ' (Candidato)',
+      title: c.full_name,
+    }))
     const combined = [...(owners || []), ...candidates]
-    const lowerQuery = ownerSearchQuery.toLowerCase()
+
+    const normalizeStr = (str: any) =>
+      str
+        ? String(str)
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+        : ''
+
+    const normalizedQuery = normalizeStr(ownerSearchQuery)
+
     return combined
       .filter(
         (o: any) =>
-          !lowerQuery ||
-          (o.code && o.code.toLowerCase().includes(lowerQuery)) ||
-          (o.fullName && o.fullName.toLowerCase().includes(lowerQuery)) ||
-          (o.name && o.name.toLowerCase().includes(lowerQuery)) ||
-          (o.title && o.title.toLowerCase().includes(lowerQuery)),
+          !normalizedQuery ||
+          normalizeStr(o.code).includes(normalizedQuery) ||
+          normalizeStr(o.fullName).includes(normalizedQuery) ||
+          normalizeStr(o.name).includes(normalizedQuery) ||
+          normalizeStr(o.title).includes(normalizedQuery),
       )
       .slice(0, 50)
   }, [owners, dbCandidates, ownerSearchQuery])
 
   const localServerTenants = useMemo(() => {
-    const candidates = dbCandidates
-      .filter((c) => c.category === 'PF' || c.category === 'PJ')
-      .map((c) => ({
-        id: c.id,
-        code: c.code || c.id,
-        fullName: c.full_name + ' (Interessado)',
-        title: c.full_name,
-      }))
+    const candidates = dbCandidates.map((c) => ({
+      id: c.id,
+      code: c.code || c.id,
+      fullName: c.full_name + ' (Interessado)',
+      title: c.full_name,
+    }))
     const combined = [...(tenants || []), ...candidates]
-    const lowerQuery = tenantSearchQuery.toLowerCase()
+
+    const normalizeStr = (str: any) =>
+      str
+        ? String(str)
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+        : ''
+
+    const normalizedQuery = normalizeStr(tenantSearchQuery)
+
     return combined
       .filter(
         (t: any) =>
-          !lowerQuery ||
-          (t.code && t.code.toLowerCase().includes(lowerQuery)) ||
-          (t.fullName && t.fullName.toLowerCase().includes(lowerQuery)) ||
-          (t.name && t.name.toLowerCase().includes(lowerQuery)),
+          !normalizedQuery ||
+          normalizeStr(t.code).includes(normalizedQuery) ||
+          normalizeStr(t.fullName).includes(normalizedQuery) ||
+          normalizeStr(t.name).includes(normalizedQuery),
       )
       .slice(0, 50)
   }, [tenants, dbCandidates, tenantSearchQuery])
@@ -312,9 +337,19 @@ export function GedUpload({
         fullName: c.full_name + ' (Fiador SharePoint)',
         title: c.full_name,
       }))
-    const lowerQuery = guarantorSearchQuery.toLowerCase()
+
+    const normalizeStr = (str: any) =>
+      str
+        ? String(str)
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+        : ''
+
+    const normalizedQuery = normalizeStr(guarantorSearchQuery)
+
     return g
-      .filter((x) => !lowerQuery || x.fullName.toLowerCase().includes(lowerQuery))
+      .filter((x) => !normalizedQuery || normalizeStr(x.fullName).includes(normalizedQuery))
       .slice(0, 50)
   }, [dbCandidates, guarantorSearchQuery])
 
