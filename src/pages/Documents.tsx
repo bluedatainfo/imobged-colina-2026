@@ -8,6 +8,7 @@ import {
   Eye,
   Building2,
   Printer,
+  Check,
 } from 'lucide-react'
 import { Card, CardDescription, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -29,6 +30,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
+import { cn } from '@/lib/utils'
+import { supabase } from '@/lib/supabase/client'
 import { OCRReviewDialog } from '@/components/OCRReviewDialog'
 import { DocumentViewer } from '@/components/DocumentViewer'
 import { GedUpload } from '@/components/GedUpload'
@@ -44,6 +56,264 @@ const siteNames: Record<SiteKey, string> = {
   vendas: 'Vendas',
   juridico: 'Jurídico',
   financeiro: 'Financeiro',
+}
+
+function StructuredUpload() {
+  const { toast } = useToast()
+  const [file, setFile] = useState<File | null>(null)
+  const [propertyId, setPropertyId] = useState<string>('')
+  const [category, setCategory] = useState<string>('')
+  const [properties, setProperties] = useState<any[]>([])
+
+  const [open, setOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<any[]>([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [selectedEntity, setSelectedEntity] = useState<any>(null)
+  const [uploading, setUploading] = useState(false)
+
+  useEffect(() => {
+    supabase
+      .from('properties')
+      .select('id, title, address')
+      .then(({ data }) => {
+        if (data) setProperties(data)
+      })
+  }, [])
+
+  useEffect(() => {
+    if (category !== 'Documento do Proprietário') {
+      setSelectedEntity(null)
+      setSearchQuery('')
+    }
+  }, [category])
+
+  useEffect(() => {
+    const search = async () => {
+      if (!searchQuery || searchQuery.length < 2) {
+        setSearchResults([])
+        return
+      }
+      setIsSearching(true)
+      try {
+        const { data: owners } = await supabase
+          .from('owners')
+          .select('id, full_name, code')
+          .or(`full_name.ilike.%${searchQuery}%,code.ilike.%${searchQuery}%`)
+          .limit(5)
+
+        const { data: candidates } = await supabase
+          .from('pre_registrations')
+          .select('id, full_name, code, category')
+          .or(`full_name.ilike.%${searchQuery}%,code.ilike.%${searchQuery}%`)
+          .limit(5)
+
+        const combined: any[] = []
+        const seen = new Set()
+
+        const add = (item: any, source: string) => {
+          if (!seen.has(item.id)) {
+            seen.add(item.id)
+            combined.push({ ...item, source })
+          }
+        }
+
+        owners?.forEach((o) => add(o, 'ERP Local'))
+        candidates?.forEach((c) => add(c, 'Candidato (Novo)'))
+
+        setSearchResults(combined)
+      } catch (error) {
+        console.error(error)
+      } finally {
+        setIsSearching(false)
+      }
+    }
+    const t = setTimeout(search, 300)
+    return () => clearTimeout(t)
+  }, [searchQuery])
+
+  const handleUpload = async () => {
+    if (!file || !propertyId || !category) {
+      toast({
+        title: 'Atenção',
+        description: 'Preencha todos os campos obrigatórios.',
+        variant: 'destructive',
+      })
+      return
+    }
+    if (category === 'Documento do Proprietário' && !selectedEntity) {
+      toast({ title: 'Atenção', description: 'Selecione o proprietário.', variant: 'destructive' })
+      return
+    }
+
+    setUploading(true)
+    try {
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`
+      const filePath = `property_documents/${fileName}`
+
+      await supabase.storage
+        .from('documents')
+        .upload(filePath, file)
+        .catch(() => null)
+
+      const { error } = await supabase.from('property_documents').insert({
+        property_id: propertyId,
+        name: file.name,
+        category,
+        entity_code: selectedEntity?.code || null,
+        entity_name: selectedEntity?.full_name || null,
+        file_path: filePath,
+        status: 'pending',
+      })
+
+      if (error) throw error
+
+      toast({ title: 'Sucesso', description: 'Documento salvo com sucesso.' })
+      setFile(null)
+      setPropertyId('')
+      setCategory('')
+      setSelectedEntity(null)
+    } catch (error: any) {
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' })
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  return (
+    <div className="space-y-4 flex flex-col h-full">
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Imóvel</label>
+        <Select value={propertyId} onValueChange={setPropertyId}>
+          <SelectTrigger>
+            <SelectValue placeholder="Selecione o imóvel..." />
+          </SelectTrigger>
+          <SelectContent>
+            {properties.map((p) => (
+              <SelectItem key={p.id} value={p.id}>
+                {p.title} - {p.address}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Categoria do Documento</label>
+        <Select value={category} onValueChange={setCategory}>
+          <SelectTrigger>
+            <SelectValue placeholder="Selecione a categoria..." />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="Documento do Proprietário">Documento do Proprietário</SelectItem>
+            <SelectItem value="Documento do Inquilino">Documento do Inquilino</SelectItem>
+            <SelectItem value="Contrato">Contrato</SelectItem>
+            <SelectItem value="Vistoria">Vistoria</SelectItem>
+            <SelectItem value="Geral">Geral</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {category === 'Documento do Proprietário' && (
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Proprietário (ERP ou Candidatos)</label>
+          <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={open}
+                className="w-full justify-between"
+              >
+                {selectedEntity
+                  ? `${selectedEntity.full_name} (${selectedEntity.code})`
+                  : 'Buscar proprietário...'}
+                <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[400px] p-0" align="start">
+              <Command shouldFilter={false}>
+                <CommandInput
+                  placeholder="Digite nome ou código..."
+                  value={searchQuery}
+                  onValueChange={setSearchQuery}
+                />
+                <CommandList>
+                  {isSearching && (
+                    <div className="p-4 text-sm text-center text-muted-foreground flex items-center justify-center">
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Buscando...
+                    </div>
+                  )}
+                  {!isSearching && searchResults.length === 0 && searchQuery.length >= 2 && (
+                    <CommandEmpty>Nenhum proprietário encontrado.</CommandEmpty>
+                  )}
+                  <CommandGroup>
+                    {searchResults.map((item) => (
+                      <CommandItem
+                        key={item.id}
+                        value={item.id}
+                        onSelect={() => {
+                          setSelectedEntity(item)
+                          setOpen(false)
+                        }}
+                      >
+                        <Check
+                          className={cn(
+                            'mr-2 h-4 w-4',
+                            selectedEntity?.id === item.id ? 'opacity-100' : 'opacity-0',
+                          )}
+                        />
+                        <div className="flex flex-col">
+                          <span>{item.full_name}</span>
+                          <span className="text-xs text-muted-foreground">
+                            Código: {item.code} | Fonte: {item.source}
+                          </span>
+                        </div>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+        </div>
+      )}
+
+      <div className="space-y-2 flex-1">
+        <label className="text-sm font-medium">Arquivo</label>
+        <div
+          className="border-2 border-dashed rounded-lg p-6 flex flex-col items-center justify-center text-center hover:bg-muted/50 transition-colors cursor-pointer min-h-[120px]"
+          onClick={() => document.getElementById('structured-file-upload')?.click()}
+        >
+          <UploadCloud className="h-8 w-8 text-muted-foreground mb-2" />
+          {file ? (
+            <p className="text-sm font-medium text-primary">{file.name}</p>
+          ) : (
+            <>
+              <p className="text-sm font-medium">Clique para selecionar o arquivo</p>
+              <p className="text-xs text-muted-foreground mt-1">PDF, JPG, PNG (Max 10MB)</p>
+            </>
+          )}
+          <input
+            id="structured-file-upload"
+            type="file"
+            className="hidden"
+            onChange={(e) => setFile(e.target.files?.[0] || null)}
+          />
+        </div>
+      </div>
+
+      <Button className="w-full mt-auto" onClick={handleUpload} disabled={uploading}>
+        {uploading ? (
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        ) : (
+          <UploadCloud className="mr-2 h-4 w-4" />
+        )}
+        Salvar Documento
+      </Button>
+    </div>
+  )
 }
 
 const Documents = () => {
@@ -174,7 +444,7 @@ const Documents = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent className="pt-6 flex-1 flex flex-col">
-                <GedUpload mode="file" />
+                <StructuredUpload />
               </CardContent>
             </Card>
           </div>
