@@ -10,6 +10,7 @@ export type EntityModel = {
   fullAddress: string
   createdAt: string
   updatedAt: string
+  source?: string
 }
 
 type State = {
@@ -31,29 +32,27 @@ export const initEntitiesStore = async () => {
     let oData: any[] = []
     let tData: any[] = []
 
+    let erpOwners: any[] = []
+    let erpTenants: any[] = []
+
     if (ownersRes && ownersRes.ok) {
-      oData = await ownersRes.json()
-    } else {
-      // Fallback if ERP is unreachable (preview mode)
-      const { data } = await supabase
-        .from('owners')
-        .select('*')
-        .order('created_at', { ascending: false })
-      oData = data || []
+      erpOwners = await ownersRes.json()
     }
-
     if (tenantsRes && tenantsRes.ok) {
-      tData = await tenantsRes.json()
-    } else {
-      // Fallback
-      const { data } = await supabase
-        .from('tenants')
-        .select('*')
-        .order('created_at', { ascending: false })
-      tData = data || []
+      erpTenants = await tenantsRes.json()
     }
 
-    state.owners = oData.map((o: any) => ({
+    const { data: dbOwners } = await supabase
+      .from('owners')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    const { data: dbTenants } = await supabase
+      .from('tenants')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    const mapOwner = (o: any, source: string) => ({
       id:
         o.idprop?.toString() ||
         o.id?.toString() ||
@@ -68,9 +67,10 @@ export const initEntitiesStore = async () => {
         : o.full_address || '',
       createdAt: o.dtinc || o.created_at || new Date().toISOString(),
       updatedAt: o.dtalt || o.updated_at || new Date().toISOString(),
-    }))
+      source,
+    })
 
-    state.tenants = tData.map((t: any) => ({
+    const mapTenant = (t: any, source: string) => ({
       id: t.id?.toString() || t.codigo?.toString() || Math.random().toString(),
       code: t.id?.toString() || t.code || t.codigo || 'ERP-L',
       fullName: t.nome || t.full_name || t.fullName || 'Locatário Desconhecido',
@@ -81,7 +81,18 @@ export const initEntitiesStore = async () => {
         : t.full_address || '',
       createdAt: t.dtinclusao || t.created_at || new Date().toISOString(),
       updatedAt: t.dtalteracao || t.updated_at || new Date().toISOString(),
-    }))
+      source,
+    })
+
+    state.owners = [
+      ...erpOwners.map((o) => mapOwner(o, 'ERP')),
+      ...(dbOwners || []).map((o) => mapOwner(o, 'Novo')),
+    ]
+
+    state.tenants = [
+      ...erpTenants.map((t) => mapTenant(t, 'ERP')),
+      ...(dbTenants || []).map((t) => mapTenant(t, 'Novo')),
+    ]
 
     emit()
   } catch (err) {

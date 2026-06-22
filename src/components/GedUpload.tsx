@@ -267,19 +267,66 @@ export function GedUpload({
       .slice(0, 50)
   }, [serverProperties, searchQuery])
 
+  useEffect(() => {
+    if (selectedProperty && !selectedOwner) {
+      let ownerToSelect = null
+
+      if (selectedProperty.isDb) {
+        if (selectedProperty.owner_id) {
+          const found = owners.find(
+            (o) => o.id === selectedProperty.owner_id || o.code === selectedProperty.owner_id,
+          )
+          if (found) {
+            ownerToSelect = found
+          }
+        }
+      } else {
+        const ownerName = getOwnerName(selectedProperty)
+        if (
+          ownerName &&
+          ownerName !== 'Proprietário não informado' &&
+          ownerName !== 'Não informado'
+        ) {
+          const normalizedTarget = ownerName
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+          const found = owners.find((o) => {
+            const name = (o.fullName || '')
+              .normalize('NFD')
+              .replace(/[\u0300-\u036f]/g, '')
+              .toLowerCase()
+            return name === normalizedTarget
+          })
+
+          if (found) {
+            ownerToSelect = found
+          } else if (selectedProperty.proprietarios && selectedProperty.proprietarios.length > 0) {
+            ownerToSelect = {
+              id: selectedProperty.proprietarios[0].idprop || Math.random().toString(),
+              code: selectedProperty.proprietarios[0].idprop || 'ERP-P',
+              fullName: ownerName,
+              source: 'ERP',
+            }
+          }
+        }
+      }
+
+      if (ownerToSelect) {
+        setSelectedOwner(ownerToSelect)
+      }
+    }
+  }, [selectedProperty, owners, selectedOwner])
+
   const localServerOwners = useMemo(() => {
     const candidates = dbCandidates.map((c) => ({
       id: c.id,
       code: c.code || c.id,
       fullName: c.full_name,
       title: c.full_name,
-      source: 'candidato',
+      source: 'Candidato',
     }))
-    const erpOwners = (owners || []).map((o) => ({
-      ...o,
-      source: 'erp',
-    }))
-    const combined = [...erpOwners, ...candidates]
+    const combined = [...(owners || []), ...candidates]
 
     const normalizeStr = (str: any) =>
       str
