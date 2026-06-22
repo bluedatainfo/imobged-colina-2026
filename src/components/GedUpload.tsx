@@ -259,18 +259,27 @@ export function GedUpload({
   }, [serverProperties, searchQuery])
 
   const localServerOwners = useMemo(() => {
-    if (!owners) return []
+    const candidates = dbCandidates
+      .filter((c) => c.category === 'PF' || c.category === 'PJ')
+      .map((c) => ({
+        id: c.id,
+        code: c.code || c.id,
+        fullName: c.full_name + ' (Candidato)',
+        title: c.full_name,
+      }))
+    const combined = [...(owners || []), ...candidates]
     const lowerQuery = ownerSearchQuery.toLowerCase()
-    return owners
+    return combined
       .filter(
         (o: any) =>
           !lowerQuery ||
           (o.code && o.code.toLowerCase().includes(lowerQuery)) ||
           (o.fullName && o.fullName.toLowerCase().includes(lowerQuery)) ||
-          (o.name && o.name.toLowerCase().includes(lowerQuery)),
+          (o.name && o.name.toLowerCase().includes(lowerQuery)) ||
+          (o.title && o.title.toLowerCase().includes(lowerQuery)),
       )
       .slice(0, 50)
-  }, [owners, ownerSearchQuery])
+  }, [owners, dbCandidates, ownerSearchQuery])
 
   const localServerTenants = useMemo(() => {
     const candidates = dbCandidates
@@ -647,7 +656,7 @@ export function GedUpload({
 
       {docType === 'OWNER_DOCUMENT' && (
         <div key="owner-field" className="grid gap-2 animate-fade-in">
-          <Label>Proprietário (Servidor Local)</Label>
+          <Label>Proprietário (ERP ou Candidatos)</Label>
           <Popover open={ownerOpen} onOpenChange={setOwnerOpen}>
             <PopoverTrigger asChild>
               <Button
@@ -666,7 +675,9 @@ export function GedUpload({
                     </span>
                   </span>
                 ) : (
-                  <span className="text-muted-foreground">Buscar proprietário no servidor...</span>
+                  <span className="text-muted-foreground">
+                    Buscar proprietário no servidor ou candidatos...
+                  </span>
                 )}
                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
               </Button>
@@ -679,7 +690,9 @@ export function GedUpload({
                   onValueChange={setOwnerSearchQuery}
                 />
                 <CommandList>
-                  <CommandEmpty>Nenhum proprietário encontrado no servidor local.</CommandEmpty>
+                  <CommandEmpty>
+                    Nenhum proprietário encontrado no servidor local ou candidatos.
+                  </CommandEmpty>
                   <CommandGroup>
                     {localServerOwners.map((o) => (
                       <CommandItem
