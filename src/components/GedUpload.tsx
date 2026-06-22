@@ -271,10 +271,15 @@ export function GedUpload({
     const candidates = dbCandidates.map((c) => ({
       id: c.id,
       code: c.code || c.id,
-      fullName: c.full_name + ' (Candidato)',
+      fullName: c.full_name,
       title: c.full_name,
+      source: 'candidato',
     }))
-    const combined = [...(owners || []), ...candidates]
+    const erpOwners = (owners || []).map((o) => ({
+      ...o,
+      source: 'erp',
+    }))
+    const combined = [...erpOwners, ...candidates]
 
     const normalizeStr = (str: any) =>
       str
@@ -702,13 +707,24 @@ export function GedUpload({
                 className="w-full justify-between font-normal"
               >
                 {selectedOwner ? (
-                  <span className="truncate">
-                    <strong className="mr-1">{selectedOwner.code || selectedOwner.id}</strong>
-                    <span>
-                      {' '}
-                      - {selectedOwner.name || selectedOwner.fullName || selectedOwner.title}
+                  <div className="flex items-center gap-2 truncate">
+                    <span className="truncate">
+                      <strong className="mr-1">{selectedOwner.code || selectedOwner.id}</strong>
+                      <span>
+                        {' '}
+                        - {selectedOwner.name || selectedOwner.fullName || selectedOwner.title}
+                      </span>
                     </span>
-                  </span>
+                    {selectedOwner.source === 'candidato' ? (
+                      <span className="bg-primary/10 text-primary text-[10px] px-1.5 py-0.5 rounded uppercase font-semibold tracking-wider shrink-0">
+                        Candidato
+                      </span>
+                    ) : selectedOwner.source === 'erp' ? (
+                      <span className="bg-muted text-muted-foreground text-[10px] px-1.5 py-0.5 rounded uppercase font-semibold tracking-wider shrink-0">
+                        ERP
+                      </span>
+                    ) : null}
+                  </div>
                 ) : (
                   <span className="text-muted-foreground">
                     Buscar proprietário no servidor ou candidatos...
@@ -729,7 +745,7 @@ export function GedUpload({
                     Nenhum proprietário encontrado no servidor local ou candidatos.
                   </CommandEmpty>
                   <CommandGroup>
-                    {localServerOwners.map((o) => (
+                    {localServerOwners.map((o: any) => (
                       <CommandItem
                         key={o.id || o.code}
                         value={o.id || o.code}
@@ -738,19 +754,31 @@ export function GedUpload({
                           setEntityCode(o.code || o.id)
                           setOwnerOpen(false)
                         }}
+                        className="flex items-center justify-between"
                       >
-                        <Check
-                          className={cn(
-                            'mr-2 h-4 w-4',
-                            selectedOwner?.id === o.id || selectedOwner?.code === o.code
-                              ? 'opacity-100'
-                              : 'opacity-0',
-                          )}
-                        />
-                        <span className="truncate">
-                          <strong className="mr-1">{o.code || o.id}</strong>
-                          <span> - {o.name || o.fullName || o.title}</span>
-                        </span>
+                        <div className="flex items-center truncate">
+                          <Check
+                            className={cn(
+                              'mr-2 h-4 w-4 shrink-0',
+                              selectedOwner?.id === o.id || selectedOwner?.code === o.code
+                                ? 'opacity-100'
+                                : 'opacity-0',
+                            )}
+                          />
+                          <span className="truncate">
+                            <strong className="mr-1">{o.code || o.id}</strong>
+                            <span> - {o.name || o.fullName || o.title}</span>
+                          </span>
+                        </div>
+                        {o.source === 'candidato' ? (
+                          <span className="bg-primary/10 text-primary text-[10px] px-1.5 py-0.5 rounded uppercase font-semibold tracking-wider ml-2 shrink-0">
+                            Candidato
+                          </span>
+                        ) : (
+                          <span className="bg-muted text-muted-foreground text-[10px] px-1.5 py-0.5 rounded uppercase font-semibold tracking-wider ml-2 shrink-0">
+                            ERP
+                          </span>
+                        )}
                       </CommandItem>
                     ))}
                   </CommandGroup>
