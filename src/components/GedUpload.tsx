@@ -47,6 +47,9 @@ interface GedUploadProps {
   template?: any
 }
 
+const isUuid = (str: any) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(str))
+
 const DOCUMENT_TYPES = [
   { id: 'OWNER_DOCUMENT', label: 'Documento de Proprietário' },
   { id: 'TENANT_DOCUMENT', label: 'Documento Locatário/Interessado' },
@@ -649,8 +652,15 @@ export function GedUpload({
             >
               {selectedProperty ? (
                 <span className="truncate flex items-center text-left">
-                  <strong className="mr-1">{selectedProperty.code || selectedProperty.id}</strong>
-                  <span> - {getOwnerName(selectedProperty)}</span>
+                  {!isUuid(selectedProperty.code || selectedProperty.id) && (
+                    <>
+                      <strong className="mr-1">
+                        {selectedProperty.code || selectedProperty.id}
+                      </strong>
+                      <span> - </span>
+                    </>
+                  )}
+                  <span>{getOwnerName(selectedProperty)}</span>
                 </span>
               ) : (
                 <span className="text-muted-foreground">
@@ -699,7 +709,8 @@ export function GedUpload({
                         />
                         <span className="font-medium text-sm truncate text-foreground flex items-center gap-2">
                           <span>
-                            {p.code || p.id} - {getOwnerName(p)}
+                            {!isUuid(p.code || p.id) && <>{p.code || p.id} - </>}
+                            {getOwnerName(p)}
                           </span>
                           {p.isDb && (
                             <span className="bg-primary/10 text-primary text-[10px] px-1.5 py-0.5 rounded uppercase font-semibold tracking-wider">
@@ -756,10 +767,14 @@ export function GedUpload({
                 {selectedOwner ? (
                   <div className="flex items-center gap-2 truncate">
                     <span className="truncate">
-                      <strong className="mr-1">{selectedOwner.code || selectedOwner.id}</strong>
+                      {!isUuid(selectedOwner.code || selectedOwner.id) && (
+                        <>
+                          <strong className="mr-1">{selectedOwner.code || selectedOwner.id}</strong>
+                          <span> - </span>
+                        </>
+                      )}
                       <span>
-                        {' '}
-                        - {selectedOwner.name || selectedOwner.fullName || selectedOwner.title}
+                        {selectedOwner.name || selectedOwner.fullName || selectedOwner.title}
                       </span>
                     </span>
                     {selectedOwner.source === 'candidato' ? (
@@ -813,8 +828,13 @@ export function GedUpload({
                             )}
                           />
                           <span className="truncate">
-                            <strong className="mr-1">{o.code || o.id}</strong>
-                            <span> - {o.name || o.fullName || o.title}</span>
+                            {!isUuid(o.code || o.id) && (
+                              <>
+                                <strong className="mr-1">{o.code || o.id}</strong>
+                                <span> - </span>
+                              </>
+                            )}
+                            <span>{o.name || o.fullName || o.title}</span>
                           </span>
                         </div>
                         {o.source === 'candidato' ? (
@@ -850,10 +870,14 @@ export function GedUpload({
               >
                 {selectedTenant ? (
                   <span className="truncate">
-                    <strong className="mr-1">{selectedTenant.code || selectedTenant.id}</strong>
+                    {!isUuid(selectedTenant.code || selectedTenant.id) && (
+                      <>
+                        <strong className="mr-1">{selectedTenant.code || selectedTenant.id}</strong>
+                        <span> - </span>
+                      </>
+                    )}
                     <span>
-                      {' '}
-                      - {selectedTenant.name || selectedTenant.fullName || selectedTenant.title}
+                      {selectedTenant.name || selectedTenant.fullName || selectedTenant.title}
                     </span>
                   </span>
                 ) : (
@@ -891,8 +915,13 @@ export function GedUpload({
                           )}
                         />
                         <span className="truncate">
-                          <strong className="mr-1">{t.code || t.id}</strong>
-                          <span> - {t.name || t.fullName || t.title}</span>
+                          {!isUuid(t.code || t.id) && (
+                            <>
+                              <strong className="mr-1">{t.code || t.id}</strong>
+                              <span> - </span>
+                            </>
+                          )}
+                          <span>{t.name || t.fullName || t.title}</span>
                         </span>
                       </CommandItem>
                     ))}
@@ -918,10 +947,15 @@ export function GedUpload({
               >
                 {selectedGuarantor ? (
                   <span className="truncate">
-                    <strong className="mr-1">
-                      {selectedGuarantor.code || selectedGuarantor.id}
-                    </strong>
-                    <span> - {selectedGuarantor.fullName}</span>
+                    {!isUuid(selectedGuarantor.code || selectedGuarantor.id) && (
+                      <>
+                        <strong className="mr-1">
+                          {selectedGuarantor.code || selectedGuarantor.id}
+                        </strong>
+                        <span> - </span>
+                      </>
+                    )}
+                    <span>{selectedGuarantor.fullName}</span>
                   </span>
                 ) : (
                   <span className="text-muted-foreground">Buscar fiador no SharePoint...</span>
