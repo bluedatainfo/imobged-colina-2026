@@ -117,6 +117,7 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
 
   const [guarantors, setGuarantors] = useState<PreRegistration[]>([])
   const [selectedGuarantor, setSelectedGuarantor] = useState('')
+  const [guaranteeType, setGuaranteeType] = useState('Fiador')
 
   const [propertyMode, setPropertyMode] = useState<'existing' | 'new'>('existing')
 
@@ -154,6 +155,8 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
 
   useEffect(() => {
     if (open) {
+      setGuaranteeType('Fiador')
+      setSelectedGuarantor('')
       supabase
         .from('pre_registrations')
         .select('*')
@@ -205,6 +208,7 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
               })
               if (matched) {
                 setSelectedGuarantor(matched.id)
+                setGuaranteeType('Fiador')
               }
             }
           }
@@ -361,9 +365,19 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
 
       const { data: existingProp } = await supabase
         .from('properties')
-        .select('id')
+        .select('id, details')
         .eq('id', finalPropId)
         .maybeSingle()
+
+      let finalDetails = {
+        ...(typeof existingProp?.details === 'object' && existingProp?.details !== null
+          ? existingProp.details
+          : {}),
+      }
+      if (propertyMode === 'new') {
+        finalDetails = { ...finalDetails, ...details }
+      }
+      finalDetails.guaranteeType = guaranteeType
 
       const propPayload = {
         id: finalPropId,
@@ -375,8 +389,11 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
         status: 'Análise Gerencial',
         tenant: candidate.full_name,
         tenant_id: candidate.id,
-        guarantor_id: selectedGuarantor && selectedGuarantor !== '_none' ? selectedGuarantor : null,
-        ...(propertyMode === 'new' ? { details } : {}),
+        guarantor_id:
+          guaranteeType === 'Fiador' && selectedGuarantor && selectedGuarantor !== '_none'
+            ? selectedGuarantor
+            : null,
+        details: finalDetails,
       }
 
       if (existingProp) {
@@ -452,21 +469,44 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
 
           <div className="space-y-3">
             <Label className="flex items-center gap-2">
-              <User className="w-4 h-4 text-muted-foreground" /> Fiador (Opcional)
+              <User className="w-4 h-4 text-muted-foreground" /> Opções de Garantia
             </Label>
-            <Select value={selectedGuarantor} onValueChange={setSelectedGuarantor}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione um fiador sincronizado..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="_none">Sem fiador / Garantia alternativa</SelectItem>
-                {guarantors.map((g) => (
-                  <SelectItem key={g.id} value={g.id}>
-                    {g.full_name} {g.cpf ? `(${formatCpfCnpj(g.cpf)})` : ''}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="grid gap-3">
+              <Select
+                value={guaranteeType}
+                onValueChange={(val) => {
+                  setGuaranteeType(val)
+                  if (val !== 'Fiador') setSelectedGuarantor('')
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o tipo de garantia..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Fiador">Fiador</SelectItem>
+                  <SelectItem value="Seguro Fiança">Seguro Fiança</SelectItem>
+                  <SelectItem value="Caução">Caução</SelectItem>
+                  <SelectItem value="Titulo de Capitalizaçao">Título de Capitalização</SelectItem>
+                  <SelectItem value="Sem Garantia">Sem Garantia</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {guaranteeType === 'Fiador' && (
+                <Select value={selectedGuarantor} onValueChange={setSelectedGuarantor}>
+                  <SelectTrigger className="bg-muted/30">
+                    <SelectValue placeholder="Selecione um fiador sincronizado..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none">Ainda não sincronizado / Informar depois</SelectItem>
+                    {guarantors.map((g) => (
+                      <SelectItem key={g.id} value={g.id}>
+                        {g.full_name} {g.cpf ? `(${formatCpfCnpj(g.cpf)})` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
           </div>
 
           <div className="space-y-4">
