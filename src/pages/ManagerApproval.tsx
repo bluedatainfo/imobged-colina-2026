@@ -662,18 +662,6 @@ export default function ManagerApproval() {
                   )}
                 </div>
               )}
-
-              {selectedCandidate?.form_data &&
-                Object.keys(selectedCandidate.form_data).length > 0 && (
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold flex items-center gap-2 border-b pb-2">
-                      <FileText className="w-5 h-5 text-primary" /> Dados do Formulário
-                    </h3>
-                    <div className="bg-muted/30 p-4 rounded-md text-xs font-mono overflow-auto max-h-[200px] border">
-                      <pre>{JSON.stringify(selectedCandidate.form_data, null, 2)}</pre>
-                    </div>
-                  </div>
-                )}
             </div>
           </ScrollArea>
 
