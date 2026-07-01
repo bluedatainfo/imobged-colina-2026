@@ -94,6 +94,12 @@ const getAddress = (property: any) => {
   return parts.length > 0 ? parts.join(', ') : property.address || 'Endereço não informado'
 }
 
+const formatOwnerCodeForCandidate = (code: string): string => {
+  const numericPart = code.replace(/\D/g, '')
+  if (numericPart) return `PRO${numericPart}`
+  return code
+}
+
 export function GedUpload({
   preselectedPropertyId,
   preselectedType,
@@ -423,6 +429,10 @@ export function GedUpload({
   useEffect(() => {
     const typeObj = DOCUMENT_TYPES.find((t) => t.id === docType)
     if (typeObj && typeObj.label.startsWith('Imovel - ') && selectedProperty) {
+      if (docType === 'OWNER_DOCUMENT' && isEntityFromCandidate) {
+        finalEntityCode = formatOwnerCodeForCandidate(finalEntityCode)
+      }
+
       const propId = selectedProperty.code || selectedProperty.id
       if (propId) {
         if (['CONTRACT_ACTIVE', 'CONTRACT_TERMINATED'].includes(docType)) {
@@ -461,10 +471,12 @@ export function GedUpload({
     try {
       let finalEntityName = ''
       let finalEntityCode = entityCode
+      let isEntityFromCandidate = false
 
       if (docType === 'OWNER_DOCUMENT' && selectedOwner) {
         finalEntityName = selectedOwner.name || selectedOwner.fullName || selectedOwner.title || ''
         finalEntityCode = selectedOwner.code || selectedOwner.id || ''
+        isEntityFromCandidate = selectedOwner.source === 'Candidato'
       } else if (docType === 'TENANT_DOCUMENT' && selectedTenant) {
         finalEntityName =
           selectedTenant.name || selectedTenant.fullName || selectedTenant.title || ''
@@ -485,6 +497,7 @@ export function GedUpload({
           if (ownerData?.code) {
             finalEntityCode = ownerData.code
             if (ownerData.full_name) finalEntityName = ownerData.full_name
+            isEntityFromCandidate = false
           }
         } else if (docType === 'TENANT_DOCUMENT' && selectedProperty.tenant_id) {
           const { data: tenantData } = await supabase
