@@ -470,6 +470,73 @@ export default function ManagerApproval() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="rejeitados">
+          <Card>
+            <CardHeader>
+              <CardTitle>Dossiês Rejeitados</CardTitle>
+              <CardDescription>
+                Histórico de interessados com dossiê rejeitado. É possível reativar a análise.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="flex justify-center p-8">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                </div>
+              ) : rejectedCandidates.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg">
+                  <XCircle className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                  <p>Nenhum registro encontrado.</p>
+                </div>
+              ) : (
+                <div className="border rounded-md">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nome</TableHead>
+                        <TableHead>Documento</TableHead>
+                        <TableHead>Contato</TableHead>
+                        <TableHead>Data</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {rejectedCandidates.map((c) => (
+                        <TableRow key={c.id}>
+                          <TableCell className="font-medium">{c.full_name}</TableCell>
+                          <TableCell>{formatCpfCnpj(c.cpf || c.cnpj)}</TableCell>
+                          <TableCell>
+                            <div className="text-sm">{c.email || '-'}</div>
+                            <div className="text-xs text-muted-foreground">{c.phone || '-'}</div>
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {new Date(c.updated_at || c.created_at).toLocaleDateString('pt-BR')}
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant="outline"
+                              className="bg-red-50 text-red-600 border-red-200"
+                            >
+                              {c.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="ghost" size="sm" onClick={() => handleOpenDetails(c)}>
+                              <Eye className="w-4 h-4 mr-2" />
+                              Ficha Detalhada
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
 
       <Sheet open={!!selectedCandidate} onOpenChange={(val) => !val && setSelectedCandidate(null)}>
