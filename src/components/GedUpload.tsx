@@ -475,6 +475,40 @@ export function GedUpload({
         finalEntityCode = selectedGuarantor.code || selectedGuarantor.id || ''
       }
 
+      if (selectedProperty?.isDb) {
+        if (docType === 'OWNER_DOCUMENT' && selectedProperty.owner_id) {
+          const { data: ownerData } = await supabase
+            .from('owners')
+            .select('code, full_name')
+            .eq('id', selectedProperty.owner_id)
+            .maybeSingle()
+          if (ownerData?.code) {
+            finalEntityCode = ownerData.code
+            if (ownerData.full_name) finalEntityName = ownerData.full_name
+          }
+        } else if (docType === 'TENANT_DOCUMENT' && selectedProperty.tenant_id) {
+          const { data: tenantData } = await supabase
+            .from('pre_registrations')
+            .select('code, full_name')
+            .eq('id', selectedProperty.tenant_id)
+            .maybeSingle()
+          if (tenantData?.code) {
+            finalEntityCode = tenantData.code
+            if (tenantData.full_name) finalEntityName = tenantData.full_name
+          }
+        } else if (docType === 'GUARANTEE_DOCUMENT' && selectedProperty.guarantor_id) {
+          const { data: guarantorData } = await supabase
+            .from('pre_registrations')
+            .select('code, full_name')
+            .eq('id', selectedProperty.guarantor_id)
+            .maybeSingle()
+          if (guarantorData?.code) {
+            finalEntityCode = guarantorData.code
+            if (guarantorData.full_name) finalEntityName = guarantorData.full_name
+          }
+        }
+      }
+
       const propId = selectedProperty.code || selectedProperty.id
       const propTitle =
         selectedProperty.proprietario ||

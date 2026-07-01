@@ -58,7 +58,7 @@ export const initEntitiesStore = async () => {
         o.id?.toString() ||
         o.codigo?.toString() ||
         Math.random().toString(),
-      code: o.idprop?.toString() || o.id?.toString() || o.code || o.codigo || 'ERP-P',
+      code: o.idprop?.toString() || o.code || o.id?.toString() || o.codigo || 'ERP-P',
       fullName: o.nome || o.full_name || o.fullName || 'Proprietário Desconhecido',
       cpf: o.cpf || o.documento || '',
       rg: o.rg?.trim() || '',
@@ -72,7 +72,7 @@ export const initEntitiesStore = async () => {
 
     const mapTenant = (t: any, source: string) => ({
       id: t.id?.toString() || t.codigo?.toString() || Math.random().toString(),
-      code: t.id?.toString() || t.code || t.codigo || 'ERP-L',
+      code: t.code || t.id?.toString() || t.codigo || 'ERP-L',
       fullName: t.nome || t.full_name || t.fullName || 'Locatário Desconhecido',
       cpf: t.cpf || t.documento || '',
       rg: t.rg?.trim() || '',
