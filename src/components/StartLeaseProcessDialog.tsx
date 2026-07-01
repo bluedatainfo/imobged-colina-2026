@@ -141,7 +141,7 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
     iptu: '',
     condo: '',
     contractTerm: '',
-    release12Months: 'nao',
+    releaseMonths: '',
     proposal: '',
     spc: '',
     date: '',
@@ -356,7 +356,7 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
           iptu: parseCurrency(newPropData.iptu),
           condo: parseCurrency(newPropData.condo),
           contractTerm: newPropData.contractTerm,
-          release12Months: newPropData.release12Months,
+          releaseMonths: newPropData.releaseMonths,
           proposal: newPropData.proposal,
           spc: newPropData.spc,
           date: newPropData.date,
@@ -713,19 +713,14 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Liberação 12 Meses</Label>
-                  <Select
-                    value={newPropData.release12Months}
-                    onValueChange={(v) => updatePropData('release12Months', v)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="sim">Sim</SelectItem>
-                      <SelectItem value="nao">Não</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label>LIBERAR</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={newPropData.releaseMonths}
+                    onChange={(e) => updatePropData('releaseMonths', e.target.value)}
+                    placeholder="Nº de meses"
+                  />
                 </div>
                 <div className="space-y-2 sm:col-span-2">
                   <Label>Proposta</Label>
@@ -736,11 +731,15 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
                 </div>
                 <div className="space-y-2">
                   <Label>SPC</Label>
-                  <Input
-                    value={newPropData.spc}
-                    onChange={(e) => updatePropData('spc', formatCpfCnpj(e.target.value))}
-                    placeholder="CPF/CNPJ do SPC"
-                  />
+                  <Select value={newPropData.spc} onValueChange={(v) => updatePropData('spc', v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="CONSTA DADOS">CONSTA DADOS</SelectItem>
+                      <SelectItem value="NÃO CONSTA DADOS">NÃO CONSTA DADOS</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>Data</Label>
