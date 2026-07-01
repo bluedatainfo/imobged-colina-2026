@@ -26,6 +26,7 @@ import {
   ExternalLink,
   FolderOpen,
   User,
+  RotateCcw,
 } from 'lucide-react'
 import {
   Sheet,
@@ -78,6 +79,7 @@ const formatCpfCnpj = (v: string | null | undefined) => {
 export default function ManagerApproval() {
   const [pendingCandidates, setPendingCandidates] = useState<any[]>([])
   const [approvedCandidates, setApprovedCandidates] = useState<any[]>([])
+  const [rejectedCandidates, setRejectedCandidates] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('pendentes')
   const { toast } = useToast()
@@ -97,7 +99,7 @@ export default function ManagerApproval() {
   const fetchCandidates = async () => {
     setLoading(true)
     try {
-      const [pendingRes, approvedRes] = await Promise.all([
+      const [pendingRes, approvedRes, rejectedRes] = await Promise.all([
         supabase
           .from('pre_registrations')
           .select('*')
@@ -108,13 +110,20 @@ export default function ManagerApproval() {
           .select('*')
           .eq('status', 'Aprovado')
           .order('updated_at', { ascending: false }),
+        supabase
+          .from('pre_registrations')
+          .select('*')
+          .eq('status', 'Rejeitado')
+          .order('updated_at', { ascending: false }),
       ])
 
       if (pendingRes.error) throw pendingRes.error
       if (approvedRes.error) throw approvedRes.error
+      if (rejectedRes.error) throw rejectedRes.error
 
       setPendingCandidates(pendingRes.data || [])
       setApprovedCandidates(approvedRes.data || [])
+      setRejectedCandidates(rejectedRes.data || [])
     } catch (err: any) {
       toast({ title: 'Erro ao buscar dados', description: err.message, variant: 'destructive' })
     } finally {
@@ -225,6 +234,38 @@ export default function ManagerApproval() {
     }
   }
 
+  const handleReactivate = async () => {
+    if (!selectedCandidate) return
+    setProcessing(true)
+    try {
+      const { error } = await supabase
+        .from('pre_registrations')
+        .update({ status: 'Em Análise da Gerência' })
+        .eq('id', selectedCandidate.id)
+
+      if (error) throw error
+
+      if (property) {
+        const { error: propError } = await supabase
+          .from('properties')
+          .update({ status: 'Em Análise' })
+          .eq('id', property.id)
+        if (propError) throw propError
+      }
+
+      toast({
+        title: 'Análise Reativada',
+        description: 'O dossiê foi movido de volta para a fila de pendentes.',
+      })
+      setSelectedCandidate(null)
+      fetchCandidates()
+    } catch (err: any) {
+      toast({ title: 'Erro ao reativar', description: err.message, variant: 'destructive' })
+    } finally {
+      setProcessing(false)
+    }
+  }
+
   const handlePreviewDoc = async (doc: any) => {
     setLoadingPreviewId(doc.id)
     try {
@@ -292,9 +333,10 @@ export default function ManagerApproval() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-2 md:w-[400px]">
+        <TabsList className="grid w-full grid-cols-3 md:w-[600px]">
           <TabsTrigger value="pendentes">Pendentes</TabsTrigger>
           <TabsTrigger value="aprovados">Aprovados</TabsTrigger>
+          <TabsTrigger value="rejeitados">Rejeitados</TabsTrigger>
         </TabsList>
 
         <TabsContent value="pendentes">
@@ -691,6 +733,23 @@ export default function ManagerApproval() {
                   <CheckCircle className="w-4 h-4 mr-2" />
                 )}
                 Aprovar Dossiê
+              </Button>
+            </div>
+          )}
+
+          {selectedCandidate?.status === 'Rejeitado' && (
+            <div className="p-6 border-t bg-background flex gap-3 justify-end">
+              <Button
+                className="flex-1 bg-amber-600 hover:bg-amber-700"
+                onClick={handleReactivate}
+                disabled={processing}
+              >
+                {processing ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <RotateCcw className="w-4 h-4 mr-2" />
+                )}
+                Reativar Análise
               </Button>
             </div>
           )}
