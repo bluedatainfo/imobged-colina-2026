@@ -281,17 +281,6 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
 
         const erpOwnerName = getOwnerName(p)
 
-        const generateShortCode = (prefix: string) => {
-          const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
-          let result = ''
-          for (let i = 0; i < 6; i++) {
-            result += chars.charAt(Math.floor(Math.random() * chars.length))
-          }
-          return `${prefix}-${result}`
-        }
-
-        // Sempre busca direto no banco para garantir que pegaremos um UUID válido,
-        // evitando IDs mockados da store local que causavam "invalid input syntax for type uuid"
         const { data: dbOwner } = await supabase
           .from('owners')
           .select('id')
@@ -302,9 +291,11 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
         if (dbOwner) {
           finalOwnerId = dbOwner.id
         } else {
+          const { data: codeData } = await supabase.rpc('generate_owner_pro_code')
+          const ownerCode = codeData || `PRO${Date.now().toString().slice(-6)}`
           const { data: oData, error: oErr } = await supabase
             .from('owners')
-            .insert({ code: generateShortCode('ERP'), full_name: erpOwnerName })
+            .insert({ code: ownerCode, full_name: erpOwnerName })
             .select()
             .single()
           if (oErr) throw oErr
@@ -319,19 +310,12 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
         )
           throw new Error('Preencha o Nome, CPF do Proprietário, Código do Imóvel e o Endereço.')
 
-        const generateShortId = () => {
-          const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
-          let result = ''
-          for (let i = 0; i < 8; i++) {
-            result += chars.charAt(Math.floor(Math.random() * chars.length))
-          }
-          return result
-        }
-
+        const { data: codeData } = await supabase.rpc('generate_owner_pro_code')
+        const ownerCode = codeData || `PRO${Date.now().toString().slice(-6)}`
         const { data: oData, error: oErr } = await supabase
           .from('owners')
           .insert({
-            code: 'MN-' + generateShortId().substring(0, 6),
+            code: ownerCode,
             full_name: newPropData.ownerName || `Proprietário (Cód: ${newPropData.gestaoRealCode})`,
             cpf: newPropData.ownerCpf || null,
           })
