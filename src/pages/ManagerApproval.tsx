@@ -608,6 +608,12 @@ export default function ManagerApproval() {
                               <span className="font-medium">{property.details.gestaoRealCode}</span>
                             </div>
                           )}
+                          {property.details.proposal !== undefined && (
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Proposta:</span>
+                              <span className="font-medium">{property.details.proposal}</span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}
