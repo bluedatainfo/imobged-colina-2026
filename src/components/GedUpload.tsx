@@ -8,6 +8,7 @@ import {
   MapPin,
   Printer,
   FileText,
+  X,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -112,7 +113,12 @@ export function GedUpload({
 
   const [docType, setDocType] = useState(preselectedType || '')
   const [entityCode, setEntityCode] = useState('')
-  const [file, setFile] = useState<File | null>(null)
+  const [files, setFiles] = useState<File[]>([])
+  const [batchProgress, setBatchProgress] = useState<{
+    current: number
+    total: number
+    fileName: string
+  } | null>(null)
 
   const [ownerOpen, setOwnerOpen] = useState(false)
   const [ownerSearchQuery, setOwnerSearchQuery] = useState('')
@@ -432,13 +438,22 @@ export function GedUpload({
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      setFile(e.target.files[0])
+      const newFiles = Array.from(e.target.files)
+      setFiles((prev) => {
+        const existingNames = new Set(prev.map((f) => f.name))
+        const unique = newFiles.filter((f) => !existingNames.has(f.name))
+        return [...prev, ...unique]
+      })
     }
+  }
+
+  const removeFile = (index: number) => {
+    setFiles((prev) => prev.filter((_, i) => i !== index))
   }
 
   const handleUpload = async () => {
     if (!propertyId || !docType || !hasSpAccess || !selectedProperty) return
-    if (mode === 'file' && !file) return
+    if (mode === 'file' && files.length === 0) return
     if (mode === 'template' && !template) return
 
     setUploading(true)
@@ -470,92 +485,6 @@ export function GedUpload({
         selectedProperty.address ||
         'Imóvel'
 
-      let finalFile = file
-      let finalFileName = file?.name || ''
-
-      if (mode === 'scanner') {
-        setScanningStatus('Iniciando digitalização via Agente Local...')
-
-        try {
-          const scanRes = await fetch('http://localhost:5000/scan', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ dpi, colorMode, duplex }),
-          })
-
-          if (!scanRes.ok) {
-            throw new Error(`Falha ao iniciar Scan: ${scanRes.status} ${scanRes.statusText}`)
-          }
-
-          setScanningStatus('Capturando e transferindo documento...')
-          const blob = await scanRes.blob()
-          const safeName = customFileName.trim().substring(0, 10) || 'Scan'
-          finalFileName = `${safeName}.pdf`
-          finalFile = new File([blob], finalFileName, {
-            type: 'application/pdf',
-          })
-          setScanningStatus('Digitalização concluída.')
-        } catch (e: any) {
-          toast({
-            variant: 'destructive',
-            title: 'Erro de Comunicação',
-            description: `Não foi possível comunicar com o Agente Local. Certifique-se de que o script está rodando no seu Windows (localhost:5000). Erro: ${e.message}`,
-          })
-          setUploading(false)
-          setScanningStatus('')
-          return
-        }
-      } else if (mode === 'template') {
-        setScanningStatus('Baixando modelo original...')
-        try {
-          const blob = await m365Service.downloadItemContent(
-            template.siteId,
-            template.driveId,
-            template.id,
-          )
-          const ext = template.name.includes('.')
-            ? template.name.substring(template.name.lastIndexOf('.'))
-            : ''
-          finalFileName = `${customFileName.trim() || 'Documento_Gerado'}${ext}`
-          finalFile = new File([blob], finalFileName, { type: blob.type })
-          setScanningStatus('Salvando cópia no destino...')
-        } catch (e: any) {
-          toast({
-            variant: 'destructive',
-            title: 'Erro',
-            description: e.message || 'Não foi possível baixar o modelo selecionado.',
-          })
-          setUploading(false)
-          setScanningStatus('')
-          return
-        }
-      }
-
-      if (!finalFile) {
-        toast({
-          variant: 'destructive',
-          title: 'Nenhum arquivo',
-          description: 'Por favor, selecione um arquivo ou forneça um modelo válido.',
-        })
-        setUploading(false)
-        return
-      }
-
-      const result = await m365Service.uploadStructuredDocument(
-        finalFile,
-        finalFileName,
-        docType,
-        propId,
-        propTitle,
-        user?.name || 'Sistema',
-        finalEntityCode,
-        finalEntityName,
-        leaseNumber,
-        folderNumber,
-      )
-
       // Garantir que o imóvel exista no Supabase para evitar erro de violação de Foreign Key
       const { data: existingProp } = await supabase
         .from('properties')
@@ -573,43 +502,201 @@ export function GedUpload({
         })
       }
 
-      const path =
-        typeof result === 'string'
-          ? result
-          : result?.path ||
-            result?.serverRelativeUrl ||
-            result?.webUrl ||
-            result?.url ||
-            `sharepoint:/${docType}/${finalFileName}`
+      if (mode === 'scanner' || mode === 'template') {
+        let finalFile: File | Blob | null = null
+        let finalFileName = ''
 
-      await documentsStore.addDocument({
-        propertyId: propId,
-        name: finalFileName,
-        category: docType,
-        entityCode: finalEntityCode || undefined,
-        entityName: finalEntityName || undefined,
-        filePath: path,
-      })
+        if (mode === 'scanner') {
+          setScanningStatus('Iniciando digitalização via Agente Local...')
 
-      if (sendToManager) {
-        mainStore.updateProperty(propId, { status: 'Análise Gerencial' })
+          try {
+            const scanRes = await fetch('http://localhost:5000/scan', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ dpi, colorMode, duplex }),
+            })
+
+            if (!scanRes.ok) {
+              throw new Error(`Falha ao iniciar Scan: ${scanRes.status} ${scanRes.statusText}`)
+            }
+
+            setScanningStatus('Capturando e transferindo documento...')
+            const blob = await scanRes.blob()
+            const safeName = customFileName.trim().substring(0, 10) || 'Scan'
+            finalFileName = `${safeName}.pdf`
+            finalFile = new File([blob], finalFileName, {
+              type: 'application/pdf',
+            })
+            setScanningStatus('Digitalização concluída.')
+          } catch (e: any) {
+            toast({
+              variant: 'destructive',
+              title: 'Erro de Comunicação',
+              description: `Não foi possível comunicar com o Agente Local. Certifique-se de que o script está rodando no seu Windows (localhost:5000). Erro: ${e.message}`,
+            })
+            setUploading(false)
+            setScanningStatus('')
+            return
+          }
+        } else if (mode === 'template') {
+          setScanningStatus('Baixando modelo original...')
+          try {
+            const blob = await m365Service.downloadItemContent(
+              template.siteId,
+              template.driveId,
+              template.id,
+            )
+            const ext = template.name.includes('.')
+              ? template.name.substring(template.name.lastIndexOf('.'))
+              : ''
+            finalFileName = `${customFileName.trim() || 'Documento_Gerado'}${ext}`
+            finalFile = new File([blob], finalFileName, { type: blob.type })
+            setScanningStatus('Salvando cópia no destino...')
+          } catch (e: any) {
+            toast({
+              variant: 'destructive',
+              title: 'Erro',
+              description: e.message || 'Não foi possível baixar o modelo selecionado.',
+            })
+            setUploading(false)
+            setScanningStatus('')
+            return
+          }
+        }
+
+        if (!finalFile) {
+          toast({
+            variant: 'destructive',
+            title: 'Nenhum arquivo',
+            description: 'Por favor, selecione um arquivo ou forneça um modelo válido.',
+          })
+          setUploading(false)
+          return
+        }
+
+        const result = await m365Service.uploadStructuredDocument(
+          finalFile,
+          finalFileName,
+          docType,
+          propId,
+          propTitle,
+          user?.name || 'Sistema',
+          finalEntityCode,
+          finalEntityName,
+          leaseNumber,
+          folderNumber,
+        )
+
+        const path =
+          typeof result === 'string'
+            ? result
+            : result?.path ||
+              result?.serverRelativeUrl ||
+              result?.webUrl ||
+              result?.url ||
+              `sharepoint:/${docType}/${finalFileName}`
+
+        await documentsStore.addDocument({
+          propertyId: propId,
+          name: finalFileName,
+          category: docType,
+          entityCode: finalEntityCode || undefined,
+          entityName: finalEntityName || undefined,
+          filePath: path,
+        })
+
+        if (sendToManager) {
+          mainStore.updateProperty(propId, { status: 'Análise Gerencial' })
+        }
+
+        toast({
+          title: 'Processo Concluído',
+          description:
+            mode === 'scanner'
+              ? 'Documento digitalizado e salvo no SharePoint com sucesso.'
+              : 'Documento gerado e salvo com sucesso. Abrindo para edição...',
+        })
+
+        if (mode === 'template' && typeof result !== 'string' && result.webUrl) {
+          window.open(result.webUrl, '_blank')
+        }
+      } else {
+        let successCount = 0
+        let failCount = 0
+        const failedFiles: string[] = []
+
+        for (let i = 0; i < files.length; i++) {
+          const currentFile = files[i]
+          setBatchProgress({
+            current: i + 1,
+            total: files.length,
+            fileName: currentFile.name,
+          })
+          setScanningStatus(`Enviando ${currentFile.name} (${i + 1}/${files.length})...`)
+
+          try {
+            const result = await m365Service.uploadStructuredDocument(
+              currentFile,
+              currentFile.name,
+              docType,
+              propId,
+              propTitle,
+              user?.name || 'Sistema',
+              finalEntityCode,
+              finalEntityName,
+              leaseNumber,
+              folderNumber,
+            )
+
+            const path =
+              typeof result === 'string'
+                ? result
+                : result?.path ||
+                  result?.serverRelativeUrl ||
+                  result?.webUrl ||
+                  result?.url ||
+                  `sharepoint:/${docType}/${currentFile.name}`
+
+            await documentsStore.addDocument({
+              propertyId: propId,
+              name: currentFile.name,
+              category: docType,
+              entityCode: finalEntityCode || undefined,
+              entityName: finalEntityName || undefined,
+              filePath: path,
+            })
+
+            successCount++
+          } catch (e: any) {
+            console.warn(`Upload error for ${currentFile.name}:`, e)
+            failCount++
+            failedFiles.push(currentFile.name)
+          }
+        }
+
+        if (sendToManager && successCount > 0) {
+          mainStore.updateProperty(propId, { status: 'Análise Gerencial' })
+        }
+
+        if (failCount === 0) {
+          toast({
+            title: 'Upload Concluído',
+            description: `${successCount} arquivo(s) enviado(s) e classificado(s) com sucesso no SharePoint.`,
+          })
+        } else {
+          toast({
+            variant: 'destructive',
+            title: 'Upload Parcialmente Concluído',
+            description: `${successCount} arquivo(s) enviado(s) com sucesso. ${failCount} falha(s): ${failedFiles.join(', ')}`,
+          })
+        }
+
+        setBatchProgress(null)
       }
 
-      toast({
-        title: 'Processo Concluído',
-        description:
-          mode === 'scanner'
-            ? 'Documento digitalizado e salvo no SharePoint com sucesso.'
-            : mode === 'template'
-              ? 'Documento gerado e salvo com sucesso. Abrindo para edição...'
-              : 'Documento enviado e classificado com sucesso no SharePoint.',
-      })
-
-      if (mode === 'template' && typeof result !== 'string' && result.webUrl) {
-        window.open(result.webUrl, '_blank')
-      }
-
-      setFile(null)
+      setFiles([])
       setEntityCode('')
       setSelectedOwner(null)
       setSelectedTenant(null)
@@ -624,6 +711,8 @@ export function GedUpload({
       console.warn('Upload error:', e)
     } finally {
       setUploading(false)
+      setBatchProgress(null)
+      setScanningStatus('')
     }
   }
 
@@ -1026,8 +1115,50 @@ export function GedUpload({
 
       {mode === 'file' && (
         <div className="grid gap-2">
-          <Label>Arquivo Selecionado</Label>
-          <Input id="file-upload" type="file" onChange={handleFileChange} disabled={!hasSpAccess} />
+          <Label>Arquivos Selecionados</Label>
+          <Input
+            id="file-upload"
+            type="file"
+            multiple
+            onChange={handleFileChange}
+            disabled={!hasSpAccess}
+          />
+          {files.length > 0 && (
+            <div className="space-y-2 mt-2">
+              {files.map((f, idx) => (
+                <div
+                  key={`${f.name}-${idx}`}
+                  className="flex items-center justify-between gap-2 rounded-md border p-2 bg-muted/30"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <FileText className="h-4 w-4 text-primary shrink-0" />
+                    <span className="text-sm truncate">{f.name}</span>
+                    <span className="text-xs text-muted-foreground shrink-0">
+                      ({(f.size / 1024).toFixed(0)} KB)
+                    </span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeFile(idx)}
+                    disabled={uploading}
+                    className="h-7 w-7 p-0 shrink-0"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+          {batchProgress && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              <span>
+                Processando {batchProgress.current} de {batchProgress.total}:{' '}
+                {batchProgress.fileName}
+              </span>
+            </div>
+          )}
         </div>
       )}
 
@@ -1143,7 +1274,7 @@ export function GedUpload({
         className="w-full mt-auto gap-2"
         onClick={handleUpload}
         disabled={
-          (mode === 'file' && !file) ||
+          (mode === 'file' && files.length === 0) ||
           (mode === 'template' && (!template || !customFileName.trim())) ||
           (mode === 'scanner' && !customFileName.trim()) ||
           !propertyId ||
