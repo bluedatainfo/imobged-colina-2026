@@ -22,6 +22,7 @@ import {
   FileUp,
   FilePlus,
   ClipboardList,
+  FileCheck,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -50,6 +51,7 @@ const navigation = [
   { title: 'Imóveis', url: '/properties', icon: Home },
   { title: 'Gestão de Modelos', url: '/templates', icon: BookOpen },
   { title: 'Ciclo de Contratos', url: '/contracts', icon: FileSignature },
+  { title: 'Contratos em Andamento', url: '/ongoing-contracts', icon: FileCheck },
   { title: 'Análise da Gerencia', url: '/manager-approval', icon: UserCheck },
   { title: 'Vistorias', url: '/inspections', icon: ClipboardCheck },
   { title: 'Controle de Chaves', url: '/keys', icon: KeyRound },
@@ -74,6 +76,7 @@ export function AppSidebar() {
     '/properties': 'properties',
     '/templates': 'templates',
     '/contracts': 'contracts',
+    '/ongoing-contracts': 'contracts',
     '/manager-approval': 'manager_approval',
     '/documents': 'documents',
     '/additional-documents': 'documents',

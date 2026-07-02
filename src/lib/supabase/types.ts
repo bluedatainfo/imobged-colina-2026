@@ -583,6 +583,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_owner_pro_code: { Args: never; Returns: string }
       search_owners_unified: {
         Args: { search_term: string }
         Returns: {

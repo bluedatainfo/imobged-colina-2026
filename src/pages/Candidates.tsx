@@ -33,7 +33,15 @@ import {
 } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
-import { Download, ExternalLink, Loader2, RefreshCw, ClipboardList, Search } from 'lucide-react'
+import {
+  Download,
+  ExternalLink,
+  Loader2,
+  RefreshCw,
+  ClipboardList,
+  Search,
+  FileSearch,
+} from 'lucide-react'
 import { format } from 'date-fns'
 import { Input } from '@/components/ui/input'
 import { ptBR } from 'date-fns/locale'
@@ -66,6 +74,7 @@ export default function Candidates() {
   const [updating, setUpdating] = useState(false)
   const [activeTab, setActiveTab] = useState<PreRegistrationCategory>('PF')
   const [processDialogOpen, setProcessDialogOpen] = useState(false)
+  const [existingProcessDialogOpen, setExistingProcessDialogOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
 
   const fetchCandidates = async () => {
@@ -559,6 +568,17 @@ export default function Candidates() {
                           Iniciar Análise para Locação
                         </Button>
                       )}
+
+                      {selectedCandidate.category !== 'Fiador' && (
+                        <Button
+                          onClick={() => setExistingProcessDialogOpen(true)}
+                          className="bg-purple-600 hover:bg-purple-700 text-white w-full sm:w-auto"
+                          title="Iniciar nova análise de locação para um imóvel diferente, reutilizando os dados cadastrais existentes"
+                        >
+                          <FileSearch className="mr-2 h-4 w-4" />
+                          Análise de Ficha já existente PF, PJ
+                        </Button>
+                      )}
                     </div>
                   </div>
 
@@ -603,6 +623,16 @@ export default function Candidates() {
         candidate={selectedCandidate}
         onSuccess={() => {
           setProcessDialogOpen(false)
+          fetchCandidates()
+        }}
+      />
+
+      <StartLeaseProcessDialog
+        open={existingProcessDialogOpen}
+        onClose={() => setExistingProcessDialogOpen(false)}
+        candidate={selectedCandidate}
+        onSuccess={() => {
+          setExistingProcessDialogOpen(false)
           fetchCandidates()
         }}
       />

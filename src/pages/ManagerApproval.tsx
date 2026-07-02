@@ -765,7 +765,7 @@ export default function ManagerApproval() {
                         propertyDocs.filter((d) => d.category === 'GUARANTEE_DOCUMENT'),
                       )}
                       {renderDocGroup(
-                        'Documentos GED-Ciclo',
+                        'Documentos do Imóvel',
                         propertyDocs.filter(
                           (d) =>
                             !['OWNER_DOCUMENT', 'TENANT_DOCUMENT', 'GUARANTEE_DOCUMENT'].includes(
