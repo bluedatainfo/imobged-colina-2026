@@ -96,6 +96,7 @@ export function AppSidebar() {
     if (
       item.url !== '/candidates' &&
       item.url !== '/forms-online' &&
+      item.url !== '/ongoing-contracts' &&
       !checkAccess(item.url, user?.role)
     )
       return false
