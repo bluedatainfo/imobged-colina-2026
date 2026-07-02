@@ -76,7 +76,6 @@ export function AppSidebar() {
     '/properties': 'properties',
     '/templates': 'templates',
     '/contracts': 'contracts',
-    '/ongoing-contracts': 'contracts',
     '/manager-approval': 'manager_approval',
     '/documents': 'documents',
     '/additional-documents': 'documents',
