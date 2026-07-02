@@ -56,6 +56,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const hasAccess =
     location.pathname === '/candidates' ||
     location.pathname === '/forms-online' ||
+    location.pathname === '/ongoing-contracts' ||
     checkAccess(location.pathname, user.role)
   if (!hasAccess) return <Navigate to="/access-denied" replace />
 

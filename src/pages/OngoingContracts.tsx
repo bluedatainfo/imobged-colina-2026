@@ -389,6 +389,50 @@ export default function OngoingContracts() {
                         <div className="font-medium mt-0.5">{property.status}</div>
                       </div>
                     </div>
+
+                    {property.details && Object.keys(property.details).length > 0 && (
+                      <div className="pt-2 border-t border-border/50">
+                        <Label className="text-muted-foreground text-xs mb-2 block">
+                          Detalhes Adicionais
+                        </Label>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                          {property.details.condo !== undefined && (
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Condomínio:</span>
+                              <span className="font-medium">
+                                {formatCurrency(property.details.condo)}
+                              </span>
+                            </div>
+                          )}
+                          {property.details.iptu !== undefined && (
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">IPTU:</span>
+                              <span className="font-medium">
+                                {formatCurrency(property.details.iptu)}
+                              </span>
+                            </div>
+                          )}
+                          {property.details.contractTerm && (
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Prazo:</span>
+                              <span className="font-medium">{property.details.contractTerm}</span>
+                            </div>
+                          )}
+                          {property.details.gestaoRealCode && (
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Cód. Gestão Real:</span>
+                              <span className="font-medium">{property.details.gestaoRealCode}</span>
+                            </div>
+                          )}
+                          {property.details.proposal !== undefined && (
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Proposta:</span>
+                              <span className="font-medium">{property.details.proposal}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="text-center py-6 text-muted-foreground bg-background rounded-md border border-dashed">
