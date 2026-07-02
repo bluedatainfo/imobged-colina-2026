@@ -42,6 +42,16 @@ import {
   DialogFooter,
   DialogDescription,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useToast } from '@/hooks/use-toast'
 import { m365Service } from '@/lib/m365'
@@ -85,6 +95,7 @@ export default function OngoingContracts() {
   const [propertyDocs, setPropertyDocs] = useState<any[]>([])
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [loadingPreviewId, setLoadingPreviewId] = useState<string | null>(null)
+  const [confirmCandidate, setConfirmCandidate] = useState<any>(null)
   const { toast } = useToast()
 
   useEffect(() => {
@@ -161,6 +172,7 @@ export default function OngoingContracts() {
       })
     } finally {
       setFinalizingId(null)
+      setConfirmCandidate(null)
     }
   }
 
@@ -322,7 +334,7 @@ export default function OngoingContracts() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleFinalizeContract(c)}
+                        onClick={() => setConfirmCandidate(c)}
                         disabled={finalizingId === c.id}
                       >
                         {finalizingId === c.id ? (
@@ -330,7 +342,7 @@ export default function OngoingContracts() {
                         ) : (
                           <CheckCheck className="w-4 h-4 mr-2" />
                         )}
-                        Contrato Finalizado
+                        Finalizar
                       </Button>
                     )}
                   </div>
@@ -638,6 +650,28 @@ export default function OngoingContracts() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={!!confirmCandidate}
+        onOpenChange={(val) => !val && setConfirmCandidate(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Finalização</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja mover para a aba de finalizados este Dossiê Aprovado
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => confirmCandidate && handleFinalizeContract(confirmCandidate)}
+            >
+              Confirmar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
