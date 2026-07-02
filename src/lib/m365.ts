@@ -37,7 +37,7 @@ const refreshM365Token = async () => {
   return null
 }
 
-const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
+export const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
   let token = getGraphToken()
 
   const executeFetch = (currentToken: string | null) => {

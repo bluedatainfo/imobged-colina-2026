@@ -19,6 +19,7 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Search, Loader2, RefreshCw } from 'lucide-react'
 import { m365Service } from '@/services/m365Service'
+import { useToast } from '@/hooks/use-toast'
 
 export default function FormsOnline() {
   const [activeTab, setActiveTab] = useState('pf')
@@ -26,27 +27,46 @@ export default function FormsOnline() {
   const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState('')
   const [selectedRow, setSelectedRow] = useState<any | null>(null)
+  const { toast } = useToast()
 
   const loadData = async (tab: string) => {
     setLoading(true)
     try {
-      let rows = []
+      let result
       if (tab === 'pf') {
-        rows = await m365Service.fetchExcelRows(
+        result = await m365Service.fetchExcelRows(
           '{278D2721-FF92-4F2A-8B09-82F491B997B0}',
           'Pessoa Física',
         )
       } else if (tab === 'pj') {
-        rows = await m365Service.fetchExcelRows(
+        result = await m365Service.fetchExcelRows(
           '{A049F513-89A2-4366-811C-21B26257CC7C}',
           'Pessoa Jurídica',
         )
       } else if (tab === 'fiador') {
-        rows = await m365Service.fetchExcelRows('{278D2721-FF92-4F2A-8B09-82F491B997B0}', 'Fiador')
+        result = await m365Service.fetchExcelRows(
+          '{278D2721-FF92-4F2A-8B09-82F491B997B0}',
+          'Fiador',
+        )
       }
-      setData(rows)
+
+      if (result?.error) {
+        toast({
+          variant: 'destructive',
+          title: 'Erro',
+          description: result.error,
+        })
+      }
+
+      setData(result?.data || [])
     } catch (error) {
       console.error('Error fetching SharePoint data:', error)
+      toast({
+        variant: 'destructive',
+        title: 'Erro',
+        description:
+          'Não foi possível localizar a planilha no OneDrive/SharePoint. Verifique o domínio e o caminho configurados.',
+      })
     } finally {
       setLoading(false)
     }
