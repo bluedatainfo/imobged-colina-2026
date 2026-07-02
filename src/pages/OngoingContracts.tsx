@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Eye,
   CheckCircle,
@@ -24,6 +25,7 @@ import {
   FolderOpen,
   Home,
   ExternalLink,
+  CheckCheck,
 } from 'lucide-react'
 import {
   Sheet,
@@ -69,9 +71,14 @@ const formatCpfCnpj = (v: string | null | undefined) => {
     .slice(0, 18)
 }
 
+const FINALIZED_STATUS = 'Contrato Finalizado'
+
 export default function OngoingContracts() {
   const [candidates, setCandidates] = useState<any[]>([])
+  const [propertyStatuses, setPropertyStatuses] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState('active')
+  const [finalizingId, setFinalizingId] = useState<string | null>(null)
   const [selectedCandidate, setSelectedCandidate] = useState<any>(null)
   const [property, setProperty] = useState<any>(null)
   const [loadingProperty, setLoadingProperty] = useState(false)
@@ -90,6 +97,22 @@ export default function OngoingContracts() {
           .order('updated_at', { ascending: false })
         if (error) throw error
         setCandidates(data || [])
+
+        if (data && data.length > 0) {
+          const candidateIds = data.map((c) => c.id)
+          const { data: props, error: propError } = await supabase
+            .from('properties')
+            .select('id, tenant_id, status')
+            .in('tenant_id', candidateIds)
+
+          if (!propError && props) {
+            const statusMap: Record<string, string> = {}
+            props.forEach((p) => {
+              if (p.tenant_id) statusMap[p.tenant_id] = p.status
+            })
+            setPropertyStatuses(statusMap)
+          }
+        }
       } catch (err: any) {
         toast({ title: 'Erro ao buscar dados', description: err.message, variant: 'destructive' })
       } finally {
@@ -98,6 +121,48 @@ export default function OngoingContracts() {
     }
     fetchCandidates()
   }, [])
+
+  const handleFinalizeContract = async (candidate: any) => {
+    setFinalizingId(candidate.id)
+    try {
+      const { data: prop, error: propError } = await supabase
+        .from('properties')
+        .select('id')
+        .eq('tenant_id', candidate.id)
+        .maybeSingle()
+
+      if (propError) throw propError
+      if (!prop) {
+        toast({
+          title: 'Erro',
+          description: 'Nenhum imóvel vinculado encontrado para finalizar o contrato.',
+          variant: 'destructive',
+        })
+        return
+      }
+
+      const { error: updateError } = await supabase
+        .from('properties')
+        .update({ status: FINALIZED_STATUS, updated_at: new Date().toISOString() })
+        .eq('id', prop.id)
+
+      if (updateError) throw updateError
+
+      setPropertyStatuses((prev) => ({ ...prev, [candidate.id]: FINALIZED_STATUS }))
+      toast({
+        title: 'Contrato Finalizado',
+        description: `O contrato de ${candidate.full_name} foi marcado como finalizado.`,
+      })
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao finalizar contrato',
+        description: err.message,
+        variant: 'destructive',
+      })
+    } finally {
+      setFinalizingId(null)
+    }
+  }
 
   const handleOpenDetails = async (candidate: any) => {
     setSelectedCandidate(candidate)
@@ -182,6 +247,102 @@ export default function OngoingContracts() {
     )
   }
 
+  const isFinalized = (candidateId: string) => propertyStatuses[candidateId] === FINALIZED_STATUS
+
+  const displayedCandidates = candidates.filter((c) =>
+    activeTab === 'active' ? !isFinalized(c.id) : isFinalized(c.id),
+  )
+
+  const renderTable = () => {
+    if (loading) {
+      return (
+        <div className="flex justify-center p-8">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      )
+    }
+
+    if (displayedCandidates.length === 0) {
+      return (
+        <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg">
+          <CheckCircle className="w-12 h-12 mx-auto mb-3 opacity-20" />
+          <p>
+            {activeTab === 'active'
+              ? 'Nenhum dossiê em andamento encontrado.'
+              : 'Nenhum dossiê finalizado encontrado.'}
+          </p>
+        </div>
+      )
+    }
+
+    return (
+      <div className="border rounded-md">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Nome</TableHead>
+              <TableHead>Documento</TableHead>
+              <TableHead>Contato</TableHead>
+              <TableHead>Data</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Ações</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {displayedCandidates.map((c) => (
+              <TableRow key={c.id}>
+                <TableCell className="font-medium">{c.full_name}</TableCell>
+                <TableCell>{formatCpfCnpj(c.cpf || c.cnpj)}</TableCell>
+                <TableCell>
+                  <div className="text-sm">{c.email || '-'}</div>
+                  <div className="text-xs text-muted-foreground">{c.phone || '-'}</div>
+                </TableCell>
+                <TableCell className="text-sm">
+                  {new Date(c.updated_at || c.created_at).toLocaleDateString('pt-BR')}
+                </TableCell>
+                <TableCell>
+                  <Badge
+                    variant="outline"
+                    className={
+                      isFinalized(c.id)
+                        ? 'bg-blue-50 text-blue-600 border-blue-200'
+                        : 'bg-green-50 text-green-600 border-green-200'
+                    }
+                  >
+                    {isFinalized(c.id) ? FINALIZED_STATUS : c.status}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-right">
+                  <div className="flex flex-col items-end gap-1">
+                    <Button variant="ghost" size="sm" onClick={() => handleOpenDetails(c)}>
+                      <Eye className="w-4 h-4 mr-2" />
+                      Ficha Detalhada
+                    </Button>
+                    {activeTab === 'active' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleFinalizeContract(c)}
+                        disabled={finalizingId === c.id}
+                      >
+                        {finalizingId === c.id ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <CheckCheck className="w-4 h-4 mr-2" />
+                        )}
+                        Contrato Finalizado
+                      </Button>
+                    )}
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    )
+  }
+
   return (
     <div className="container mx-auto py-6 space-y-6 max-w-6xl animate-in fade-in duration-500">
       <div className="flex flex-col gap-2">
@@ -194,70 +355,26 @@ export default function OngoingContracts() {
         </p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Dossiês Aprovados</CardTitle>
-          <CardDescription>
-            Lista de interessados com dossiê aprovado (somente leitura)
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex justify-center p-8">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            </div>
-          ) : candidates.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg">
-              <CheckCircle className="w-12 h-12 mx-auto mb-3 opacity-20" />
-              <p>Nenhum dossiê aprovado encontrado.</p>
-            </div>
-          ) : (
-            <div className="border rounded-md">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>Documento</TableHead>
-                    <TableHead>Contato</TableHead>
-                    <TableHead>Data</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {candidates.map((c) => (
-                    <TableRow key={c.id}>
-                      <TableCell className="font-medium">{c.full_name}</TableCell>
-                      <TableCell>{formatCpfCnpj(c.cpf || c.cnpj)}</TableCell>
-                      <TableCell>
-                        <div className="text-sm">{c.email || '-'}</div>
-                        <div className="text-xs text-muted-foreground">{c.phone || '-'}</div>
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {new Date(c.updated_at || c.created_at).toLocaleDateString('pt-BR')}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant="outline"
-                          className="bg-green-50 text-green-600 border-green-200"
-                        >
-                          {c.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="sm" onClick={() => handleOpenDetails(c)}>
-                          <Eye className="w-4 h-4 mr-2" />
-                          Ficha Detalhada
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
+          <TabsTrigger value="active">Em Andamento</TabsTrigger>
+          <TabsTrigger value="finished">Finalizados</TabsTrigger>
+        </TabsList>
+
+        <Card className="mt-4">
+          <CardHeader>
+            <CardTitle>
+              {activeTab === 'active' ? 'Dossiês em Andamento' : 'Dossiês Finalizados'}
+            </CardTitle>
+            <CardDescription>
+              {activeTab === 'active'
+                ? 'Lista de interessados com dossiê aprovado e contrato ativo'
+                : 'Lista de contratos que foram finalizados'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>{renderTable()}</CardContent>
+        </Card>
+      </Tabs>
 
       <Sheet open={!!selectedCandidate} onOpenChange={(val) => !val && setSelectedCandidate(null)}>
         <SheetContent className="w-full sm:max-w-xl flex flex-col p-0 border-l">
@@ -270,8 +387,17 @@ export default function OngoingContracts() {
                     Visualização de Dossiê de Locação (Somente Leitura)
                   </SheetDescription>
                 </div>
-                <Badge variant="outline" className="bg-green-50 text-green-600 border-green-200">
-                  {selectedCandidate?.status}
+                <Badge
+                  variant="outline"
+                  className={
+                    selectedCandidate && isFinalized(selectedCandidate.id)
+                      ? 'bg-blue-50 text-blue-600 border-blue-200'
+                      : 'bg-green-50 text-green-600 border-green-200'
+                  }
+                >
+                  {selectedCandidate && isFinalized(selectedCandidate.id)
+                    ? FINALIZED_STATUS
+                    : selectedCandidate?.status}
                 </Badge>
               </div>
             </SheetHeader>
