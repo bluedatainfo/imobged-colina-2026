@@ -1,5 +1,6 @@
 import { getGraphToken, fetchWithAuth } from '@/lib/m365'
 import { mainStore } from '@/stores/main'
+import { supabase } from '@/lib/supabase/client'
 
 export interface FetchResult {
   data: any[]
@@ -62,21 +63,39 @@ export const m365Service = {
     const token = getGraphToken()
     if (!token) return { data: [], error: NO_TOKEN_ERROR }
 
-    const { sharepointDomain, sites } = mainStore.getState().sharepoint
-    if (!sharepointDomain) return { data: [], error: NOT_FOUND_ERROR }
+    let defaultDomain = mainStore.getState().sharepoint.sharepointDomain
+
+    try {
+      const { data: settings } = await supabase
+        .from('app_settings')
+        .select('default_domain')
+        .maybeSingle()
+
+      if (settings?.default_domain) {
+        defaultDomain = settings.default_domain
+      }
+    } catch (dbErr) {
+      console.warn('Failed to fetch default_domain from app_settings', dbErr)
+    }
+
+    if (!defaultDomain)
+      return {
+        data: [],
+        error: 'Domínio M365 não configurado. Acesse as Configurações para definir o domínio.',
+      }
 
     const cleanId = sourceDocId.replace(/[{}]/g, '')
 
     try {
-      if (isOneDriveDomain(sharepointDomain)) {
+      if (isOneDriveDomain(defaultDomain)) {
         return await m365Service.fetchFromOneDrive(cleanId, sourceDocId, worksheetName)
       }
       return await m365Service.fetchFromSharePoint(
-        sharepointDomain,
+        defaultDomain,
         cleanId,
         sourceDocId,
         worksheetName,
-        sites?.locacao,
+        mainStore.getState().sharepoint.sites?.locacao,
       )
     } catch (e) {
       console.warn('Failed to fetch Excel rows from M365 API:', e)

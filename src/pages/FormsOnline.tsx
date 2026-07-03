@@ -20,6 +20,8 @@ import { Button } from '@/components/ui/button'
 import { Search, Loader2, RefreshCw } from 'lucide-react'
 import { m365Service } from '@/services/m365Service'
 import { useToast } from '@/hooks/use-toast'
+import { supabase } from '@/lib/supabase/client'
+import { useAuth } from '@/contexts/AuthContext'
 
 export default function FormsOnline() {
   const [activeTab, setActiveTab] = useState('pf')
@@ -28,33 +30,43 @@ export default function FormsOnline() {
   const [search, setSearch] = useState('')
   const [selectedRow, setSelectedRow] = useState<any | null>(null)
   const { toast } = useToast()
+  const { user } = useAuth()
 
   const loadData = async (tab: string) => {
     setLoading(true)
     try {
-      let result
+      const { data: settings } = await supabase
+        .from('app_settings')
+        .select('module_settings')
+        .maybeSingle()
+      const formsConfig = (settings?.module_settings as any)?.forms_online || {}
+
+      let docId = ''
+      let sheetName = ''
+
       if (tab === 'pf') {
-        result = await m365Service.fetchExcelRows(
-          '{278D2721-FF92-4F2A-8B09-82F491B997B0}',
-          'Pessoa Física',
-        )
+        docId = formsConfig.pf_sheet_id || '{278D2721-FF92-4F2A-8B09-82F491B997B0}'
+        sheetName = formsConfig.pf_sheet_name || 'Pessoa Física'
       } else if (tab === 'pj') {
-        result = await m365Service.fetchExcelRows(
-          '{A049F513-89A2-4366-811C-21B26257CC7C}',
-          'Pessoa Jurídica',
-        )
+        docId = formsConfig.pj_sheet_id || '{A049F513-89A2-4366-811C-21B26257CC7C}'
+        sheetName = formsConfig.pj_sheet_name || 'Pessoa Jurídica'
       } else if (tab === 'fiador') {
-        result = await m365Service.fetchExcelRows(
-          '{278D2721-FF92-4F2A-8B09-82F491B997B0}',
-          'Fiador',
-        )
+        docId = formsConfig.fiador_sheet_id || '{278D2721-FF92-4F2A-8B09-82F491B997B0}'
+        sheetName = formsConfig.fiador_sheet_name || 'Fiador'
       }
+
+      const result = await m365Service.fetchExcelRows(docId, sheetName)
 
       if (result?.error) {
         toast({
           variant: 'destructive',
           title: 'Erro',
           description: result.error,
+        })
+      } else {
+        toast({
+          title: 'Autenticado com sucesso',
+          description: `Bem-vindo(a), ${user?.name || 'Usuário'}`,
         })
       }
 
@@ -63,9 +75,9 @@ export default function FormsOnline() {
       console.error('Error fetching SharePoint data:', error)
       toast({
         variant: 'destructive',
-        title: 'Erro',
+        title: 'Erro de Rede ou Configuração',
         description:
-          'Não foi possível localizar a planilha no OneDrive/SharePoint. Verifique o domínio e o caminho configurados.',
+          'Houve um erro ao se comunicar com a API do Microsoft 365. Verifique a sua conexão e configurações.',
       })
     } finally {
       setLoading(false)
