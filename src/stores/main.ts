@@ -27,6 +27,7 @@ export type SharePointSettings = {
   teamsWebhookUrl?: string
   clientId?: string
   tenantId?: string
+  creatorEmail?: string
   sites: Record<SiteKey, string>
   libraries: {
     contracts: string
@@ -206,6 +207,7 @@ const defaultState: State = {
     teamsWebhookUrl: 'https://ismailabdo.onmicrosoft.com.webhook.office.com/teams/alertas-gerais',
     clientId: '',
     tenantId: '',
+    creatorEmail: 'administracao@imobiliariacolina.com.br',
     sites: {
       locacao: 'https://ismailabdo.sharepoint.com/sites/locacao',
       captacao: 'https://ismailabdo.sharepoint.com/sites/captacao',
@@ -255,6 +257,9 @@ export const initMainStore = async () => {
       teamsWebhookUrl: ap.teamsWebhookUrl || '',
       clientId: settingsData.client_id || '',
       tenantId: settingsData.tenant_id || '',
+      creatorEmail:
+        (settingsData.module_settings as any)?.creator_email ||
+        'administracao@imobiliariacolina.com.br',
       sites: ap.sites || defaultState.sharepoint.sites,
       libraries: ap.libraries || defaultState.sharepoint.libraries,
       lists: ap.lists || defaultState.sharepoint.lists,
@@ -395,6 +400,16 @@ const syncConfig = async () => {
   const { data: sessionData } = await supabase.auth.getSession()
   if (!sessionData?.session?.user) return
 
+  let existingModuleSettings: any = {}
+  if (settingsId) {
+    const { data: existingSettings } = await supabase
+      .from('app_settings')
+      .select('module_settings')
+      .eq('id', settingsId)
+      .maybeSingle()
+    existingModuleSettings = (existingSettings?.module_settings as any) || {}
+  }
+
   const payload = {
     default_domain: state.sharepoint.primaryDomain,
     client_id: state.sharepoint.clientId,
@@ -410,6 +425,10 @@ const syncConfig = async () => {
     },
     role_settings: state.settings as any,
     security_settings: state.security as any,
+    module_settings: {
+      ...existingModuleSettings,
+      creator_email: state.sharepoint.creatorEmail || 'administracao@imobiliariacolina.com.br',
+    },
     updated_at: new Date().toISOString(),
   }
 

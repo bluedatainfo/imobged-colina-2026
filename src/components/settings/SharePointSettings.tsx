@@ -64,6 +64,9 @@ export default function SharePointSettings() {
 
   const [clientId, setClientId] = useState(store.sharepoint.clientId || '')
   const [tenantId, setTenantId] = useState(store.sharepoint.tenantId || '')
+  const [creatorEmail, setCreatorEmail] = useState(
+    store.sharepoint.creatorEmail || 'administracao@imobiliariacolina.com.br',
+  )
 
   const [isTesting, setIsTesting] = useState(false)
   const [testResult, setTestResult] = useState<'idle' | 'success' | 'error'>('idle')
@@ -213,6 +216,7 @@ export default function SharePointSettings() {
         teamsWebhookUrl: '',
         clientId: '',
         tenantId: '',
+        creatorEmail: '',
         sites: { locacao: '', captacao: '', vendas: '', juridico: '', financeiro: '' },
       })
       mainStore.updateSettings({
@@ -271,6 +275,7 @@ export default function SharePointSettings() {
       ...formData,
       clientId: clientId.trim(),
       tenantId: tenantId.trim(),
+      creatorEmail: creatorEmail.trim() || 'administracao@imobiliariacolina.com.br',
     })
 
     if (isAuthChanged) {
@@ -488,6 +493,23 @@ export default function SharePointSettings() {
               className="font-mono text-sm"
               disabled={primaryStatus !== 'active'}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label className="flex items-center justify-between">
+              <span>E-mail do Usuário Criador (UPN)</span>
+              {creatorEmail && <CheckCircle2 className="w-4 h-4 text-emerald-600" />}
+            </Label>
+            <Input
+              value={creatorEmail}
+              onChange={(e) => setCreatorEmail(e.target.value)}
+              placeholder="Ex: administracao@imobiliariacolina.com.br"
+              className="text-sm"
+            />
+            <p className="text-xs text-muted-foreground">
+              Este e-mail define qual OneDrive será acessado via Microsoft Graph API para listar
+              formulários e arquivos, independentemente do usuário logado.
+            </p>
           </div>
         </CardContent>
       </Card>

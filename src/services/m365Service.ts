@@ -68,12 +68,16 @@ export const m365Service = {
     try {
       const { data: settings } = await supabase
         .from('app_settings')
-        .select('default_domain')
+        .select('default_domain, module_settings')
         .maybeSingle()
 
       if (settings?.default_domain) {
         defaultDomain = settings.default_domain
       }
+
+      const creatorEmail =
+        ((settings?.module_settings as any)?.creator_email as string | undefined)?.trim() ||
+        undefined
     } catch (dbErr) {
       console.warn('Failed to fetch default_domain from app_settings', dbErr)
     }
@@ -87,6 +91,14 @@ export const m365Service = {
     const cleanId = sourceDocId.replace(/[{}]/g, '')
 
     try {
+      if (creatorEmail) {
+        return await m365Service.fetchFromOneDrive(
+          cleanId,
+          sourceDocId,
+          worksheetName,
+          creatorEmail,
+        )
+      }
       if (isOneDriveDomain(defaultDomain)) {
         return await m365Service.fetchFromOneDrive(cleanId, sourceDocId, worksheetName)
       }
@@ -107,11 +119,16 @@ export const m365Service = {
     cleanId: string,
     originalId: string,
     worksheetName?: string,
+    creatorEmail?: string,
   ): Promise<FetchResult> => {
+    const driveBaseUrl = creatorEmail
+      ? `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(creatorEmail)}/drive`
+      : 'https://graph.microsoft.com/v1.0/me/drive'
+
     let itemData: any = null
 
     for (const id of [cleanId, originalId]) {
-      const res = await fetchWithAuth(`https://graph.microsoft.com/v1.0/me/drive/items/${id}`)
+      const res = await fetchWithAuth(`${driveBaseUrl}/items/${id}`)
       if (res.ok) {
         itemData = await res.json()
         break
@@ -120,7 +137,7 @@ export const m365Service = {
 
     if (!itemData) {
       const searchRes = await fetchWithAuth(
-        `https://graph.microsoft.com/v1.0/me/drive/root/search(q='${encodeURIComponent(cleanId)}')`,
+        `${driveBaseUrl}/root/search(q='${encodeURIComponent(cleanId)}')`,
       )
       if (searchRes.ok) {
         const searchData = await searchRes.json()
@@ -131,15 +148,12 @@ export const m365Service = {
     if (!itemData) return { data: [], error: NOT_FOUND_ERROR }
 
     if (worksheetName && itemData.id) {
-      const rows = await fetchWorksheet(
-        `https://graph.microsoft.com/v1.0/me/drive/items/${itemData.id}`,
-        worksheetName,
-      )
+      const rows = await fetchWorksheet(`${driveBaseUrl}/items/${itemData.id}`, worksheetName)
       if (rows) return { data: rows, error: null }
     }
 
     const listRes = await fetchWithAuth(
-      `https://graph.microsoft.com/v1.0/me/drive/items/${itemData.id}/list/items?expand=fields`,
+      `${driveBaseUrl}/items/${itemData.id}/list/items?expand=fields`,
     )
     if (listRes.ok) {
       const listData = await listRes.json()
