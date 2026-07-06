@@ -38,7 +38,15 @@ export default function FormsOnline() {
       let result: { data: any[]; error: string | null }
 
       if (tab === 'pf') {
-        result = await m365Service.fetchAdminOneDriveExcel('Sheet1')
+        const { data: pfSettings } = await supabase
+          .from('app_settings')
+          .select('module_settings')
+          .maybeSingle()
+        const pfFormsConfig = (pfSettings?.module_settings as any)?.forms_online || {}
+        const pfShareLink =
+          pfFormsConfig.pf_share_link ||
+          'https://ismailabdo-my.sharepoint.com/:x:/g/personal/administracao_imobiliariacolina_com_br/IQAhJ40nkv8qT4sJgvSRuZewAZZfmbnW1eYpXf12tbKU4t0'
+        result = await m365Service.fetchExcelRowsByShareLink(pfShareLink, 'Sheet1')
       } else {
         const { data: settings } = await supabase
           .from('app_settings')
