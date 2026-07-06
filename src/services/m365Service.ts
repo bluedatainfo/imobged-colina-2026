@@ -295,9 +295,11 @@ export const m365Service = {
 
       creatorEmail = moduleSettings.creator_email?.trim() || undefined
       fileId = formsConfig.pf_sheet_id?.trim() || undefined
-      fileName = formsConfig.pf_file_name?.trim() || undefined
+      fileName =
+        formsConfig.pf_file_name?.trim() || 'FICHA CADASTRAL DE LOCATÁRIOS(PESSOA FÍSICA).xlsx'
     } catch (dbErr) {
       console.warn('Failed to fetch settings from app_settings', dbErr)
+      fileName = 'FICHA CADASTRAL DE LOCATÁRIOS(PESSOA FÍSICA).xlsx'
     }
 
     if (!creatorEmail) {
@@ -325,7 +327,7 @@ export const m365Service = {
       }
 
       if (!itemData) {
-        const searchTerm = fileName || '.xlsx'
+        const searchTerm = fileName || 'FICHA CADASTRAL DE LOCATÁRIOS(PESSOA FÍSICA).xlsx'
         const searchRes = await fetchWithAuth(
           `${driveBaseUrl}/root/search(q='${encodeURIComponent(searchTerm)}')?$top=50`,
         )
@@ -334,21 +336,17 @@ export const m365Service = {
           const excelFiles = (searchData.value || []).filter((v: any) =>
             v.name?.toLowerCase().endsWith('.xlsx'),
           )
-          if (fileName) {
-            itemData =
-              excelFiles.find((v: any) => v.name?.toLowerCase().includes(fileName.toLowerCase())) ||
-              excelFiles[0] ||
-              null
-          } else {
-            itemData = excelFiles[0] || null
-          }
+
+          itemData =
+            excelFiles.find((v: any) => v.name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+            null
         }
       }
 
       if (!itemData) {
         return {
           data: [],
-          error: `Planilha não encontrada no OneDrive de ${creatorEmail}. Verifique se o arquivo existe e se a aplicação tem permissão de acesso.`,
+          error: `Planilha "${fileName}" não encontrada no OneDrive de ${creatorEmail}. Verifique se o arquivo existe e se a aplicação tem permissão de acesso.`,
         }
       }
 
