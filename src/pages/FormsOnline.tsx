@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Search, Loader2, RefreshCw } from 'lucide-react'
+import { Search, Loader2, RefreshCw, AlertCircle } from 'lucide-react'
 import { m365Service } from '@/services/m365Service'
 import { useToast } from '@/hooks/use-toast'
 import { supabase } from '@/lib/supabase/client'
@@ -29,11 +29,13 @@ export default function FormsOnline() {
   const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState('')
   const [selectedRow, setSelectedRow] = useState<any | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const { toast } = useToast()
   const { user } = useAuth()
 
   const loadData = async (tab: string) => {
     setLoading(true)
+    setError(null)
     try {
       let result: { data: any[]; error: string | null }
 
@@ -46,7 +48,8 @@ export default function FormsOnline() {
         const pfShareLink =
           pfFormsConfig.pf_share_link ||
           'https://ismailabdo-my.sharepoint.com/:x:/g/personal/administracao_imobiliariacolina_com_br/IQAhJ40nkv8qT4sJgvSRuZewAZZfmbnW1eYpXf12tbKU4t0'
-        result = await m365Service.fetchExcelRowsByShareLink(pfShareLink, 'Sheet1')
+        const pfSheetName = pfFormsConfig.pf_sheet_name || 'Sheet1'
+        result = await m365Service.fetchExcelRowsByShareLink(pfShareLink, pfSheetName)
       } else {
         const { data: settings } = await supabase
           .from('app_settings')
@@ -69,12 +72,14 @@ export default function FormsOnline() {
       }
 
       if (result?.error) {
+        setError(result.error)
         toast({
           variant: 'destructive',
           title: 'Erro',
           description: result.error,
         })
       } else {
+        setError(null)
         toast({
           title: 'Autenticado com sucesso',
           description: `Bem-vindo(a), ${user?.name || 'Usuário'}`,
@@ -82,13 +87,17 @@ export default function FormsOnline() {
       }
 
       setData(result?.data || [])
-    } catch (error) {
-      console.error('Error fetching SharePoint data:', error)
+    } catch (err) {
+      console.error('Error fetching SharePoint data:', err)
+      const errMsg =
+        err instanceof Error
+          ? err.message
+          : 'Houve um erro ao se comunicar com a API do Microsoft 365. Verifique a sua conexão e configurações.'
+      setError(errMsg)
       toast({
         variant: 'destructive',
         title: 'Erro de Rede ou Configuração',
-        description:
-          'Houve um erro ao se comunicar com a API do Microsoft 365. Verifique a sua conexão e configurações.',
+        description: errMsg,
       })
     } finally {
       setLoading(false)
@@ -109,6 +118,20 @@ export default function FormsOnline() {
       {loading ? (
         <div className="flex justify-center items-center h-64">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      ) : error ? (
+        <div className="flex flex-col items-center justify-center h-64 px-6 text-center">
+          <AlertCircle className="h-10 w-10 text-red-500 mb-3" />
+          <p className="text-sm font-medium text-gray-700 max-w-md">{error}</p>
+          <Button
+            onClick={() => loadData(activeTab)}
+            variant="outline"
+            size="sm"
+            className="mt-4 gap-2"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Tentar novamente
+          </Button>
         </div>
       ) : (
         <Table>

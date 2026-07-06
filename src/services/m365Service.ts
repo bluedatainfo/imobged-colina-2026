@@ -35,6 +35,15 @@ const parseWorksheetRows = (rangeData: any): any[] => {
   return data
 }
 
+const encodeSharingUrl = (sharingUrl: string): string => {
+  const bytes = new TextEncoder().encode(sharingUrl)
+  let binary = ''
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte)
+  })
+  return 'u!' + btoa(binary).replace(/\//g, '_').replace(/\+/g, '-').replace(/=+$/, '')
+}
+
 const fetchWorksheet = async (
   itemBaseUrl: string,
   worksheetName: string,
@@ -67,40 +76,79 @@ export const m365Service = {
     if (!token) return { data: [], error: NO_TOKEN_ERROR }
 
     try {
-      const bytes = new TextEncoder().encode(sharingUrl)
-      let binary = ''
-      bytes.forEach((byte) => {
-        binary += String.fromCharCode(byte)
-      })
-      const encodedLink =
-        'u!' + btoa(binary).replace(/\//g, '_').replace(/\+/g, '-').replace(/=+$/, '')
+      const encodedLink = encodeSharingUrl(sharingUrl)
 
       const driveItemRes = await fetchWithAuth(
         `https://graph.microsoft.com/v1.0/shares/${encodedLink}/driveItem`,
       )
-      if (!driveItemRes.ok) return { data: [], error: NOT_FOUND_ERROR }
+      if (!driveItemRes.ok) {
+        if (driveItemRes.status === 401 || driveItemRes.status === 403) {
+          return {
+            data: [],
+            error:
+              'Acesso negado pelo Microsoft 365. Verifique se o link de compartilhamento ainda é válido e se você tem permissões para acessar o arquivo.',
+          }
+        }
+        if (driveItemRes.status === 404) {
+          return {
+            data: [],
+            error:
+              'O link de compartilhamento não foi encontrado. Verifique se o link está correto e se o arquivo ainda existe no SharePoint.',
+          }
+        }
+        return { data: [], error: NOT_FOUND_ERROR }
+      }
 
       const driveItem = await driveItemRes.json()
       const driveId = driveItem.parentReference?.driveId
       const itemId = driveItem.id
       if (!driveId || !itemId) return { data: [], error: NOT_FOUND_ERROR }
 
+      const itemBaseUrl = `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${itemId}`
+
       const encodedSheet = encodeURIComponent(worksheetName)
       const rangeRes = await fetchWithAuth(
-        `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${itemId}/workbook/worksheets('${encodedSheet}')/usedRange`,
+        `${itemBaseUrl}/workbook/worksheets('${encodedSheet}')/usedRange`,
       )
-      if (!rangeRes.ok) {
+
+      if (rangeRes.ok) {
+        const rangeData = await rangeRes.json()
+        return { data: parseWorksheetRows(rangeData), error: null }
+      }
+
+      const worksheetsRes = await fetchWithAuth(`${itemBaseUrl}/workbook/worksheets`)
+      if (worksheetsRes.ok) {
+        const worksheetsData = await worksheetsRes.json()
+        const worksheets = worksheetsData.value || []
+
+        if (worksheets.length === 0) {
+          return { data: [], error: 'A planilha não contém nenhuma aba de trabalho.' }
+        }
+
+        const firstSheetName = worksheets[0].name
+        const firstRangeRes = await fetchWithAuth(
+          `${itemBaseUrl}/workbook/worksheets('${encodeURIComponent(firstSheetName)}')/usedRange`,
+        )
+
+        if (firstRangeRes.ok) {
+          const firstRangeData = await firstRangeRes.json()
+          return { data: parseWorksheetRows(firstRangeData), error: null }
+        }
+
         return {
           data: [],
-          error: `A aba "${worksheetName}" não foi encontrada na planilha compartilhada. Verifique o nome da aba no arquivo.`,
+          error: `Não foi possível ler os dados da aba "${firstSheetName}" na planilha compartilhada.`,
         }
       }
 
-      const rangeData = await rangeRes.json()
-      return { data: parseWorksheetRows(rangeData), error: null }
-    } catch (e) {
+      return {
+        data: [],
+        error: `A aba "${worksheetName}" não foi encontrada na planilha compartilhada, e não foi possível listar as abas disponíveis. Verifique se o arquivo é uma planilha Excel válida.`,
+      }
+    } catch (e: any) {
       console.warn('Failed to fetch Excel rows via share link:', e)
-      return { data: [], error: NOT_FOUND_ERROR }
+      const errorMsg = e?.message || NOT_FOUND_ERROR
+      return { data: [], error: errorMsg }
     }
   },
 
