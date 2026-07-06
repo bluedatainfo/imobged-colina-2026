@@ -109,6 +109,26 @@ const parseCurrency = (value: string) => {
   return Number(numbers) / 100
 }
 
+const valueToCurrencyInput = (val: any) => {
+  if (!val) return ''
+  let num: number
+  if (typeof val === 'string') {
+    if (val.includes('R$') || val.includes(',')) {
+      const cleaned = val
+        .replace(/[^\d,.]/g, '')
+        .replace(/\./g, '')
+        .replace(',', '.')
+      num = Number(cleaned)
+    } else {
+      num = Number(val)
+    }
+  } else {
+    num = Number(val)
+  }
+  if (isNaN(num) || num === 0) return ''
+  return String(Math.round(num * 100))
+}
+
 export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }: Props) {
   const { toast } = useToast()
   const navigate = useNavigate()
@@ -157,6 +177,25 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
     if (open) {
       setGuaranteeType('Fiador')
       setSelectedGuarantor('')
+      setSelectedERPProperty(null)
+      setSearchERP('')
+      setNewPropData({
+        ownerName: '',
+        ownerCpf: '',
+        gestaoRealCode: '',
+        address: '',
+        neighborhood: '',
+        city: '',
+        sheet: '',
+        rentValue: '',
+        iptu: '',
+        condo: '',
+        contractTerm: '',
+        releaseMonths: '',
+        proposal: '',
+        spc: '',
+        date: '',
+      })
       supabase
         .from('pre_registrations')
         .select('*')
@@ -271,13 +310,28 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
         title = p.title || p.nome || p.endereco || 'Imóvel ERP'
         address = getAddress(p)
 
-        let rawRent = p.rentValue || p.valor || 0
-        if (typeof rawRent === 'string' && (rawRent.includes('R$') || rawRent.includes(','))) {
-          rentValue = parseCurrency(rawRent)
+        if (newPropData.rentValue) {
+          rentValue = parseCurrency(newPropData.rentValue)
         } else {
-          rentValue = Number(rawRent) || 0
+          let rawRent = p.rentValue || p.valor || 0
+          if (typeof rawRent === 'string' && (rawRent.includes('R$') || rawRent.includes(','))) {
+            rentValue = parseCurrency(rawRent)
+          } else {
+            rentValue = Number(rawRent) || 0
+          }
         }
         finalPropId = String(p.id)
+
+        const erpDetails: Record<string, any> = {}
+        if (newPropData.sheet) erpDetails.sheet = newPropData.sheet
+        if (newPropData.iptu) erpDetails.iptu = parseCurrency(newPropData.iptu)
+        if (newPropData.condo) erpDetails.condo = parseCurrency(newPropData.condo)
+        if (newPropData.contractTerm) erpDetails.contractTerm = newPropData.contractTerm
+        if (newPropData.releaseMonths) erpDetails.releaseMonths = newPropData.releaseMonths
+        if (newPropData.proposal) erpDetails.proposal = newPropData.proposal
+        if (newPropData.spc) erpDetails.spc = newPropData.spc
+        if (newPropData.date) erpDetails.date = newPropData.date
+        details = erpDetails
 
         const erpOwnerName = getOwnerName(p)
 
@@ -358,7 +412,7 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
           ? existingProp.details
           : {}),
       }
-      if (propertyMode === 'new') {
+      if (propertyMode === 'new' || propertyMode === 'existing') {
         finalDetails = { ...finalDetails, ...details }
       }
       finalDetails.guaranteeType = guaranteeType
@@ -378,6 +432,7 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
             ? selectedGuarantor
             : null,
         details: finalDetails,
+        ...(newPropData.date ? { sla_start: newPropData.date } : {}),
       }
 
       if (existingProp) {
@@ -578,6 +633,13 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
                                   setSearchERP(getOwnerName(property))
                                   setSelectedERPProperty(property)
                                   setOpenERP(false)
+                                  const rentDigits = valueToCurrencyInput(
+                                    property.rentValue || property.valor,
+                                  )
+                                  setNewPropData((prev) => ({
+                                    ...prev,
+                                    rentValue: rentDigits ? formatCurrency(rentDigits) : '',
+                                  }))
                                 }}
                                 className="flex flex-col items-start py-3 px-4 gap-1.5 cursor-pointer border-b border-border/40 last:border-0"
                               >
@@ -600,13 +662,97 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
                 </div>
 
                 {selectedERPProperty && (
-                  <div className="p-4 border rounded-lg bg-muted/20 space-y-2">
-                    <p className="font-medium text-sm">Imóvel Selecionado:</p>
-                    <p className="text-sm text-foreground">{getAddress(selectedERPProperty)}</p>
-                    <p className="text-xs text-muted-foreground">
-                      Proprietário: {getOwnerName(selectedERPProperty)}
-                    </p>
-                  </div>
+                  <>
+                    <div className="p-4 border rounded-lg bg-muted/20 space-y-2">
+                      <p className="font-medium text-sm">Imóvel Selecionado:</p>
+                      <p className="text-sm text-foreground">{getAddress(selectedERPProperty)}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Proprietário: {getOwnerName(selectedERPProperty)}
+                      </p>
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2 animate-in fade-in slide-in-from-top-2 bg-muted/10 p-4 rounded-lg border">
+                      <div className="space-y-2">
+                        <Label>Ficha</Label>
+                        <Input
+                          value={newPropData.sheet}
+                          onChange={(e) => updatePropData('sheet', e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Valor (R$)</Label>
+                        <Input
+                          value={newPropData.rentValue}
+                          onChange={(e) =>
+                            updatePropData('rentValue', formatCurrency(e.target.value))
+                          }
+                          placeholder="R$ 0,00"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>IPTU (R$)</Label>
+                        <Input
+                          value={newPropData.iptu}
+                          onChange={(e) => updatePropData('iptu', formatCurrency(e.target.value))}
+                          placeholder="R$ 0,00"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Condomínio (R$)</Label>
+                        <Input
+                          value={newPropData.condo}
+                          onChange={(e) => updatePropData('condo', formatCurrency(e.target.value))}
+                          placeholder="R$ 0,00"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Prazo do Contrato</Label>
+                        <Input
+                          value={newPropData.contractTerm}
+                          onChange={(e) => updatePropData('contractTerm', e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>LIBERAR</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={newPropData.releaseMonths}
+                          onChange={(e) => updatePropData('releaseMonths', e.target.value)}
+                          placeholder="Nº de meses"
+                        />
+                      </div>
+                      <div className="space-y-2 sm:col-span-2">
+                        <Label>Proposta</Label>
+                        <Input
+                          value={newPropData.proposal}
+                          onChange={(e) => updatePropData('proposal', e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>SPC</Label>
+                        <Select
+                          value={newPropData.spc}
+                          onValueChange={(v) => updatePropData('spc', v)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="CONSTA DADOS">CONSTA DADOS</SelectItem>
+                            <SelectItem value="NÃO CONSTA DADOS">NÃO CONSTA DADOS</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Data</Label>
+                        <Input
+                          type="date"
+                          value={newPropData.date}
+                          onChange={(e) => updatePropData('date', e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </>
                 )}
               </div>
             ) : (
