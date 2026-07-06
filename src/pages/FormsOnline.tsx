@@ -35,13 +35,10 @@ export default function FormsOnline() {
   const loadData = async (tab: string) => {
     setLoading(true)
     try {
-      const PF_SHARE_LINK =
-        'https://ismailabdo-my.sharepoint.com/:x:/g/personal/administracao_imobiliariacolina_com_br/IQAhJ40nkv8qT4sJgvSRuZewAZZfmbnW1eYpXf12tbKU4t0?e=2Lbrar&nav=MTVfezAwMDAwMDAwLTAwMDEtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMH0'
-
       let result: { data: any[]; error: string | null }
 
       if (tab === 'pf') {
-        result = await m365Service.fetchExcelRowsByShareLink(PF_SHARE_LINK, 'Sheet1')
+        result = await m365Service.fetchAdminOneDriveExcel('Sheet1')
       } else {
         const { data: settings } = await supabase
           .from('app_settings')

@@ -104,6 +104,7 @@ export const m365Service = {
     if (!token) return { data: [], error: NO_TOKEN_ERROR }
 
     let defaultDomain = mainStore.getState().sharepoint.sharepointDomain
+    let creatorEmail: string | undefined
 
     try {
       const { data: settings } = await supabase
@@ -115,7 +116,7 @@ export const m365Service = {
         defaultDomain = settings.default_domain
       }
 
-      const creatorEmail =
+      creatorEmail =
         ((settings?.module_settings as any)?.creator_email as string | undefined)?.trim() ||
         undefined
     } catch (dbErr) {
@@ -273,5 +274,102 @@ export const m365Service = {
     }
 
     return { data: [], error: NOT_FOUND_ERROR }
+  },
+
+  fetchAdminOneDriveExcel: async (worksheetName: string): Promise<FetchResult> => {
+    const token = getGraphToken()
+    if (!token) return { data: [], error: NO_TOKEN_ERROR }
+
+    let creatorEmail: string | undefined
+    let fileId: string | undefined
+    let fileName: string | undefined
+
+    try {
+      const { data: settings } = await supabase
+        .from('app_settings')
+        .select('module_settings')
+        .maybeSingle()
+
+      const moduleSettings = (settings?.module_settings as any) || {}
+      const formsConfig = moduleSettings.forms_online || {}
+
+      creatorEmail = moduleSettings.creator_email?.trim() || undefined
+      fileId = formsConfig.pf_sheet_id?.trim() || undefined
+      fileName = formsConfig.pf_file_name?.trim() || undefined
+    } catch (dbErr) {
+      console.warn('Failed to fetch settings from app_settings', dbErr)
+    }
+
+    if (!creatorEmail) {
+      return {
+        data: [],
+        error:
+          'Email do administrador não configurado. Acesse as Configurações para definir o creator_email em module_settings.',
+      }
+    }
+
+    const driveBaseUrl = `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(creatorEmail)}/drive`
+
+    try {
+      let itemData: any = null
+
+      if (fileId) {
+        const cleanId = fileId.replace(/[{}]/g, '')
+        for (const id of [cleanId, fileId]) {
+          const res = await fetchWithAuth(`${driveBaseUrl}/items/${id}`)
+          if (res.ok) {
+            itemData = await res.json()
+            break
+          }
+        }
+      }
+
+      if (!itemData) {
+        const searchTerm = fileName || '.xlsx'
+        const searchRes = await fetchWithAuth(
+          `${driveBaseUrl}/root/search(q='${encodeURIComponent(searchTerm)}')?$top=50`,
+        )
+        if (searchRes.ok) {
+          const searchData = await searchRes.json()
+          const excelFiles = (searchData.value || []).filter((v: any) =>
+            v.name?.toLowerCase().endsWith('.xlsx'),
+          )
+          if (fileName) {
+            itemData =
+              excelFiles.find((v: any) => v.name?.toLowerCase().includes(fileName.toLowerCase())) ||
+              excelFiles[0] ||
+              null
+          } else {
+            itemData = excelFiles[0] || null
+          }
+        }
+      }
+
+      if (!itemData) {
+        return {
+          data: [],
+          error: `Planilha não encontrada no OneDrive de ${creatorEmail}. Verifique se o arquivo existe e se a aplicação tem permissão de acesso.`,
+        }
+      }
+
+      const targetWorksheet = worksheetName || 'Sheet1'
+      const encodedSheet = encodeURIComponent(targetWorksheet)
+      const rangeRes = await fetchWithAuth(
+        `${driveBaseUrl}/items/${itemData.id}/workbook/worksheets('${encodedSheet}')/usedRange`,
+      )
+
+      if (!rangeRes.ok) {
+        return {
+          data: [],
+          error: `Aba "${targetWorksheet}" não encontrada na planilha "${itemData.name}". Verifique o nome da aba no arquivo.`,
+        }
+      }
+
+      const rangeData = await rangeRes.json()
+      return { data: parseWorksheetRows(rangeData), error: null }
+    } catch (e) {
+      console.warn('Failed to fetch admin OneDrive Excel:', e)
+      return { data: [], error: NOT_FOUND_ERROR }
+    }
   },
 }
