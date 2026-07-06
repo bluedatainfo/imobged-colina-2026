@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -129,6 +129,15 @@ const valueToCurrencyInput = (val: any) => {
   return String(Math.round(num * 100))
 }
 
+const matchesSearchTerm = (property: any, term: string) => {
+  if (!term.trim()) return true
+  const lower = term.toLowerCase().trim()
+  const code = String(property.id || '').toLowerCase()
+  const owner = getOwnerName(property).toLowerCase()
+  const addr = getAddress(property).toLowerCase()
+  return code.includes(lower) || owner.includes(lower) || addr.includes(lower)
+}
+
 export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }: Props) {
   const { toast } = useToast()
   const navigate = useNavigate()
@@ -172,6 +181,11 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
   }
 
   const [submitting, setSubmitting] = useState(false)
+
+  const filteredErpOptions = useMemo(
+    () => erpOptions.filter((p) => matchesSearchTerm(p, searchERP)),
+    [erpOptions, searchERP],
+  )
 
   useEffect(() => {
     if (open) {
@@ -589,7 +603,7 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
                         >
                           {selectedERPProperty
                             ? `${selectedERPProperty.id} - ${getOwnerName(selectedERPProperty)}`
-                            : 'Digite para buscar...'}
+                            : 'Buscar por código, proprietário ou endereço...'}
                         </span>
                         {loadingERP && !openERP ? (
                           <Loader2 className="ml-2 h-4 w-4 shrink-0 animate-spin opacity-50" />
@@ -604,7 +618,7 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
                     >
                       <Command shouldFilter={false}>
                         <CommandInput
-                          placeholder="Ex: Nome do Proprietário, ID..."
+                          placeholder="Buscar por código, proprietário ou endereço..."
                           value={searchERP}
                           onValueChange={(val) => {
                             setSearchERP(val)
@@ -619,13 +633,13 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
                                 <span>Buscando no servidor local...</span>
                               </div>
                             ) : debouncedSearchERP.trim().length > 0 ? (
-                              'Nenhum imóvel encontrado.'
+                              'Nenhum imóvel encontrado pelo termo buscado.'
                             ) : (
-                              'Digite para começar a buscar.'
+                              'Digite para buscar por código, proprietário ou endereço.'
                             )}
                           </CommandEmpty>
                           <CommandGroup>
-                            {erpOptions.map((property) => (
+                            {filteredErpOptions.map((property) => (
                               <CommandItem
                                 key={property.id}
                                 value={String(property.id)}
