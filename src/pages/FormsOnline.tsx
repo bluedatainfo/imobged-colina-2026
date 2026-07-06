@@ -35,27 +35,33 @@ export default function FormsOnline() {
   const loadData = async (tab: string) => {
     setLoading(true)
     try {
-      const { data: settings } = await supabase
-        .from('app_settings')
-        .select('module_settings')
-        .maybeSingle()
-      const formsConfig = (settings?.module_settings as any)?.forms_online || {}
+      const PF_SHARE_LINK =
+        'https://ismailabdo-my.sharepoint.com/:x:/g/personal/administracao_imobiliariacolina_com_br/IQAhJ40nkv8qT4sJgvSRuZewAZZfmbnW1eYpXf12tbKU4t0?e=2Lbrar&nav=MTVfezAwMDAwMDAwLTAwMDEtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMH0'
 
-      let docId = ''
-      let sheetName = ''
+      let result: { data: any[]; error: string | null }
 
       if (tab === 'pf') {
-        docId = formsConfig.pf_sheet_id || '{278D2721-FF92-4F2A-8B09-82F491B997B0}'
-        sheetName = formsConfig.pf_sheet_name || 'Pessoa Física'
-      } else if (tab === 'pj') {
-        docId = formsConfig.pj_sheet_id || '{A049F513-89A2-4366-811C-21B26257CC7C}'
-        sheetName = formsConfig.pj_sheet_name || 'Pessoa Jurídica'
-      } else if (tab === 'fiador') {
-        docId = formsConfig.fiador_sheet_id || '{278D2721-FF92-4F2A-8B09-82F491B997B0}'
-        sheetName = formsConfig.fiador_sheet_name || 'Fiador'
-      }
+        result = await m365Service.fetchExcelRowsByShareLink(PF_SHARE_LINK, 'Sheet1')
+      } else {
+        const { data: settings } = await supabase
+          .from('app_settings')
+          .select('module_settings')
+          .maybeSingle()
+        const formsConfig = (settings?.module_settings as any)?.forms_online || {}
 
-      const result = await m365Service.fetchExcelRows(docId, sheetName)
+        let docId = ''
+        let sheetName = ''
+
+        if (tab === 'pj') {
+          docId = formsConfig.pj_sheet_id || '{A049F513-89A2-4366-811C-21B26257CC7C}'
+          sheetName = formsConfig.pj_sheet_name || 'Pessoa Jurídica'
+        } else if (tab === 'fiador') {
+          docId = formsConfig.fiador_sheet_id || '{278D2721-FF92-4F2A-8B09-82F491B997B0}'
+          sheetName = formsConfig.fiador_sheet_name || 'Fiador'
+        }
+
+        result = await m365Service.fetchExcelRows(docId, sheetName)
+      }
 
       if (result?.error) {
         toast({

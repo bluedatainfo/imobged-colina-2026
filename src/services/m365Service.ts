@@ -59,6 +59,46 @@ export const m365Service = {
     })
   },
 
+  fetchExcelRowsByShareLink: async (
+    sharingUrl: string,
+    worksheetName: string,
+  ): Promise<FetchResult> => {
+    const token = getGraphToken()
+    if (!token) return { data: [], error: NO_TOKEN_ERROR }
+
+    try {
+      const bytes = new TextEncoder().encode(sharingUrl)
+      let binary = ''
+      bytes.forEach((byte) => {
+        binary += String.fromCharCode(byte)
+      })
+      const encodedLink =
+        'u!' + btoa(binary).replace(/\//g, '_').replace(/\+/g, '-').replace(/=+$/, '')
+
+      const driveItemRes = await fetchWithAuth(
+        `https://graph.microsoft.com/v1.0/shares/${encodedLink}/driveItem`,
+      )
+      if (!driveItemRes.ok) return { data: [], error: NOT_FOUND_ERROR }
+
+      const driveItem = await driveItemRes.json()
+      const driveId = driveItem.parentReference?.driveId
+      const itemId = driveItem.id
+      if (!driveId || !itemId) return { data: [], error: NOT_FOUND_ERROR }
+
+      const encodedSheet = encodeURIComponent(worksheetName)
+      const rangeRes = await fetchWithAuth(
+        `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${itemId}/workbook/worksheets('${encodedSheet}')/usedRange`,
+      )
+      if (!rangeRes.ok) return { data: [], error: NOT_FOUND_ERROR }
+
+      const rangeData = await rangeRes.json()
+      return { data: parseWorksheetRows(rangeData), error: null }
+    } catch (e) {
+      console.warn('Failed to fetch Excel rows via share link:', e)
+      return { data: [], error: NOT_FOUND_ERROR }
+    }
+  },
+
   fetchExcelRows: async (sourceDocId: string, worksheetName?: string): Promise<FetchResult> => {
     const token = getGraphToken()
     if (!token) return { data: [], error: NO_TOKEN_ERROR }
