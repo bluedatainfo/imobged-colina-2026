@@ -22,6 +22,7 @@ import { m365Service } from '@/services/m365Service'
 import { useToast } from '@/hooks/use-toast'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/contexts/AuthContext'
+import { formatExcelDate } from '@/lib/date-utils'
 
 export default function FormsOnline() {
   const [activeTab, setActiveTab] = useState('pf')
@@ -194,12 +195,21 @@ export default function FormsOnline() {
                             if (key.startsWith('@odata') || key.startsWith('ItemInternalId'))
                               return null
                             if (typeof value === 'object' && value !== null) return null
+                            const isDateOfBirth =
+                              key.toLowerCase().includes('data de nascimento') ||
+                              key.toLowerCase().includes('nascimento') ||
+                              key.toLowerCase() === 'data_nascimento' ||
+                              key.toLowerCase() === 'datanascimento'
+                            const displayValue =
+                              isDateOfBirth && value !== null && value !== undefined && value !== ''
+                                ? formatExcelDate(value)
+                                : value !== null && value !== undefined
+                                  ? String(value)
+                                  : '-'
                             return (
                               <div key={key} className="space-y-1">
                                 <p className="text-sm font-medium text-gray-500">{key}</p>
-                                <p className="text-sm text-gray-900 break-words">
-                                  {value !== null && value !== undefined ? String(value) : '-'}
-                                </p>
+                                <p className="text-sm text-gray-900 break-words">{displayValue}</p>
                               </div>
                             )
                           })}
