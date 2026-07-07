@@ -57,18 +57,26 @@ export default function FormsOnline() {
           .maybeSingle()
         const formsConfig = (settings?.module_settings as any)?.forms_online || {}
 
-        let docId = ''
+        let shareLink = ''
         let sheetName = ''
 
         if (tab === 'pj') {
-          docId = formsConfig.pj_sheet_id || '{A049F513-89A2-4366-811C-21B26257CC7C}'
-          sheetName = formsConfig.pj_sheet_name || 'Pessoa Jurídica'
+          shareLink = formsConfig.pj_share_link || ''
+          sheetName = formsConfig.pj_sheet_name || 'Sheet1'
         } else if (tab === 'fiador') {
-          docId = formsConfig.fiador_sheet_id || '{278D2721-FF92-4F2A-8B09-82F491B997B0}'
-          sheetName = formsConfig.fiador_sheet_name || 'Fiador'
+          shareLink = formsConfig.fiador_share_link || ''
+          sheetName = formsConfig.fiador_sheet_name || 'Sheet1'
         }
 
-        result = await m365Service.fetchExcelRows(docId, sheetName)
+        if (!shareLink) {
+          const tabLabel = tab === 'pj' ? 'Pessoa Jurídica' : 'Fiador'
+          result = {
+            data: [],
+            error: `Link de compartilhamento não configurado para a aba "${tabLabel}". Acesse as Configurações do sistema para definir o link.`,
+          }
+        } else {
+          result = await m365Service.fetchExcelRowsByShareLink(shareLink, sheetName)
+        }
       }
 
       if (result?.error) {
