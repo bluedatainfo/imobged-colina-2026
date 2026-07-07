@@ -120,3 +120,46 @@ export function formatExcelDateTime(value: unknown): string {
 
   return strValue
 }
+
+export function getExcelTimestamp(value: unknown): number {
+  if (value === null || value === undefined || value === '') return 0
+
+  if (typeof value === 'number') {
+    const date = parseExcelSerial(value)
+    if (date) return date.getTime()
+  }
+
+  const strValue = String(value).trim()
+
+  const serialMatch = strValue.match(/^(\d{4,6})(?:\.(\d+))?$/)
+  if (serialMatch) {
+    const fullSerial = serialMatch[2]
+      ? Number(serialMatch[1] + '.' + serialMatch[2])
+      : Number(serialMatch[1])
+    const date = parseExcelSerial(fullSerial)
+    if (date) return date.getTime()
+  }
+
+  const isoDateTimeMatch = strValue.match(
+    /^(\d{4})-(\d{1,2})-(\d{1,2})[T ](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/,
+  )
+  if (isoDateTimeMatch) {
+    const date = new Date(
+      Number(isoDateTimeMatch[1]),
+      Number(isoDateTimeMatch[2]) - 1,
+      Number(isoDateTimeMatch[3]),
+      Number(isoDateTimeMatch[4]),
+      Number(isoDateTimeMatch[5]),
+      isoDateTimeMatch[6] ? Number(isoDateTimeMatch[6]) : 0,
+    )
+    if (!isNaN(date.getTime())) return date.getTime()
+  }
+
+  const date = parseDateString(strValue)
+  if (date) return date.getTime()
+
+  const fallback = new Date(strValue)
+  if (!isNaN(fallback.getTime())) return fallback.getTime()
+
+  return 0
+}

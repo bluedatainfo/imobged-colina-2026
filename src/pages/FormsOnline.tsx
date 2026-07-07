@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Table,
@@ -17,12 +17,23 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Search, Loader2, RefreshCw, AlertCircle } from 'lucide-react'
+import {
+  Search,
+  Loader2,
+  RefreshCw,
+  AlertCircle,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
+} from 'lucide-react'
 import { m365Service } from '@/services/m365Service'
 import { useToast } from '@/hooks/use-toast'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/contexts/AuthContext'
-import { formatExcelDate, formatExcelDateTime } from '@/lib/date-utils'
+import { formatExcelDate, formatExcelDateTime, getExcelTimestamp } from '@/lib/date-utils'
+
+type SortColumn = 'nome' | 'datetime'
+type SortDirection = 'asc' | 'desc'
 
 export default function FormsOnline() {
   const [activeTab, setActiveTab] = useState('pf')
@@ -31,6 +42,8 @@ export default function FormsOnline() {
   const [search, setSearch] = useState('')
   const [selectedRow, setSelectedRow] = useState<any | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [sortColumn, setSortColumn] = useState<SortColumn>('datetime')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
   const { toast } = useToast()
   const { user } = useAuth()
 
@@ -118,9 +131,52 @@ export default function FormsOnline() {
     setSearch('')
   }, [activeTab])
 
-  const filteredData = data.filter((item) =>
-    Object.values(item).some((val) => String(val).toLowerCase().includes(search.toLowerCase())),
-  )
+  const getNomeValue = (row: any): string => {
+    const value =
+      activeTab === 'pj'
+        ? row['Razão Social'] || row['Razao Social'] || ''
+        : row['Nome1'] || row.Nome || row.Name || ''
+    return String(value).toLowerCase()
+  }
+
+  const getDatetimeValue = (row: any): number => {
+    const raw = row['Hora de início'] || row['Start time'] || row.Data || row.Date || ''
+    return getExcelTimestamp(raw)
+  }
+
+  const filteredData = useMemo(() => {
+    const filtered = data.filter((item) =>
+      Object.values(item).some((val) => String(val).toLowerCase().includes(search.toLowerCase())),
+    )
+    return [...filtered].sort((a, b) => {
+      const aVal = sortColumn === 'nome' ? getNomeValue(a) : getDatetimeValue(a)
+      const bVal = sortColumn === 'nome' ? getNomeValue(b) : getDatetimeValue(b)
+      const cmp =
+        sortColumn === 'nome'
+          ? String(aVal).localeCompare(String(bVal))
+          : (aVal as number) - (bVal as number)
+      return sortDirection === 'asc' ? cmp : -cmp
+    })
+  }, [data, search, sortColumn, sortDirection, activeTab])
+
+  const toggleSort = (column: SortColumn) => {
+    if (sortColumn === column) {
+      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortColumn(column)
+      setSortDirection('asc')
+    }
+  }
+
+  const renderSortIcon = (column: SortColumn) => {
+    if (sortColumn !== column)
+      return <ArrowUpDown className="ml-1 inline h-3.5 w-3.5 text-gray-400" />
+    return sortDirection === 'asc' ? (
+      <ArrowUp className="ml-1 inline h-3.5 w-3.5 text-primary" />
+    ) : (
+      <ArrowDown className="ml-1 inline h-3.5 w-3.5 text-primary" />
+    )
+  }
 
   const renderTable = () => (
     <div className="bg-white border rounded-md shadow-sm">
@@ -146,8 +202,26 @@ export default function FormsOnline() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Nome</TableHead>
-              <TableHead>Data/Hora de Início</TableHead>
+              <TableHead>
+                <button
+                  type="button"
+                  onClick={() => toggleSort('nome')}
+                  className="inline-flex items-center font-medium hover:text-primary transition-colors"
+                >
+                  Nome
+                  {renderSortIcon('nome')}
+                </button>
+              </TableHead>
+              <TableHead>
+                <button
+                  type="button"
+                  onClick={() => toggleSort('datetime')}
+                  className="inline-flex items-center font-medium hover:text-primary transition-colors"
+                >
+                  Data/Hora de Início
+                  {renderSortIcon('datetime')}
+                </button>
+              </TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
