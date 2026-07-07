@@ -22,7 +22,7 @@ import { m365Service } from '@/services/m365Service'
 import { useToast } from '@/hooks/use-toast'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/contexts/AuthContext'
-import { formatExcelDate } from '@/lib/date-utils'
+import { formatExcelDate, formatExcelDateTime } from '@/lib/date-utils'
 
 export default function FormsOnline() {
   const [activeTab, setActiveTab] = useState('pf')
@@ -147,7 +147,7 @@ export default function FormsOnline() {
           <TableHeader>
             <TableRow>
               <TableHead>Nome</TableHead>
-              <TableHead>Data</TableHead>
+              <TableHead>Data/Hora de Início</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
@@ -163,9 +163,15 @@ export default function FormsOnline() {
               filteredData.map((row, idx) => (
                 <TableRow key={idx}>
                   <TableCell className="font-medium">
-                    {row.Nome || row.Name || row.nome || row.Title || 'N/A'}
+                    {activeTab === 'pj'
+                      ? row['Razão Social'] || row['Razao Social'] || 'N/A'
+                      : row['Nome1'] || row.Nome || row.Name || 'N/A'}
                   </TableCell>
-                  <TableCell>{row.Data || row.Date || row.data || row.Created || 'N/A'}</TableCell>
+                  <TableCell>
+                    {formatExcelDateTime(
+                      row['Hora de início'] || row['Start time'] || row.Data || row.Date || '',
+                    )}
+                  </TableCell>
                   <TableCell>
                     <span
                       className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -200,12 +206,26 @@ export default function FormsOnline() {
                               key.toLowerCase().includes('nascimento') ||
                               key.toLowerCase() === 'data_nascimento' ||
                               key.toLowerCase() === 'datanascimento'
+                            const lowerKey = key.toLowerCase()
+                            const isDateTimeField =
+                              lowerKey === 'hora de início' ||
+                              lowerKey === 'hora de inicio' ||
+                              lowerKey === 'hora de conclusão' ||
+                              lowerKey === 'hora de conclusao'
                             const displayValue =
-                              isDateOfBirth && value !== null && value !== undefined && value !== ''
-                                ? formatExcelDate(value)
-                                : value !== null && value !== undefined
-                                  ? String(value)
-                                  : '-'
+                              isDateTimeField &&
+                              value !== null &&
+                              value !== undefined &&
+                              value !== ''
+                                ? formatExcelDateTime(value)
+                                : isDateOfBirth &&
+                                    value !== null &&
+                                    value !== undefined &&
+                                    value !== ''
+                                  ? formatExcelDate(value)
+                                  : value !== null && value !== undefined
+                                    ? String(value)
+                                    : '-'
                             return (
                               <div key={key} className="space-y-1">
                                 <p className="text-sm font-medium text-gray-500">{key}</p>

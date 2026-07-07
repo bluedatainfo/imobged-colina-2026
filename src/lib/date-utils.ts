@@ -68,3 +68,55 @@ function formatToBR(date: Date): string {
   const year = date.getFullYear()
   return `${day}/${month}/${year}`
 }
+
+function formatToBRDateTime(date: Date): string {
+  const day = String(date.getDate()).padStart(2, '0')
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const year = date.getFullYear()
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  return `${day}/${month}/${year} ${hours}:${minutes}`
+}
+
+export function formatExcelDateTime(value: unknown): string {
+  if (value === null || value === undefined || value === '') return '-'
+
+  if (typeof value === 'number') {
+    const date = parseExcelSerial(value)
+    if (date) return formatToBRDateTime(date)
+  }
+
+  const strValue = String(value).trim()
+
+  const serialMatch = strValue.match(/^(\d{4,6})(?:\.(\d+))?$/)
+  if (serialMatch) {
+    const fullSerial = serialMatch[2]
+      ? Number(serialMatch[1] + '.' + serialMatch[2])
+      : Number(serialMatch[1])
+    const date = parseExcelSerial(fullSerial)
+    if (date) return formatToBRDateTime(date)
+  }
+
+  const isoDateTimeMatch = strValue.match(
+    /^(\d{4})-(\d{1,2})-(\d{1,2})[T ](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/,
+  )
+  if (isoDateTimeMatch) {
+    const date = new Date(
+      Number(isoDateTimeMatch[1]),
+      Number(isoDateTimeMatch[2]) - 1,
+      Number(isoDateTimeMatch[3]),
+      Number(isoDateTimeMatch[4]),
+      Number(isoDateTimeMatch[5]),
+      isoDateTimeMatch[6] ? Number(isoDateTimeMatch[6]) : 0,
+    )
+    if (!isNaN(date.getTime())) return formatToBRDateTime(date)
+  }
+
+  const date = parseDateString(strValue)
+  if (date) return formatToBRDateTime(date)
+
+  const fallback = new Date(strValue)
+  if (!isNaN(fallback.getTime())) return formatToBRDateTime(fallback)
+
+  return strValue
+}
