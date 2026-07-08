@@ -64,15 +64,19 @@ const DOCUMENT_TYPES = [
 
 const getOwnerName = (property: any) => {
   if (!property || typeof property !== 'object') return 'Não informado'
-  let name = ''
+  let name: any = ''
+
   if (property.isDb && property.title) name = property.title
   else if (property.proprietario) name = property.proprietario
-  else if ((property as any).Proprietario) name = (property as any).Proprietario
+  else if (property.Proprietario) name = property.Proprietario
   else if (property.nomeProprietario) name = property.nomeProprietario
   else if (property.proprietario_nome) name = property.proprietario_nome
+  else if (property.proprietarioNome) name = property.proprietarioNome
   else if (property.cliente) name = property.cliente
-  else if ((property as any).ownerName) name = (property as any).ownerName
-  else if ((property as any).title) name = (property as any).title
+  else if (property.ownerName) name = property.ownerName
+  else if (property.locador) name = property.locador
+  else if (property.Locador) name = property.Locador
+  else if (property.title) name = property.title
   else if (
     property.proprietarios &&
     Array.isArray(property.proprietarios) &&
@@ -80,6 +84,10 @@ const getOwnerName = (property: any) => {
     property.proprietarios[0]
   ) {
     name = property.proprietarios[0].nome || property.proprietarios[0].name || ''
+  }
+
+  if (name && typeof name === 'object') {
+    name = name.nome || name.name || name.razaoSocial || name.fullName || name.descricao || ''
   }
 
   if (typeof name === 'string' && name.trim().length > 0) {
@@ -92,7 +100,13 @@ const getAddress = (property: any) => {
   if (!property || typeof property !== 'object') return 'Endereço não informado'
   if (property.isDb && property.address) return property.address
   const parts = []
-  if (property.endereco) parts.push(property.endereco)
+
+  let end = property.endereco || property.Endereco
+  if (end && typeof end === 'object') {
+    end = end.logradouro || end.rua || end.nome || ''
+  }
+  if (end) parts.push(end)
+
   if (property.numero) parts.push(property.numero)
   if (property.bairro) parts.push(property.bairro)
   if (property.cidade) parts.push(property.cidade)
@@ -217,10 +231,19 @@ export function GedUpload({
             }
           }
 
-          return items.filter(
-            (item: any) =>
-              item && typeof item === 'object' && (item.id != null || item.code != null),
-          )
+          return items
+            .filter(
+              (item: any) =>
+                item &&
+                typeof item === 'object' &&
+                (item.id != null || item.code != null || item.codigo != null),
+            )
+            .map((item: any) => {
+              if (item.id == null && item.code == null && item.codigo != null) {
+                return { ...item, id: item.codigo }
+              }
+              return item
+            })
         }
         try {
           if (isNumeric) {
@@ -836,7 +859,7 @@ export function GedUpload({
                       <strong className="mr-1">
                         {selectedProperty.code || selectedProperty.id}
                       </strong>
-                      <span> - </span>
+                      <span className="mr-1">-</span>
                     </>
                   )}
                   <span>{getOwnerName(selectedProperty)}</span>
