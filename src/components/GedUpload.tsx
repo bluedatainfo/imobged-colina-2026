@@ -184,30 +184,34 @@ export function GedUpload({
 
         let erpProperties: any[] = []
         try {
-          const url = searchQuery
-            ? isNumeric
-              ? `http://192.168.10.225:9000/imoveis?id=${encodeURIComponent(searchQuery.trim())}`
-              : `http://192.168.10.225:9000/imoveis?name=${encodeURIComponent(searchQuery.trim())}`
-            : 'http://192.168.10.225:9000/imoveis'
-
-          let response = await fetch(url)
-
-          // Fallback caso a API use 'code' no lugar de 'id' para buscas numéricas
-          if (isNumeric && response.ok) {
-            const clonedResponse = response.clone()
-            const data = await clonedResponse.json()
-            if (Array.isArray(data) && data.length === 0) {
-              const fallbackUrl = `http://192.168.10.225:9000/imoveis?code=${encodeURIComponent(searchQuery.trim())}`
-              const fallbackResponse = await fetch(fallbackUrl)
-              if (fallbackResponse.ok) {
-                response = fallbackResponse
+          if (isNumeric) {
+            const url = `http://192.168.10.225:9000/imoveis/${encodeURIComponent(searchQuery.trim())}`
+            const response = await fetch(url)
+            if (response.ok) {
+              const data = await response.json()
+              if (Array.isArray(data)) {
+                erpProperties = data
+              } else if (data && typeof data === 'object') {
+                erpProperties = [data]
+              } else {
+                erpProperties = []
               }
             }
-          }
-
-          if (response.ok) {
-            const data = await response.json()
-            erpProperties = Array.isArray(data) ? data : []
+          } else {
+            const url = searchQuery
+              ? `http://192.168.10.225:9000/imoveis?name=${encodeURIComponent(searchQuery.trim())}`
+              : 'http://192.168.10.225:9000/imoveis'
+            const response = await fetch(url)
+            if (response.ok) {
+              const data = await response.json()
+              if (Array.isArray(data)) {
+                erpProperties = data
+              } else if (data && typeof data === 'object') {
+                erpProperties = [data]
+              } else {
+                erpProperties = []
+              }
+            }
           }
         } catch (error) {
           console.warn('Erro ao buscar imóveis do servidor local', error)
