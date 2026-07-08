@@ -63,27 +63,33 @@ const DOCUMENT_TYPES = [
 ]
 
 const getOwnerName = (property: any) => {
-  if (!property) return 'Não informado'
-  if (property.isDb && property.title) return property.title
-  if (property.proprietario) return property.proprietario
-  if ((property as any).Proprietario) return (property as any).Proprietario
-  if (property.nomeProprietario) return property.nomeProprietario
-  if (property.proprietario_nome) return property.proprietario_nome
-  if (property.cliente) return property.cliente
-  if ((property as any).ownerName) return (property as any).ownerName
-  if ((property as any).title) return (property as any).title
-  if (
+  if (!property || typeof property !== 'object') return 'Não informado'
+  let name = ''
+  if (property.isDb && property.title) name = property.title
+  else if (property.proprietario) name = property.proprietario
+  else if ((property as any).Proprietario) name = (property as any).Proprietario
+  else if (property.nomeProprietario) name = property.nomeProprietario
+  else if (property.proprietario_nome) name = property.proprietario_nome
+  else if (property.cliente) name = property.cliente
+  else if ((property as any).ownerName) name = (property as any).ownerName
+  else if ((property as any).title) name = (property as any).title
+  else if (
     property.proprietarios &&
     Array.isArray(property.proprietarios) &&
-    property.proprietarios.length > 0
+    property.proprietarios.length > 0 &&
+    property.proprietarios[0]
   ) {
-    return property.proprietarios[0].nome
+    name = property.proprietarios[0].nome || property.proprietarios[0].name || ''
+  }
+
+  if (typeof name === 'string' && name.trim().length > 0) {
+    return name.trim()
   }
   return 'Proprietário não informado'
 }
 
 const getAddress = (property: any) => {
-  if (!property) return 'Endereço não informado'
+  if (!property || typeof property !== 'object') return 'Endereço não informado'
   if (property.isDb && property.address) return property.address
   const parts = []
   if (property.endereco) parts.push(property.endereco)
@@ -91,7 +97,15 @@ const getAddress = (property: any) => {
   if (property.bairro) parts.push(property.bairro)
   if (property.cidade) parts.push(property.cidade)
   if (property.uf) parts.push(property.uf)
-  return parts.length > 0 ? parts.join(', ') : property.address || 'Endereço não informado'
+
+  if (parts.length > 0) {
+    return parts.filter((p) => typeof p === 'string' && p.trim().length > 0).join(', ')
+  }
+
+  if (typeof property.address === 'string' && property.address.trim().length > 0) {
+    return property.address.trim()
+  }
+  return 'Endereço não informado'
 }
 
 const formatOwnerCodeForCandidate = (code: string): string => {
@@ -184,15 +198,29 @@ export function GedUpload({
 
         let erpProperties: any[] = []
         const normalizeErpResponse = (data: any): any[] => {
+          if (!data) return []
+          let items: any[] = []
+
           if (Array.isArray(data)) {
-            return data.filter(
-              (item: any) => item && typeof item === 'object' && (item.id || item.code),
-            )
+            items = data
+          } else if (typeof data === 'object') {
+            if (Array.isArray(data.data)) {
+              items = data.data
+            } else if (data.data && typeof data.data === 'object') {
+              items = [data.data]
+            } else if (data.imovel && typeof data.imovel === 'object') {
+              items = [data.imovel]
+            } else if (data.property && typeof data.property === 'object') {
+              items = [data.property]
+            } else {
+              items = [data]
+            }
           }
-          if (data && typeof data === 'object' && (data.id || data.code)) {
-            return [data]
-          }
-          return []
+
+          return items.filter(
+            (item: any) =>
+              item && typeof item === 'object' && (item.id != null || item.code != null),
+          )
         }
         try {
           if (isNumeric) {
@@ -201,6 +229,8 @@ export function GedUpload({
             if (response.ok) {
               const data = await response.json()
               erpProperties = normalizeErpResponse(data)
+            } else if (response.status === 404) {
+              erpProperties = []
             }
           } else {
             const url = searchQuery
@@ -322,12 +352,19 @@ export function GedUpload({
 
           if (found) {
             ownerToSelect = found
-          } else if (selectedProperty.proprietarios && selectedProperty.proprietarios.length > 0) {
-            ownerToSelect = {
-              id: selectedProperty.proprietarios[0].idprop || Math.random().toString(),
-              code: selectedProperty.proprietarios[0].idprop || 'ERP-P',
-              fullName: ownerName,
-              source: 'ERP',
+          } else if (
+            selectedProperty.proprietarios &&
+            Array.isArray(selectedProperty.proprietarios) &&
+            selectedProperty.proprietarios.length > 0
+          ) {
+            const firstProp = selectedProperty.proprietarios[0]
+            if (firstProp) {
+              ownerToSelect = {
+                id: firstProp.idprop || firstProp.id || Math.random().toString(),
+                code: firstProp.idprop || firstProp.code || 'ERP-P',
+                fullName: ownerName,
+                source: 'ERP',
+              }
             }
           }
         }
