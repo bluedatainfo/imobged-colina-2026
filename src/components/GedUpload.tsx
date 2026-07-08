@@ -183,19 +183,24 @@ export function GedUpload({
         const isNumeric = /^\d+$/.test(searchQuery.trim())
 
         let erpProperties: any[] = []
+        const normalizeErpResponse = (data: any): any[] => {
+          if (Array.isArray(data)) {
+            return data.filter(
+              (item: any) => item && typeof item === 'object' && (item.id || item.code),
+            )
+          }
+          if (data && typeof data === 'object' && (data.id || data.code)) {
+            return [data]
+          }
+          return []
+        }
         try {
           if (isNumeric) {
             const url = `http://192.168.10.225:9000/imoveis/${encodeURIComponent(searchQuery.trim())}`
             const response = await fetch(url)
             if (response.ok) {
               const data = await response.json()
-              if (Array.isArray(data)) {
-                erpProperties = data
-              } else if (data && typeof data === 'object') {
-                erpProperties = [data]
-              } else {
-                erpProperties = []
-              }
+              erpProperties = normalizeErpResponse(data)
             }
           } else {
             const url = searchQuery
@@ -204,17 +209,14 @@ export function GedUpload({
             const response = await fetch(url)
             if (response.ok) {
               const data = await response.json()
-              if (Array.isArray(data)) {
-                erpProperties = data
-              } else if (data && typeof data === 'object') {
-                erpProperties = [data]
-              } else {
-                erpProperties = []
-              }
+              erpProperties = normalizeErpResponse(data)
             }
           }
         } catch (error) {
           console.warn('Erro ao buscar imóveis do servidor local', error)
+        }
+        if (!Array.isArray(erpProperties)) {
+          erpProperties = []
         }
 
         let query = supabase.from('properties').select('*')
