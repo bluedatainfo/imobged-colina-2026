@@ -247,11 +247,37 @@ export function GedUpload({
         }
         try {
           if (isNumeric) {
-            const url = `http://192.168.10.225:9000/imoveis/${encodeURIComponent(searchQuery.trim())}`
+            const url = `http://192.168.10.225:9000/imoveis/dados/${encodeURIComponent(searchQuery.trim())}`
             const response = await fetch(url)
             if (response.ok) {
               const data = await response.json()
-              erpProperties = normalizeErpResponse(data)
+              const items = normalizeErpResponse(data)
+              erpProperties = items.map((item: any) => {
+                const ownerName =
+                  item.proprietario ||
+                  item.Proprietario ||
+                  item.nomeProprietario ||
+                  item.proprietario_nome ||
+                  item.proprietarioNome ||
+                  item.locador ||
+                  item.Locador ||
+                  item.cliente ||
+                  item.ownerName ||
+                  (item.proprietarios &&
+                  Array.isArray(item.proprietarios) &&
+                  item.proprietarios.length > 0 &&
+                  item.proprietarios[0]
+                    ? item.proprietarios[0].nome ||
+                      item.proprietarios[0].name ||
+                      item.proprietarios[0].razaoSocial ||
+                      item.proprietarios[0].fullName ||
+                      ''
+                    : '')
+                return {
+                  ...item,
+                  proprietario: ownerName || item.title || '',
+                }
+              })
             } else if (response.status === 404) {
               erpProperties = []
             }
