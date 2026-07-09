@@ -1,141 +1,118 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import {
-  Search,
-  Loader2,
-  RefreshCw,
-  AlertCircle,
-  ArrowUp,
-  ArrowDown,
-  ArrowUpDown,
-} from 'lucide-react'
+import { Search, Loader2, RefreshCw, Clock } from 'lucide-react'
 import { m365Service } from '@/services/m365Service'
 import { useToast } from '@/hooks/use-toast'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/contexts/AuthContext'
-import { formatExcelDate, formatExcelDateTime, getExcelTimestamp } from '@/lib/date-utils'
+import { getExcelTimestamp } from '@/lib/date-utils'
+import { syncFormsToPreRegistrations } from '@/services/forms-online-sync'
+import {
+  FormsOnlineTable,
+  type SortColumn,
+  type SortDirection,
+} from '@/components/FormsOnlineTable'
 
-type SortColumn = 'nome' | 'datetime'
-type SortDirection = 'asc' | 'desc'
+const TAB_CATEGORY: Record<string, string> = { pf: 'PF', pj: 'PJ', fiador: 'FIADOR' }
+const REFRESH_INTERVAL = 15000
+const DEFAULT_PF_LINK =
+  'https://ismailabdo-my.sharepoint.com/:x:/g/personal/administracao_imobiliariacolina_com_br/IQBNKTCco7MNQ52u0sOI-ypSAZObr3fn7lVuv_RbWiZ94Dg?e=HPD0RS'
+
+function formatTime(date: Date): string {
+  return date.toLocaleTimeString('pt-BR', { hour12: false })
+}
 
 export default function FormsOnline() {
   const [activeTab, setActiveTab] = useState('pf')
   const [data, setData] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState('')
-  const [selectedRow, setSelectedRow] = useState<any | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [sortColumn, setSortColumn] = useState<SortColumn>('datetime')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
   const [autoRefreshing, setAutoRefreshing] = useState(false)
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const { toast } = useToast()
   const { user } = useAuth()
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const loadData = async (tab: string, silent = false) => {
-    if (silent) {
-      setAutoRefreshing(true)
-    } else {
+    if (silent) setAutoRefreshing(true)
+    else {
       setLoading(true)
       setError(null)
     }
+
     try {
-      let result: { data: any[]; error: string | null }
+      const { data: settings } = await supabase
+        .from('app_settings')
+        .select('module_settings')
+        .maybeSingle()
+      const cfg = (settings?.module_settings as any)?.forms_online || {}
+
+      let shareLink = ''
+      let sheetName = 'Sheet1'
 
       if (tab === 'pf') {
-        const { data: pfSettings } = await supabase
-          .from('app_settings')
-          .select('module_settings')
-          .maybeSingle()
-        const pfFormsConfig = (pfSettings?.module_settings as any)?.forms_online || {}
-        const pfShareLink =
-          pfFormsConfig.pf_share_link ||
-          'https://ismailabdo-my.sharepoint.com/:x:/g/personal/administracao_imobiliariacolina_com_br/IQBNKTCco7MNQ52u0sOI-ypSAZObr3fn7lVuv_RbWiZ94Dg?e=HPD0RS'
-        const pfSheetName = pfFormsConfig.pf_sheet_name || 'Sheet1'
-        result = await m365Service.fetchExcelRowsByShareLink(pfShareLink, pfSheetName)
+        shareLink = cfg.pf_share_link || DEFAULT_PF_LINK
+        sheetName = cfg.pf_sheet_name || 'Sheet1'
+      } else if (tab === 'pj') {
+        shareLink = cfg.pj_share_link || ''
+        sheetName = cfg.pj_sheet_name || 'Sheet1'
+      } else if (tab === 'fiador') {
+        shareLink = cfg.fiador_share_link || ''
+        sheetName = cfg.fiador_sheet_name || 'Sheet1'
+      }
+
+      let result: { data: any[]; error: string | null }
+
+      if (!shareLink) {
+        const label = tab === 'pj' ? 'Pessoa Jurídica' : 'Fiador'
+        result = {
+          data: [],
+          error: `Link de compartilhamento não configurado para a aba "${label}". Acesse as Configurações do sistema para definir o link.`,
+        }
       } else {
-        const { data: settings } = await supabase
-          .from('app_settings')
-          .select('module_settings')
-          .maybeSingle()
-        const formsConfig = (settings?.module_settings as any)?.forms_online || {}
-
-        let shareLink = ''
-        let sheetName = ''
-
-        if (tab === 'pj') {
-          shareLink = formsConfig.pj_share_link || ''
-          sheetName = formsConfig.pj_sheet_name || 'Sheet1'
-        } else if (tab === 'fiador') {
-          shareLink = formsConfig.fiador_share_link || ''
-          sheetName = formsConfig.fiador_sheet_name || 'Sheet1'
-        }
-
-        if (!shareLink) {
-          const tabLabel = tab === 'pj' ? 'Pessoa Jurídica' : 'Fiador'
-          result = {
-            data: [],
-            error: `Link de compartilhamento não configurado para a aba "${tabLabel}". Acesse as Configurações do sistema para definir o link.`,
-          }
-        } else {
-          result = await m365Service.fetchExcelRowsByShareLink(shareLink, sheetName)
-        }
+        result = await m365Service.fetchExcelRowsByShareLink(shareLink, sheetName)
       }
 
       if (result?.error) {
         setError(result.error)
-        if (!silent) {
-          toast({
-            variant: 'destructive',
-            title: 'Erro',
-            description: result.error,
-          })
-        }
+        if (!silent) toast({ variant: 'destructive', title: 'Erro', description: result.error })
       } else {
         setError(null)
-        if (!silent) {
+        setLastUpdated(new Date())
+        if (!silent)
           toast({
             title: 'Autenticado com sucesso',
             description: `Bem-vindo(a), ${user?.name || 'Usuário'}`,
           })
-        }
+        const category = TAB_CATEGORY[tab] || 'PF'
+        syncFormsToPreRegistrations(result?.data || [], category).then((r) => {
+          if (r.error) console.error('Sync error:', r.error)
+        })
       }
 
       setData(result?.data || [])
     } catch (err) {
-      console.error('Error fetching SharePoint data:', err)
-      const errMsg =
+      const msg =
         err instanceof Error
           ? err.message
           : 'Houve um erro ao se comunicar com a API do Microsoft 365. Verifique a sua conexão e configurações.'
-      setError(errMsg)
-      if (!silent) {
-        toast({
-          variant: 'destructive',
-          title: 'Erro de Rede ou Configuração',
-          description: errMsg,
-        })
-      }
+      setError(msg)
+      if (!silent)
+        toast({ variant: 'destructive', title: 'Erro de Rede ou Configuração', description: msg })
     } finally {
       setLoading(false)
       setAutoRefreshing(false)
     }
+  }
+
+  const startInterval = () => {
+    if (intervalRef.current) clearInterval(intervalRef.current)
+    intervalRef.current = setInterval(() => loadData(activeTab, true), REFRESH_INTERVAL)
   }
 
   useEffect(() => {
@@ -144,23 +121,26 @@ export default function FormsOnline() {
   }, [activeTab])
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      loadData(activeTab, true)
-    }, 30000)
-    return () => clearInterval(interval)
+    startInterval()
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
+    }
   }, [activeTab])
 
-  const getNomeValue = (row: any): string => {
-    const value =
-      activeTab === 'pj'
-        ? row['Razão Social'] || row['Razao Social'] || ''
-        : row['Nome1'] || row.Nome || row.Name || ''
-    return String(value).toLowerCase()
+  const handleManualRefresh = () => {
+    loadData(activeTab)
+    startInterval()
   }
 
-  const getDatetimeValue = (row: any): number => {
-    const raw = row['Hora de início'] || row['Start time'] || row.Data || row.Date || ''
-    return getExcelTimestamp(raw)
+  const toggleSort = (column: SortColumn) => {
+    if (sortColumn === column) setSortDirection((p) => (p === 'asc' ? 'desc' : 'asc'))
+    else {
+      setSortColumn(column)
+      setSortDirection('asc')
+    }
   }
 
   const filteredData = useMemo(() => {
@@ -168,8 +148,20 @@ export default function FormsOnline() {
       Object.values(item).some((val) => String(val).toLowerCase().includes(search.toLowerCase())),
     )
     return [...filtered].sort((a, b) => {
-      const aVal = sortColumn === 'nome' ? getNomeValue(a) : getDatetimeValue(a)
-      const bVal = sortColumn === 'nome' ? getNomeValue(b) : getDatetimeValue(b)
+      const aVal =
+        sortColumn === 'nome'
+          ? (activeTab === 'pj'
+              ? a['Razão Social'] || a['Razao Social'] || ''
+              : a['Nome1'] || a.Nome || a.Name || ''
+            ).toLowerCase()
+          : getExcelTimestamp(a['Hora de início'] || a['Start time'] || a.Data || a.Date || '')
+      const bVal =
+        sortColumn === 'nome'
+          ? (activeTab === 'pj'
+              ? b['Razão Social'] || b['Razao Social'] || ''
+              : b['Nome1'] || b.Nome || b.Name || ''
+            ).toLowerCase()
+          : getExcelTimestamp(b['Hora de início'] || b['Start time'] || b.Data || b.Date || '')
       const cmp =
         sortColumn === 'nome'
           ? String(aVal).localeCompare(String(bVal))
@@ -178,184 +170,40 @@ export default function FormsOnline() {
     })
   }, [data, search, sortColumn, sortDirection, activeTab])
 
-  const toggleSort = (column: SortColumn) => {
-    if (sortColumn === column) {
-      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))
-    } else {
-      setSortColumn(column)
-      setSortDirection('asc')
-    }
+  const tableProps = {
+    data: filteredData,
+    loading,
+    error,
+    activeTab,
+    sortColumn,
+    sortDirection,
+    onToggleSort: toggleSort,
+    onRetry: handleManualRefresh,
   }
-
-  const renderSortIcon = (column: SortColumn) => {
-    if (sortColumn !== column)
-      return <ArrowUpDown className="ml-1 inline h-3.5 w-3.5 text-gray-400" />
-    return sortDirection === 'asc' ? (
-      <ArrowUp className="ml-1 inline h-3.5 w-3.5 text-primary" />
-    ) : (
-      <ArrowDown className="ml-1 inline h-3.5 w-3.5 text-primary" />
-    )
-  }
-
-  const renderTable = () => (
-    <div className="bg-white border rounded-md shadow-sm">
-      {loading ? (
-        <div className="flex justify-center items-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      ) : error ? (
-        <div className="flex flex-col items-center justify-center h-64 px-6 text-center">
-          <AlertCircle className="h-10 w-10 text-red-500 mb-3" />
-          <p className="text-sm font-medium text-gray-700 max-w-md">{error}</p>
-          <Button
-            onClick={() => loadData(activeTab)}
-            variant="outline"
-            size="sm"
-            className="mt-4 gap-2"
-          >
-            <RefreshCw className="h-4 w-4" />
-            Tentar novamente
-          </Button>
-        </div>
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>
-                <button
-                  type="button"
-                  onClick={() => toggleSort('nome')}
-                  className="inline-flex items-center font-medium hover:text-primary transition-colors"
-                >
-                  Nome
-                  {renderSortIcon('nome')}
-                </button>
-              </TableHead>
-              <TableHead>
-                <button
-                  type="button"
-                  onClick={() => toggleSort('datetime')}
-                  className="inline-flex items-center font-medium hover:text-primary transition-colors"
-                >
-                  Data/Hora de Início
-                  {renderSortIcon('datetime')}
-                </button>
-              </TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Ações</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredData.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={4} className="text-center h-24 text-gray-500">
-                  Nenhum registro encontrado.
-                </TableCell>
-              </TableRow>
-            ) : (
-              filteredData.map((row, idx) => (
-                <TableRow key={idx}>
-                  <TableCell className="font-medium">
-                    {activeTab === 'pj'
-                      ? row['Razão Social'] || row['Razao Social'] || 'N/A'
-                      : row['Nome1'] || row.Nome || row.Name || 'N/A'}
-                  </TableCell>
-                  <TableCell>
-                    {formatExcelDateTime(
-                      row['Hora de início'] || row['Start time'] || row.Data || row.Date || '',
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        (row.Status || row.status || '').toLowerCase() === 'aprovado'
-                          ? 'bg-green-100 text-green-800'
-                          : (row.Status || row.status || '').toLowerCase() === 'reprovado'
-                            ? 'bg-red-100 text-red-800'
-                            : 'bg-blue-100 text-blue-800'
-                      }`}
-                    >
-                      {row.Status || row.status || 'Recebido'}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button variant="ghost" size="sm" onClick={() => setSelectedRow(row)}>
-                          Ver Detalhes
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-                        <DialogHeader>
-                          <DialogTitle>Detalhes do Formulário</DialogTitle>
-                        </DialogHeader>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 p-1">
-                          {Object.entries(selectedRow || {}).map(([key, value]) => {
-                            if (key.startsWith('@odata') || key.startsWith('ItemInternalId'))
-                              return null
-                            if (typeof value === 'object' && value !== null) return null
-                            const isDateOfBirth =
-                              key.toLowerCase().includes('data de nascimento') ||
-                              key.toLowerCase().includes('nascimento') ||
-                              key.toLowerCase() === 'data_nascimento' ||
-                              key.toLowerCase() === 'datanascimento'
-                            const lowerKey = key.toLowerCase()
-                            const isDateTimeField =
-                              lowerKey === 'hora de início' ||
-                              lowerKey === 'hora de inicio' ||
-                              lowerKey === 'hora de conclusão' ||
-                              lowerKey === 'hora de conclusao'
-                            const displayValue =
-                              isDateTimeField &&
-                              value !== null &&
-                              value !== undefined &&
-                              value !== ''
-                                ? formatExcelDateTime(value)
-                                : isDateOfBirth &&
-                                    value !== null &&
-                                    value !== undefined &&
-                                    value !== ''
-                                  ? formatExcelDate(value)
-                                  : value !== null && value !== undefined
-                                    ? String(value)
-                                    : '-'
-                            return (
-                              <div key={key} className="space-y-1">
-                                <p className="text-sm font-medium text-gray-500">{key}</p>
-                                <p className="text-sm text-gray-900 break-words">{displayValue}</p>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      </DialogContent>
-                    </Dialog>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      )}
-    </div>
-  )
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6 animate-in fade-in duration-500">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-gray-900">Formulários OnLine</h1>
           <p className="text-gray-500 mt-2">
             Visualize os formulários de cadastro preenchidos no SharePoint.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3 flex-wrap">
+          {lastUpdated && (
+            <span className="flex items-center gap-1.5 text-xs text-gray-500">
+              <Clock className="h-3.5 w-3.5" />
+              Última atualização: {formatTime(lastUpdated)}
+            </span>
+          )}
           {autoRefreshing && (
             <span className="flex items-center gap-1.5 text-xs text-gray-500 animate-fade-in">
               <Loader2 className="h-3 w-3 animate-spin" />
               Sincronizando...
             </span>
           )}
-          <Button onClick={() => loadData(activeTab)} variant="outline" size="sm" className="gap-2">
+          <Button onClick={handleManualRefresh} variant="outline" size="sm" className="gap-2">
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             Atualizar
           </Button>
@@ -380,15 +228,14 @@ export default function FormsOnline() {
           <TabsTrigger value="pj">Pessoa Jurídica</TabsTrigger>
           <TabsTrigger value="fiador">Fiador</TabsTrigger>
         </TabsList>
-
         <TabsContent value="pf" className="mt-6">
-          {renderTable()}
+          <FormsOnlineTable {...tableProps} />
         </TabsContent>
         <TabsContent value="pj" className="mt-6">
-          {renderTable()}
+          <FormsOnlineTable {...tableProps} />
         </TabsContent>
         <TabsContent value="fiador" className="mt-6">
-          {renderTable()}
+          <FormsOnlineTable {...tableProps} />
         </TabsContent>
       </Tabs>
     </div>
