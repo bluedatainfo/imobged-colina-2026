@@ -75,6 +75,9 @@ export const m365Service = {
     const token = getGraphToken()
     if (!token) return { data: [], error: NO_TOKEN_ERROR }
 
+    let sessionId: string | null = null
+    let sessionCloseUrl: string | null = null
+
     try {
       const encodedLink = encodeSharingUrl(sharingUrl)
 
@@ -105,10 +108,25 @@ export const m365Service = {
       if (!driveId || !itemId) return { data: [], error: NOT_FOUND_ERROR }
 
       const itemBaseUrl = `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${itemId}`
+      sessionCloseUrl = `${itemBaseUrl}/workbook/closeSession`
+
+      const sessionRes = await fetchWithAuth(`${itemBaseUrl}/workbook/createSession`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ persistChanges: false }),
+      })
+      if (sessionRes.ok) {
+        const sessionData = await sessionRes.json()
+        sessionId = sessionData.id
+      }
+
+      const sessionHeaders: Record<string, string> = {}
+      if (sessionId) sessionHeaders['workbook-session-id'] = sessionId
 
       const encodedSheet = encodeURIComponent(worksheetName)
       const rangeRes = await fetchWithAuth(
         `${itemBaseUrl}/workbook/worksheets('${encodedSheet}')/usedRange`,
+        { headers: sessionHeaders },
       )
 
       if (rangeRes.ok) {
@@ -116,7 +134,9 @@ export const m365Service = {
         return { data: parseWorksheetRows(rangeData), error: null }
       }
 
-      const worksheetsRes = await fetchWithAuth(`${itemBaseUrl}/workbook/worksheets`)
+      const worksheetsRes = await fetchWithAuth(`${itemBaseUrl}/workbook/worksheets`, {
+        headers: sessionHeaders,
+      })
       if (worksheetsRes.ok) {
         const worksheetsData = await worksheetsRes.json()
         const worksheets = worksheetsData.value || []
@@ -128,6 +148,7 @@ export const m365Service = {
         const firstSheetName = worksheets[0].name
         const firstRangeRes = await fetchWithAuth(
           `${itemBaseUrl}/workbook/worksheets('${encodeURIComponent(firstSheetName)}')/usedRange`,
+          { headers: sessionHeaders },
         )
 
         if (firstRangeRes.ok) {
@@ -149,6 +170,17 @@ export const m365Service = {
       console.warn('Failed to fetch Excel rows via share link:', e)
       const errorMsg = e?.message || NOT_FOUND_ERROR
       return { data: [], error: errorMsg }
+    } finally {
+      if (sessionId && sessionCloseUrl) {
+        try {
+          await fetchWithAuth(sessionCloseUrl, {
+            method: 'POST',
+            headers: { 'workbook-session-id': sessionId },
+          })
+        } catch {
+          // silently ignore session close errors
+        }
+      }
     }
   },
 

@@ -44,12 +44,17 @@ export default function FormsOnline() {
   const [error, setError] = useState<string | null>(null)
   const [sortColumn, setSortColumn] = useState<SortColumn>('datetime')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
+  const [autoRefreshing, setAutoRefreshing] = useState(false)
   const { toast } = useToast()
   const { user } = useAuth()
 
-  const loadData = async (tab: string) => {
-    setLoading(true)
-    setError(null)
+  const loadData = async (tab: string, silent = false) => {
+    if (silent) {
+      setAutoRefreshing(true)
+    } else {
+      setLoading(true)
+      setError(null)
+    }
     try {
       let result: { data: any[]; error: string | null }
 
@@ -95,17 +100,21 @@ export default function FormsOnline() {
 
       if (result?.error) {
         setError(result.error)
-        toast({
-          variant: 'destructive',
-          title: 'Erro',
-          description: result.error,
-        })
+        if (!silent) {
+          toast({
+            variant: 'destructive',
+            title: 'Erro',
+            description: result.error,
+          })
+        }
       } else {
         setError(null)
-        toast({
-          title: 'Autenticado com sucesso',
-          description: `Bem-vindo(a), ${user?.name || 'Usuário'}`,
-        })
+        if (!silent) {
+          toast({
+            title: 'Autenticado com sucesso',
+            description: `Bem-vindo(a), ${user?.name || 'Usuário'}`,
+          })
+        }
       }
 
       setData(result?.data || [])
@@ -116,19 +125,29 @@ export default function FormsOnline() {
           ? err.message
           : 'Houve um erro ao se comunicar com a API do Microsoft 365. Verifique a sua conexão e configurações.'
       setError(errMsg)
-      toast({
-        variant: 'destructive',
-        title: 'Erro de Rede ou Configuração',
-        description: errMsg,
-      })
+      if (!silent) {
+        toast({
+          variant: 'destructive',
+          title: 'Erro de Rede ou Configuração',
+          description: errMsg,
+        })
+      }
     } finally {
       setLoading(false)
+      setAutoRefreshing(false)
     }
   }
 
   useEffect(() => {
     loadData(activeTab)
     setSearch('')
+  }, [activeTab])
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadData(activeTab, true)
+    }, 30000)
+    return () => clearInterval(interval)
   }, [activeTab])
 
   const getNomeValue = (row: any): string => {
@@ -329,10 +348,18 @@ export default function FormsOnline() {
             Visualize os formulários de cadastro preenchidos no SharePoint.
           </p>
         </div>
-        <Button onClick={() => loadData(activeTab)} variant="outline" size="sm" className="gap-2">
-          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          Atualizar
-        </Button>
+        <div className="flex items-center gap-2">
+          {autoRefreshing && (
+            <span className="flex items-center gap-1.5 text-xs text-gray-500 animate-fade-in">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Sincronizando...
+            </span>
+          )}
+          <Button onClick={() => loadData(activeTab)} variant="outline" size="sm" className="gap-2">
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            Atualizar
+          </Button>
+        </div>
       </div>
 
       <div className="flex items-center space-x-2">
