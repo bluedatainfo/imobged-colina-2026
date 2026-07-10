@@ -47,18 +47,24 @@ const encodeSharingUrl = (sharingUrl: string): string => {
 const fetchWorksheet = async (
   itemBaseUrl: string,
   worksheetName: string,
+  extraHeaders?: Record<string, string>,
 ): Promise<any[] | null> => {
   const encodedName = encodeURIComponent(worksheetName)
   const rangeRes = await fetchWithAuth(
     `${itemBaseUrl}/workbook/worksheets('${encodedName}')/usedRange`,
+    extraHeaders ? { headers: extraHeaders } : undefined,
   )
   if (!rangeRes.ok) return null
   return parseWorksheetRows(await rangeRes.json())
 }
 
-const fetchTableRows = async (itemBaseUrl: string): Promise<any[] | null> => {
+const fetchTableRows = async (
+  itemBaseUrl: string,
+  extraHeaders?: Record<string, string>,
+): Promise<any[] | null> => {
+  const opts = extraHeaders ? { headers: extraHeaders } : undefined
   try {
-    const tablesRes = await fetchWithAuth(`${itemBaseUrl}/workbook/tables`)
+    const tablesRes = await fetchWithAuth(`${itemBaseUrl}/workbook/tables`, opts)
     if (!tablesRes.ok) return null
 
     const tablesData = await tablesRes.json()
@@ -70,6 +76,7 @@ const fetchTableRows = async (itemBaseUrl: string): Promise<any[] | null> => {
 
     const headerRes = await fetchWithAuth(
       `${itemBaseUrl}/workbook/tables('${encodedTableName}')/headerRowRange`,
+      opts,
     )
     if (!headerRes.ok) return null
 
@@ -78,6 +85,7 @@ const fetchTableRows = async (itemBaseUrl: string): Promise<any[] | null> => {
 
     const rowsRes = await fetchWithAuth(
       `${itemBaseUrl}/workbook/tables('${encodedTableName}')/rows`,
+      opts,
     )
     if (!rowsRes.ok) return null
 
@@ -257,6 +265,109 @@ export const m365Service = {
       console.warn('Failed to fetch Excel preview URL via share link:', e)
       const errorMsg = e?.message || NOT_FOUND_ERROR
       return { url: null, error: errorMsg }
+    }
+  },
+
+  syncWithSession: async (
+    sharingUrl: string,
+    worksheetName: string,
+  ): Promise<{
+    data: any[]
+    previewUrl: string | null
+    error: string | null
+  }> => {
+    const token = getGraphToken()
+    if (!token) return { data: [], previewUrl: null, error: NO_TOKEN_ERROR }
+
+    try {
+      const encodedLink = encodeSharingUrl(sharingUrl)
+      const driveItemRes = await fetchWithAuth(
+        `https://graph.microsoft.com/v1.0/shares/${encodedLink}/driveItem`,
+      )
+      if (!driveItemRes.ok) {
+        if (driveItemRes.status === 401 || driveItemRes.status === 403) {
+          return {
+            data: [],
+            previewUrl: null,
+            error:
+              'Acesso negado pelo Microsoft 365. Verifique se o link de compartilhamento ainda é válido.',
+          }
+        }
+        return { data: [], previewUrl: null, error: NOT_FOUND_ERROR }
+      }
+
+      const driveItem = await driveItemRes.json()
+      const driveId = driveItem.parentReference?.driveId
+      const itemId = driveItem.id
+      if (!driveId || !itemId) {
+        return { data: [], previewUrl: null, error: NOT_FOUND_ERROR }
+      }
+
+      const itemBaseUrl = `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${itemId}`
+
+      let sessionId: string | null = null
+      const sessionRes = await fetchWithAuth(`${itemBaseUrl}/workbook/createSession`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ persistChanges: false }),
+      })
+      if (sessionRes.ok) {
+        const sessionData = await sessionRes.json()
+        sessionId = sessionData.id
+      }
+
+      const sessionHeaders: Record<string, string> | undefined = sessionId
+        ? { 'workbook-session-id': sessionId }
+        : undefined
+
+      let rows: any[] = []
+      const tableRows = await fetchTableRows(itemBaseUrl, sessionHeaders)
+      if (tableRows && tableRows.length > 0) {
+        rows = tableRows
+      } else {
+        const wsRows = await fetchWorksheet(itemBaseUrl, worksheetName, sessionHeaders)
+        if (wsRows && wsRows.length > 0) {
+          rows = wsRows
+        } else {
+          const wsListRes = await fetchWithAuth(`${itemBaseUrl}/workbook/worksheets`, {
+            headers: sessionHeaders,
+          })
+          if (wsListRes.ok) {
+            const wsListData = await wsListRes.json()
+            const firstSheet = wsListData.value?.[0]?.name
+            if (firstSheet) {
+              const firstRows = await fetchWorksheet(itemBaseUrl, firstSheet, sessionHeaders)
+              if (firstRows) rows = firstRows
+            }
+          }
+        }
+      }
+
+      let previewUrl: string | null = null
+      const previewRes = await fetchWithAuth(`${itemBaseUrl}/preview`, { method: 'POST' })
+      if (previewRes.ok) {
+        const previewData = await previewRes.json()
+        previewUrl = previewData.getUrl || null
+      }
+
+      if (sessionId) {
+        await fetchWithAuth(`${itemBaseUrl}/workbook/closeSession`, {
+          method: 'POST',
+          headers: { 'workbook-session-id': sessionId },
+        }).catch(() => {})
+      }
+
+      if (!previewUrl) {
+        return {
+          data: rows,
+          previewUrl: null,
+          error: 'Não foi possível gerar o link de visualização da planilha via Graph API.',
+        }
+      }
+
+      return { data: rows, previewUrl, error: null }
+    } catch (e: any) {
+      return { data: [], previewUrl: null, error: e?.message || NOT_FOUND_ERROR }
     }
   },
 

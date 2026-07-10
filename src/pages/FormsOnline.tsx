@@ -140,6 +140,8 @@ export default function FormsOnline() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [syncDialogOpen, setSyncDialogOpen] = useState(false)
   const [currentShareLink, setCurrentShareLink] = useState<string | null>(null)
+  const [currentSheetName, setCurrentSheetName] = useState<string>('Sheet1')
+  const [syncedData, setSyncedData] = useState<any[] | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
   const [previewError, setPreviewError] = useState<string | null>(null)
@@ -178,6 +180,7 @@ export default function FormsOnline() {
       const shareLink = formsConfig[tabConfig.shareLinkKey]
       const sheetName = formsConfig[tabConfig.sheetNameKey] || 'Sheet1'
       setCurrentShareLink(shareLink || null)
+      setCurrentSheetName(sheetName)
 
       if (!shareLink) {
         setError(
@@ -264,10 +267,14 @@ export default function FormsOnline() {
     setPreviewLoading(true)
     setPreviewError(null)
     setPreviewUrl(null)
+    setSyncedData(null)
 
-    const result = await m365Service.fetchExcelPreviewUrl(currentShareLink)
-    if (result.url) {
-      setPreviewUrl(result.url)
+    const result = await m365Service.syncWithSession(currentShareLink, currentSheetName)
+    if (result.previewUrl) {
+      setPreviewUrl(result.previewUrl)
+      if (result.data && result.data.length > 0) {
+        setSyncedData(result.data)
+      }
     } else {
       setPreviewError(
         result.error ||
@@ -280,6 +287,19 @@ export default function FormsOnline() {
   const handleSyncDialogClose = (open: boolean) => {
     setSyncDialogOpen(open)
     if (!open) {
+      if (syncedData && syncedData.length > 0) {
+        const tabConfig = TAB_CONFIGS[activeTab]
+        const normalizedData = syncedData.map((row, idx) =>
+          normalizeExcelRow(row, tabConfig.category, idx),
+        )
+        setError(null)
+        setLastUpdated(new Date())
+        setData(normalizedData)
+        toast({
+          title: 'Dados sincronizados',
+          description: `${normalizedData.length} formulário(s) encontrado(s).`,
+        })
+      }
       handleManualRefresh()
     }
   }
