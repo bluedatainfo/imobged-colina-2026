@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo, useRef } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Search, Loader2, RefreshCw, Clock, FileSpreadsheet } from 'lucide-react'
+import { Search, Loader2, RefreshCw, Clock, FileSpreadsheet, AlertCircle } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { supabase } from '@/lib/supabase/client'
@@ -140,6 +140,9 @@ export default function FormsOnline() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [syncDialogOpen, setSyncDialogOpen] = useState(false)
   const [currentShareLink, setCurrentShareLink] = useState<string | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [previewError, setPreviewError] = useState<string | null>(null)
   const { toast } = useToast()
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -229,6 +232,8 @@ export default function FormsOnline() {
   useEffect(() => {
     loadData(activeTab)
     setSearch('')
+    setPreviewUrl(null)
+    setPreviewError(null)
   }, [activeTab])
 
   useEffect(() => {
@@ -246,7 +251,7 @@ export default function FormsOnline() {
     startInterval()
   }
 
-  const handleSyncClick = () => {
+  const handleSyncClick = async () => {
     if (!currentShareLink) {
       toast({
         variant: 'destructive',
@@ -256,6 +261,20 @@ export default function FormsOnline() {
       return
     }
     setSyncDialogOpen(true)
+    setPreviewLoading(true)
+    setPreviewError(null)
+    setPreviewUrl(null)
+
+    const result = await m365Service.fetchExcelPreviewUrl(currentShareLink)
+    if (result.url) {
+      setPreviewUrl(result.url)
+    } else {
+      setPreviewError(
+        result.error ||
+          'Não foi possível carregar a planilha. Verifique sua conexão com o Microsoft 365.',
+      )
+    }
+    setPreviewLoading(false)
   }
 
   const handleSyncDialogClose = (open: boolean) => {
@@ -373,12 +392,27 @@ export default function FormsOnline() {
             <DialogTitle>Sincronizar Dados — {TAB_CONFIGS[activeTab]?.category}</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-gray-500">
-            Aguarde o carregamento completo da planilha para sincronizar as respostas do Forms. Após
-            o carregamento, você pode fechar esta janela para ver os dados atualizados.
+            Aguarde o carregamento completo da planilha para garantir a sincronização dos dados.
+            Após o carregamento, você pode fechar esta janela para ver a lista atualizada.
           </p>
-          {currentShareLink && (
+          {previewLoading && (
+            <div className="w-full h-[60vh] flex flex-col items-center justify-center gap-3 bg-gray-50 rounded-md">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="text-sm text-gray-500">Carregando planilha via Microsoft Graph...</p>
+            </div>
+          )}
+          {previewError && !previewLoading && (
+            <div className="w-full h-[60vh] flex flex-col items-center justify-center gap-3 bg-red-50 rounded-md p-6 text-center">
+              <AlertCircle className="h-8 w-8 text-red-500" />
+              <p className="text-sm text-red-700 max-w-md">{previewError}</p>
+              <p className="text-xs text-gray-500">
+                Certifique-se de estar autenticado no Microsoft 365 nas Configurações do sistema.
+              </p>
+            </div>
+          )}
+          {previewUrl && !previewLoading && (
             <iframe
-              src={getEmbedUrl(currentShareLink)}
+              src={previewUrl}
               className="w-full h-[60vh] border-0 rounded-md"
               title="Excel Online"
             />

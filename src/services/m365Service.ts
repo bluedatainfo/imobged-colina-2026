@@ -205,6 +205,61 @@ export const m365Service = {
     }
   },
 
+  fetchExcelPreviewUrl: async (
+    sharingUrl: string,
+  ): Promise<{ url: string | null; error: string | null }> => {
+    const token = getGraphToken()
+    if (!token) return { url: null, error: NO_TOKEN_ERROR }
+
+    try {
+      const encodedLink = encodeSharingUrl(sharingUrl)
+
+      const driveItemRes = await fetchWithAuth(
+        `https://graph.microsoft.com/v1.0/shares/${encodedLink}/driveItem`,
+      )
+      if (!driveItemRes.ok) {
+        if (driveItemRes.status === 401 || driveItemRes.status === 403) {
+          return {
+            url: null,
+            error:
+              'Acesso negado pelo Microsoft 365. Verifique se o link de compartilhamento ainda é válido e se você tem permissões.',
+          }
+        }
+        if (driveItemRes.status === 404) {
+          return {
+            url: null,
+            error:
+              'O link de compartilhamento não foi encontrado. Verifique se o arquivo ainda existe.',
+          }
+        }
+        return { url: null, error: NOT_FOUND_ERROR }
+      }
+
+      const driveItem = await driveItemRes.json()
+      const driveId = driveItem.parentReference?.driveId
+      const itemId = driveItem.id
+      if (!driveId || !itemId) return { url: null, error: NOT_FOUND_ERROR }
+
+      const previewRes = await fetchWithAuth(
+        `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${itemId}/preview`,
+        { method: 'POST' },
+      )
+      if (previewRes.ok) {
+        const previewData = await previewRes.json()
+        if (previewData.getUrl) return { url: previewData.getUrl, error: null }
+      }
+
+      return {
+        url: null,
+        error: 'Não foi possível gerar o link de visualização da planilha via Graph API.',
+      }
+    } catch (e: any) {
+      console.warn('Failed to fetch Excel preview URL via share link:', e)
+      const errorMsg = e?.message || NOT_FOUND_ERROR
+      return { url: null, error: errorMsg }
+    }
+  },
+
   fetchExcelRows: async (sourceDocId: string, worksheetName?: string): Promise<FetchResult> => {
     const token = getGraphToken()
     if (!token) return { data: [], error: NO_TOKEN_ERROR }
