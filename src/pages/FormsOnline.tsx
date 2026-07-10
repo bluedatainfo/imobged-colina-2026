@@ -5,18 +5,90 @@ import { Button } from '@/components/ui/button'
 import { Search, Loader2, RefreshCw, Clock } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { supabase } from '@/lib/supabase/client'
+import { m365Service } from '@/services/m365Service'
 import {
   FormsOnlineTable,
   type SortColumn,
   type SortDirection,
 } from '@/components/FormsOnlineTable'
 
-const TAB_CATEGORIES: Record<string, string[]> = {
-  pf: ['PF', 'Pessoa Física'],
-  pj: ['PJ', 'Pessoa Jurídica'],
-  fiador: ['FIADOR', 'Fiador'],
-}
 const REFRESH_INTERVAL = 15000
+
+interface TabConfig {
+  shareLinkKey: string
+  sheetNameKey: string
+  category: string
+}
+
+const TAB_CONFIGS: Record<string, TabConfig> = {
+  pf: { shareLinkKey: 'pf_share_link', sheetNameKey: 'pf_sheet_name', category: 'PF' },
+  pj: { shareLinkKey: 'pj_share_link', sheetNameKey: 'pj_sheet_name', category: 'PJ' },
+  fiador: {
+    shareLinkKey: 'fiador_share_link',
+    sheetNameKey: 'fiador_sheet_name',
+    category: 'FIADOR',
+  },
+}
+
+const COLUMN_MAPPINGS: Record<string, string> = {
+  'nome completo': 'full_name',
+  nome: 'full_name',
+  name: 'full_name',
+  cpf: 'cpf',
+  cnpj: 'cnpj',
+  email: 'email',
+  'e-mail': 'email',
+  telefone: 'phone',
+  celular: 'phone',
+  phone: 'phone',
+  endereço: 'address',
+  endereco: 'address',
+  address: 'address',
+  status: 'status',
+  'data de envio': 'created_at',
+  data: 'created_at',
+  'data/hora': 'created_at',
+  'data de início': 'created_at',
+  'data de inicio': 'created_at',
+  'data/hora de início': 'created_at',
+  'link dos documentos': 'documents_link',
+  documentos: 'documents_link',
+  código: 'code',
+  codigo: 'code',
+  code: 'code',
+  categoria: 'category',
+  category: 'category',
+}
+
+function normalizeExcelRow(row: Record<string, any>, category: string, index: number): any {
+  const normalized: any = {
+    form_data: {} as Record<string, any>,
+    category,
+    status: 'Novo',
+    id: `${category}-${index}`,
+  }
+
+  const unmappedFields: Record<string, any> = {}
+
+  for (const [key, value] of Object.entries(row)) {
+    const normalizedKey = key?.toLowerCase()?.trim() || ''
+    const mappedField = COLUMN_MAPPINGS[normalizedKey]
+
+    if (mappedField) {
+      normalized[mappedField] = value
+    } else if (key) {
+      unmappedFields[key] = value
+    }
+  }
+
+  normalized.form_data = unmappedFields
+
+  if (!normalized.full_name) {
+    normalized.full_name = normalized.email || `Registro ${index + 1}`
+  }
+
+  return normalized
+}
 
 function formatTime(date: Date): string {
   return date.toLocaleTimeString('pt-BR', { hour12: false })
@@ -43,32 +115,69 @@ export default function FormsOnline() {
     }
 
     try {
-      const categories = TAB_CATEGORIES[tab] || ['PF']
-      const { data: rows, error: fetchError } = await supabase
-        .from('pre_registrations')
-        .select('*')
-        .in('category', categories)
-        .order('created_at', { ascending: false })
-
-      if (fetchError) throw new Error(fetchError.message)
-
-      setError(null)
-      setLastUpdated(new Date())
-      if (!silent) {
-        toast({
-          title: 'Dados carregados',
-          description: `${rows?.length || 0} formulário(s) encontrado(s).`,
-        })
+      const tabConfig = TAB_CONFIGS[tab]
+      if (!tabConfig) {
+        setError('Configuração de aba não encontrada.')
+        setData([])
+        return
       }
-      setData(rows || [])
+
+      if (!m365Service.isAuthenticated()) {
+        setError(
+          'Conexão com Microsoft 365 não encontrada. Por favor, realize o login em Configurações.',
+        )
+        setData([])
+        return
+      }
+
+      const { data: settings } = await supabase
+        .from('app_settings')
+        .select('module_settings')
+        .maybeSingle()
+
+      const formsConfig = (settings?.module_settings as any)?.forms_online || {}
+      const shareLink = formsConfig[tabConfig.shareLinkKey]
+      const sheetName = formsConfig[tabConfig.sheetNameKey] || 'Sheet1'
+
+      if (!shareLink) {
+        setError(
+          `Link de compartilhamento não configurado para ${tabConfig.category}. Acesse as Configurações para configurar.`,
+        )
+        setData([])
+        return
+      }
+
+      const result = await m365Service.fetchExcelRowsByShareLink(shareLink, sheetName)
+
+      if (result.error) {
+        setError(result.error)
+        if (!silent) {
+          toast({ variant: 'destructive', title: 'Erro', description: result.error })
+        }
+        setData([])
+      } else {
+        const normalizedData = (result.data || []).map((row, idx) =>
+          normalizeExcelRow(row, tabConfig.category, idx),
+        )
+        setError(null)
+        setLastUpdated(new Date())
+        setData(normalizedData)
+        if (!silent) {
+          toast({
+            title: 'Dados carregados',
+            description: `${normalizedData.length} formulário(s) encontrado(s).`,
+          })
+        }
+      }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Erro ao buscar dados do banco de dados.'
+      const msg = err instanceof Error ? err.message : 'Erro ao buscar dados da planilha Excel.'
       if (!silent) {
         setError(msg)
         toast({ variant: 'destructive', title: 'Erro', description: msg })
       } else {
         setError(msg)
       }
+      setData([])
     } finally {
       setLoading(false)
       setAutoRefreshing(false)
