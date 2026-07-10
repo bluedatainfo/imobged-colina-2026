@@ -15,8 +15,15 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Loader2, RefreshCw, AlertCircle, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react'
-import { formatExcelDate, formatExcelDateTime } from '@/lib/date-utils'
+import {
+  Loader2,
+  RefreshCw,
+  AlertCircle,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
+  ExternalLink,
+} from 'lucide-react'
 
 export type SortColumn = 'nome' | 'datetime'
 export type SortDirection = 'asc' | 'desc'
@@ -25,12 +32,27 @@ interface FormsOnlineTableProps {
   data: any[]
   loading: boolean
   error: string | null
-  activeTab: string
   sortColumn: SortColumn
   sortDirection: SortDirection
   onToggleSort: (column: SortColumn) => void
   onRetry: () => void
 }
+
+const FIELD_LABELS: Record<string, string> = {
+  code: 'Código',
+  full_name: 'Nome',
+  cpf: 'CPF',
+  cnpj: 'CNPJ',
+  email: 'E-mail',
+  phone: 'Telefone',
+  address: 'Endereço',
+  status: 'Status',
+  category: 'Categoria',
+  created_at: 'Data de Envio',
+  documents_link: 'Link dos Documentos',
+}
+
+const PRIMARY_FIELDS = Object.keys(FIELD_LABELS)
 
 function renderSortIcon(column: SortColumn, sortCol: SortColumn, sortDir: SortDirection) {
   if (sortCol !== column) return <ArrowUpDown className="ml-1 inline h-3.5 w-3.5 text-gray-400" />
@@ -41,25 +63,81 @@ function renderSortIcon(column: SortColumn, sortCol: SortColumn, sortDir: SortDi
   )
 }
 
-function formatFieldValue(key: string, value: any): string {
-  if (value === null || value === undefined) return '-'
-  const lk = key.toLowerCase()
-  if (
-    lk === 'hora de início' ||
-    lk === 'hora de inicio' ||
-    lk === 'hora de conclusão' ||
-    lk === 'hora de conclusao'
+function formatDateTime(value: string | null): string {
+  if (!value) return '-'
+  try {
+    return new Date(value).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })
+  } catch {
+    return value
+  }
+}
+
+function getStatusBadgeClass(status: string): string {
+  const s = (status || '').toLowerCase()
+  if (s === 'aprovado') return 'bg-green-100 text-green-800'
+  if (s === 'reprovado' || s === 'rejeitado') return 'bg-red-100 text-red-800'
+  return 'bg-blue-100 text-blue-800'
+}
+
+function renderFormDetails(row: any) {
+  const formData =
+    row.form_data && typeof row.form_data === 'object'
+      ? (row.form_data as Record<string, unknown>)
+      : {}
+  const formDataKeys = Object.keys(formData).filter((k) => !PRIMARY_FIELDS.includes(k))
+
+  return (
+    <>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 p-1">
+        {PRIMARY_FIELDS.map((key) => {
+          const value = row[key]
+          if (value === null || value === undefined || value === '') return null
+          const label = FIELD_LABELS[key] || key
+          const displayValue = key === 'created_at' ? formatDateTime(value) : String(value)
+          return (
+            <div key={key} className="space-y-1">
+              <p className="text-sm font-medium text-gray-500">{label}</p>
+              {key === 'documents_link' && value ? (
+                <a
+                  href={value}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-blue-600 hover:underline break-words inline-flex items-center gap-1"
+                >
+                  Abrir link <ExternalLink className="h-3 w-3" />
+                </a>
+              ) : (
+                <p className="text-sm text-gray-900 break-words">{displayValue}</p>
+              )}
+            </div>
+          )
+        })}
+      </div>
+      {formDataKeys.length > 0 && (
+        <div className="border-t mt-4 pt-4">
+          <p className="text-sm font-semibold text-gray-700 mb-3">Dados do Formulário</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-1">
+            {formDataKeys.map((key) => {
+              const value = formData[key]
+              if (value === null || value === undefined || value === '') return null
+              return (
+                <div key={key} className="space-y-1">
+                  <p className="text-sm font-medium text-gray-500">{key}</p>
+                  <p className="text-sm text-gray-900 break-words">{String(value)}</p>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </>
   )
-    return formatExcelDateTime(value)
-  if (lk.includes('nascimento')) return formatExcelDate(value)
-  return String(value)
 }
 
 export function FormsOnlineTable({
   data,
   loading,
   error,
-  activeTab,
   sortColumn,
   sortDirection,
   onToggleSort,
@@ -126,28 +204,14 @@ export function FormsOnlineTable({
             </TableRow>
           ) : (
             data.map((row, idx) => (
-              <TableRow key={idx}>
-                <TableCell className="font-medium">
-                  {activeTab === 'pj'
-                    ? row['Razão Social'] || row['Razao Social'] || 'N/A'
-                    : row['Nome1'] || row.Nome || row.Name || 'N/A'}
-                </TableCell>
-                <TableCell>
-                  {formatExcelDateTime(
-                    row['Hora de início'] || row['Start time'] || row.Data || row.Date || '',
-                  )}
-                </TableCell>
+              <TableRow key={row.id || idx}>
+                <TableCell className="font-medium">{row.full_name || 'N/A'}</TableCell>
+                <TableCell>{formatDateTime(row.created_at)}</TableCell>
                 <TableCell>
                   <span
-                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      (row.Status || row.status || '').toLowerCase() === 'aprovado'
-                        ? 'bg-green-100 text-green-800'
-                        : (row.Status || row.status || '').toLowerCase() === 'reprovado'
-                          ? 'bg-red-100 text-red-800'
-                          : 'bg-blue-100 text-blue-800'
-                    }`}
+                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeClass(row.status || '')}`}
                   >
-                    {row.Status || row.status || 'Recebido'}
+                    {row.status || 'Novo'}
                   </span>
                 </TableCell>
                 <TableCell className="text-right">
@@ -161,21 +225,7 @@ export function FormsOnlineTable({
                       <DialogHeader>
                         <DialogTitle>Detalhes do Formulário</DialogTitle>
                       </DialogHeader>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 p-1">
-                        {Object.entries(selectedRow || {}).map(([key, value]) => {
-                          if (key.startsWith('@odata') || key.startsWith('ItemInternalId'))
-                            return null
-                          if (typeof value === 'object' && value !== null) return null
-                          return (
-                            <div key={key} className="space-y-1">
-                              <p className="text-sm font-medium text-gray-500">{key}</p>
-                              <p className="text-sm text-gray-900 break-words">
-                                {formatFieldValue(key, value)}
-                              </p>
-                            </div>
-                          )
-                        })}
-                      </div>
+                      {selectedRow && renderFormDetails(selectedRow)}
                     </DialogContent>
                   </Dialog>
                 </TableCell>

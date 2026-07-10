@@ -3,22 +3,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Search, Loader2, RefreshCw, Clock } from 'lucide-react'
-import { m365Service } from '@/services/m365Service'
 import { useToast } from '@/hooks/use-toast'
 import { supabase } from '@/lib/supabase/client'
-import { useAuth } from '@/contexts/AuthContext'
-import { getExcelTimestamp } from '@/lib/date-utils'
-import { syncFormsToPreRegistrations } from '@/services/forms-online-sync'
 import {
   FormsOnlineTable,
   type SortColumn,
   type SortDirection,
 } from '@/components/FormsOnlineTable'
 
-const TAB_CATEGORY: Record<string, string> = { pf: 'PF', pj: 'PJ', fiador: 'FIADOR' }
+const TAB_CATEGORIES: Record<string, string[]> = {
+  pf: ['PF', 'Pessoa Física'],
+  pj: ['PJ', 'Pessoa Jurídica'],
+  fiador: ['FIADOR', 'Fiador'],
+}
 const REFRESH_INTERVAL = 15000
-const DEFAULT_PF_LINK =
-  'https://ismailabdo-my.sharepoint.com/:x:/g/personal/administracao_imobiliariacolina_com_br/IQBNKTCco7MNQ52u0sOI-ypSAZObr3fn7lVuv_RbWiZ94Dg'
 
 function formatTime(date: Date): string {
   return date.toLocaleTimeString('pt-BR', { hour12: false })
@@ -35,7 +33,6 @@ export default function FormsOnline() {
   const [autoRefreshing, setAutoRefreshing] = useState(false)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const { toast } = useToast()
-  const { user } = useAuth()
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const loadData = async (tab: string, silent = false) => {
@@ -46,68 +43,32 @@ export default function FormsOnline() {
     }
 
     try {
-      const { data: settings } = await supabase
-        .from('app_settings')
-        .select('module_settings')
-        .maybeSingle()
-      const cfg = (settings?.module_settings as any)?.forms_online || {}
+      const categories = TAB_CATEGORIES[tab] || ['PF']
+      const { data: rows, error: fetchError } = await supabase
+        .from('pre_registrations')
+        .select('*')
+        .in('category', categories)
+        .order('created_at', { ascending: false })
 
-      let shareLink = ''
-      let sheetName = 'Sheet1'
+      if (fetchError) throw new Error(fetchError.message)
 
-      if (tab === 'pf') {
-        shareLink = cfg.pf_share_link || DEFAULT_PF_LINK
-        sheetName = cfg.pf_sheet_name || 'Sheet1'
-      } else if (tab === 'pj') {
-        shareLink = cfg.pj_share_link || ''
-        sheetName = cfg.pj_sheet_name || 'Sheet1'
-      } else if (tab === 'fiador') {
-        shareLink = cfg.fiador_share_link || ''
-        sheetName = cfg.fiador_sheet_name || 'Sheet1'
-      }
-
-      let result: { data: any[]; error: string | null }
-
-      if (!shareLink) {
-        const label = tab === 'pj' ? 'Pessoa Jurídica' : 'Fiador'
-        result = {
-          data: [],
-          error: `Link de compartilhamento não configurado para a aba "${label}". Acesse as Configurações do sistema para definir o link.`,
-        }
-      } else {
-        result = await m365Service.fetchExcelRowsByShareLink(shareLink, sheetName)
-      }
-
-      if (result?.error) {
-        if (silent) {
-          setError(result.error)
-        } else {
-          setError(result.error)
-          toast({ variant: 'destructive', title: 'Erro', description: result.error })
-          setData([])
-        }
-      } else {
-        setError(null)
-        setLastUpdated(new Date())
-        if (!silent)
-          toast({
-            title: 'Autenticado com sucesso',
-            description: `Bem-vindo(a), ${user?.name || 'Usuário'}`,
-          })
-        const category = TAB_CATEGORY[tab] || 'PF'
-        syncFormsToPreRegistrations(result?.data || [], category).then((r) => {
-          if (r.error) console.error('Sync error:', r.error)
+      setError(null)
+      setLastUpdated(new Date())
+      if (!silent) {
+        toast({
+          title: 'Dados carregados',
+          description: `${rows?.length || 0} formulário(s) encontrado(s).`,
         })
-        setData(result?.data || [])
       }
+      setData(rows || [])
     } catch (err) {
-      const msg =
-        err instanceof Error
-          ? err.message
-          : 'Houve um erro ao se comunicar com a API do Microsoft 365. Verifique a sua conexão e configurações.'
-      setError(msg)
-      if (!silent)
-        toast({ variant: 'destructive', title: 'Erro de Rede ou Configuração', description: msg })
+      const msg = err instanceof Error ? err.message : 'Erro ao buscar dados do banco de dados.'
+      if (!silent) {
+        setError(msg)
+        toast({ variant: 'destructive', title: 'Erro', description: msg })
+      } else {
+        setError(msg)
+      }
     } finally {
       setLoading(false)
       setAutoRefreshing(false)
@@ -148,37 +109,35 @@ export default function FormsOnline() {
   }
 
   const filteredData = useMemo(() => {
-    const filtered = data.filter((item) =>
-      Object.values(item).some((val) => String(val).toLowerCase().includes(search.toLowerCase())),
-    )
+    const searchLower = search.toLowerCase()
+    const filtered = data.filter((item) => {
+      const flatValues = [
+        ...Object.values(item).filter((v) => typeof v !== 'object' || v === null),
+        JSON.stringify(item.form_data || {}),
+      ]
+      return flatValues.some((val) => String(val).toLowerCase().includes(searchLower))
+    })
     return [...filtered].sort((a, b) => {
       const aVal =
         sortColumn === 'nome'
-          ? (activeTab === 'pj'
-              ? a['Razão Social'] || a['Razao Social'] || ''
-              : a['Nome1'] || a.Nome || a.Name || ''
-            ).toLowerCase()
-          : getExcelTimestamp(a['Hora de início'] || a['Start time'] || a.Data || a.Date || '')
+          ? (a.full_name || '').toLowerCase()
+          : new Date(a.created_at || 0).getTime()
       const bVal =
         sortColumn === 'nome'
-          ? (activeTab === 'pj'
-              ? b['Razão Social'] || b['Razao Social'] || ''
-              : b['Nome1'] || b.Nome || b.Name || ''
-            ).toLowerCase()
-          : getExcelTimestamp(b['Hora de início'] || b['Start time'] || b.Data || b.Date || '')
+          ? (b.full_name || '').toLowerCase()
+          : new Date(b.created_at || 0).getTime()
       const cmp =
         sortColumn === 'nome'
           ? String(aVal).localeCompare(String(bVal))
           : (aVal as number) - (bVal as number)
       return sortDirection === 'asc' ? cmp : -cmp
     })
-  }, [data, search, sortColumn, sortDirection, activeTab])
+  }, [data, search, sortColumn, sortDirection])
 
   const tableProps = {
     data: filteredData,
     loading,
     error,
-    activeTab,
     sortColumn,
     sortDirection,
     onToggleSort: toggleSort,
@@ -191,7 +150,7 @@ export default function FormsOnline() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-gray-900">Formulários OnLine</h1>
           <p className="text-gray-500 mt-2">
-            Visualize os formulários de cadastro preenchidos no SharePoint.
+            Visualize os formulários de cadastro recebidos em tempo real.
           </p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
