@@ -120,6 +120,17 @@ export const m365Service = {
         sessionId = sessionData.id
       }
 
+      if (sessionId) {
+        try {
+          await fetchWithAuth(`${itemBaseUrl}/workbook/refreshSession`, {
+            method: 'POST',
+            headers: { 'workbook-session-id': sessionId },
+          })
+        } catch {
+          // ignore refresh session errors — proceed with data fetch
+        }
+      }
+
       const sessionHeaders: Record<string, string> = {}
       if (sessionId) sessionHeaders['workbook-session-id'] = sessionId
 

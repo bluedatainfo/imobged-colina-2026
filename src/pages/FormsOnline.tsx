@@ -18,7 +18,7 @@ import {
 const TAB_CATEGORY: Record<string, string> = { pf: 'PF', pj: 'PJ', fiador: 'FIADOR' }
 const REFRESH_INTERVAL = 15000
 const DEFAULT_PF_LINK =
-  'https://ismailabdo-my.sharepoint.com/:x:/g/personal/administracao_imobiliariacolina_com_br/IQBNKTCco7MNQ52u0sOI-ypSAZObr3fn7lVuv_RbWiZ94Dg?e=HPD0RS'
+  'https://ismailabdo-my.sharepoint.com/:x:/g/personal/administracao_imobiliariacolina_com_br/IQBNKTCco7MNQ52u0sOI-ypSAZObr3fn7lVuv_RbWiZ94Dg'
 
 function formatTime(date: Date): string {
   return date.toLocaleTimeString('pt-BR', { hour12: false })
@@ -79,8 +79,13 @@ export default function FormsOnline() {
       }
 
       if (result?.error) {
-        setError(result.error)
-        if (!silent) toast({ variant: 'destructive', title: 'Erro', description: result.error })
+        if (silent) {
+          setError(result.error)
+        } else {
+          setError(result.error)
+          toast({ variant: 'destructive', title: 'Erro', description: result.error })
+          setData([])
+        }
       } else {
         setError(null)
         setLastUpdated(new Date())
@@ -93,9 +98,8 @@ export default function FormsOnline() {
         syncFormsToPreRegistrations(result?.data || [], category).then((r) => {
           if (r.error) console.error('Sync error:', r.error)
         })
+        setData(result?.data || [])
       }
-
-      setData(result?.data || [])
     } catch (err) {
       const msg =
         err instanceof Error
