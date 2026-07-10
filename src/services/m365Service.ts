@@ -56,6 +56,40 @@ const fetchWorksheet = async (
   return parseWorksheetRows(await rangeRes.json())
 }
 
+const fetchTableRows = async (
+  itemBaseUrl: string,
+  sessionHeaders: Record<string, string>,
+): Promise<any[] | null> => {
+  try {
+    const tablesRes = await fetchWithAuth(`${itemBaseUrl}/workbook/tables`, {
+      headers: sessionHeaders,
+    })
+    if (!tablesRes.ok) return null
+
+    const tablesData = await tablesRes.json()
+    const tables = tablesData.value || []
+    if (tables.length === 0) return null
+
+    const allRows: any[] = []
+    for (const table of tables) {
+      const tableName = table.name
+      const rangeRes = await fetchWithAuth(
+        `${itemBaseUrl}/workbook/tables('${encodeURIComponent(tableName)}')/range`,
+        { headers: sessionHeaders },
+      )
+      if (rangeRes.ok) {
+        const rangeData = await rangeRes.json()
+        const rows = parseWorksheetRows(rangeData)
+        allRows.push(...rows)
+      }
+    }
+
+    return allRows.length > 0 ? allRows : null
+  } catch {
+    return null
+  }
+}
+
 export const m365Service = {
   isAuthenticated: () => !!getGraphToken(),
 
@@ -133,6 +167,11 @@ export const m365Service = {
 
       const sessionHeaders: Record<string, string> = {}
       if (sessionId) sessionHeaders['workbook-session-id'] = sessionId
+
+      const tableRows = await fetchTableRows(itemBaseUrl, sessionHeaders)
+      if (tableRows) {
+        return { data: tableRows, error: null }
+      }
 
       const encodedSheet = encodeURIComponent(worksheetName)
       const rangeRes = await fetchWithAuth(

@@ -92,6 +92,16 @@ function normalizeExcelRow(row: Record<string, any>, category: string, index: nu
 
   normalized.form_data = unmappedFields
 
+  const nome1Key = Object.keys(row).find((k) => k?.toLowerCase()?.trim() === 'nome1')
+  if (nome1Key && row[nome1Key] != null && row[nome1Key] !== '') {
+    normalized.full_name = row[nome1Key]
+  }
+
+  const horaInicioKey = Object.keys(row).find((k) => k?.toLowerCase()?.trim() === 'hora de início')
+  if (horaInicioKey && row[horaInicioKey] != null && row[horaInicioKey] !== '') {
+    normalized.created_at = row[horaInicioKey]
+  }
+
   if (!normalized.full_name) {
     normalized.full_name = normalized.email || `Registro ${index + 1}`
   }
