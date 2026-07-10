@@ -24,6 +24,7 @@ import {
   ArrowUpDown,
   ExternalLink,
 } from 'lucide-react'
+import { formatExcelDateTime, formatExcelDate } from '@/lib/date-utils'
 
 export type SortColumn = 'nome' | 'datetime'
 export type SortDirection = 'asc' | 'desc'
@@ -53,6 +54,51 @@ const FIELD_LABELS: Record<string, string> = {
 }
 
 const PRIMARY_FIELDS = Object.keys(FIELD_LABELS)
+
+const DATE_ONLY_KEYWORDS = [
+  'nascimento',
+  'birth',
+  'validade',
+  'emissão',
+  'emissao',
+  'expedição',
+  'expedicao',
+  'vencimento',
+  'data de',
+]
+const DATETIME_KEYWORDS = ['hora', 'time', 'início', 'inicio', 'start']
+
+function isDateOnlyField(key: string): boolean {
+  const lower = key.toLowerCase()
+  return (
+    DATE_ONLY_KEYWORDS.some((kw) => lower.includes(kw)) &&
+    !DATETIME_KEYWORDS.some((kw) => lower.includes(kw))
+  )
+}
+
+function isDateTimeField(key: string): boolean {
+  const lower = key.toLowerCase()
+  return DATETIME_KEYWORDS.some((kw) => lower.includes(kw))
+}
+
+function formatFieldValue(key: string, value: unknown): string {
+  if (value === null || value === undefined || value === '') return '-'
+  const keyLower = key.toLowerCase()
+
+  if (keyLower === 'created_at') {
+    return formatExcelDateTime(value)
+  }
+
+  if (isDateTimeField(key)) {
+    return formatExcelDateTime(value)
+  }
+
+  if (isDateOnlyField(key)) {
+    return formatExcelDate(value)
+  }
+
+  return String(value)
+}
 
 function renderSortIcon(column: SortColumn, sortCol: SortColumn, sortDir: SortDirection) {
   if (sortCol !== column) return <ArrowUpDown className="ml-1 inline h-3.5 w-3.5 text-gray-400" />
@@ -98,7 +144,7 @@ function renderFormDetails(row: any) {
                   Abrir link <ExternalLink className="h-3 w-3" />
                 </a>
               ) : (
-                <p className="text-sm text-gray-900 break-words">{displayValue}</p>
+                <p className="text-sm text-gray-900 break-words">{formatFieldValue(key, value)}</p>
               )}
             </div>
           )
@@ -114,7 +160,9 @@ function renderFormDetails(row: any) {
               return (
                 <div key={key} className="space-y-1">
                   <p className="text-sm font-medium text-gray-500">{key}</p>
-                  <p className="text-sm text-gray-900 break-words">{String(value)}</p>
+                  <p className="text-sm text-gray-900 break-words">
+                    {formatFieldValue(key, value)}
+                  </p>
                 </div>
               )
             })}
@@ -197,7 +245,7 @@ export function FormsOnlineTable({
             data.map((row, idx) => (
               <TableRow key={row.id || idx}>
                 <TableCell className="font-medium">{row.full_name || 'N/A'}</TableCell>
-                <TableCell>{row.created_at || '-'}</TableCell>
+                <TableCell>{formatExcelDateTime(row.created_at)}</TableCell>
                 <TableCell>
                   <span
                     className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeClass(row.status || '')}`}

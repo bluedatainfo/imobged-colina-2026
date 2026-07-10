@@ -6,6 +6,7 @@ import { Search, Loader2, RefreshCw, Clock } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { supabase } from '@/lib/supabase/client'
 import { m365Service } from '@/services/m365Service'
+import { getExcelTimestamp } from '@/lib/date-utils'
 import {
   FormsOnlineTable,
   type SortColumn,
@@ -53,6 +54,12 @@ const COLUMN_MAPPINGS: Record<string, string> = {
   'data de inicio': 'created_at',
   'data inicio': 'created_at',
   'data/hora de início': 'created_at',
+  'hora de inicio': 'created_at',
+  'hora de início': 'created_at',
+  'hora de início do formulário': 'created_at',
+  'hora de inicio do formulario': 'created_at',
+  'start time': 'created_at',
+  starttime: 'created_at',
   'link dos documentos': 'documents_link',
   documentos: 'documents_link',
   código: 'code',
@@ -230,13 +237,9 @@ export default function FormsOnline() {
     })
     return [...filtered].sort((a, b) => {
       const aVal =
-        sortColumn === 'nome'
-          ? (a.full_name || '').toLowerCase()
-          : new Date(a.created_at || 0).getTime()
+        sortColumn === 'nome' ? (a.full_name || '').toLowerCase() : getExcelTimestamp(a.created_at)
       const bVal =
-        sortColumn === 'nome'
-          ? (b.full_name || '').toLowerCase()
-          : new Date(b.created_at || 0).getTime()
+        sortColumn === 'nome' ? (b.full_name || '').toLowerCase() : getExcelTimestamp(b.created_at)
       const cmp =
         sortColumn === 'nome'
           ? String(aVal).localeCompare(String(bVal))
