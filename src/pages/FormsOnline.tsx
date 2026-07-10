@@ -2,8 +2,9 @@ import { useEffect, useState, useMemo, useRef } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Search, Loader2, RefreshCw, Clock } from 'lucide-react'
+import { Search, Loader2, RefreshCw, Clock, FileSpreadsheet } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { supabase } from '@/lib/supabase/client'
 import { m365Service } from '@/services/m365Service'
 import { getExcelTimestamp } from '@/lib/date-utils'
@@ -113,6 +114,20 @@ function formatTime(date: Date): string {
   return date.toLocaleTimeString('pt-BR', { hour12: false })
 }
 
+function getEmbedUrl(shareLink: string): string {
+  if (!shareLink) return ''
+  try {
+    const url = new URL(shareLink)
+    url.searchParams.delete('e')
+    url.searchParams.delete('email')
+    url.searchParams.set('action', 'embedview')
+    return url.toString()
+  } catch {
+    const separator = shareLink.includes('?') ? '&' : '?'
+    return `${shareLink}${separator}action=embedview`
+  }
+}
+
 export default function FormsOnline() {
   const [activeTab, setActiveTab] = useState('pf')
   const [data, setData] = useState<any[]>([])
@@ -123,6 +138,8 @@ export default function FormsOnline() {
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
   const [autoRefreshing, setAutoRefreshing] = useState(false)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const [syncDialogOpen, setSyncDialogOpen] = useState(false)
+  const [currentShareLink, setCurrentShareLink] = useState<string | null>(null)
   const { toast } = useToast()
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -157,6 +174,7 @@ export default function FormsOnline() {
       const formsConfig = (settings?.module_settings as any)?.forms_online || {}
       const shareLink = formsConfig[tabConfig.shareLinkKey]
       const sheetName = formsConfig[tabConfig.sheetNameKey] || 'Sheet1'
+      setCurrentShareLink(shareLink || null)
 
       if (!shareLink) {
         setError(
@@ -228,6 +246,25 @@ export default function FormsOnline() {
     startInterval()
   }
 
+  const handleSyncClick = () => {
+    if (!currentShareLink) {
+      toast({
+        variant: 'destructive',
+        title: 'Link não configurado',
+        description: 'Não há link de compartilhamento configurado para esta aba.',
+      })
+      return
+    }
+    setSyncDialogOpen(true)
+  }
+
+  const handleSyncDialogClose = (open: boolean) => {
+    setSyncDialogOpen(open)
+    if (!open) {
+      handleManualRefresh()
+    }
+  }
+
   const toggleSort = (column: SortColumn) => {
     if (sortColumn === column) setSortDirection((p) => (p === 'asc' ? 'desc' : 'asc'))
     else {
@@ -290,6 +327,10 @@ export default function FormsOnline() {
               Sincronizando...
             </span>
           )}
+          <Button onClick={handleSyncClick} variant="default" size="sm" className="gap-2">
+            <FileSpreadsheet className="h-4 w-4" />
+            Sincronizar Dados
+          </Button>
           <Button onClick={handleManualRefresh} variant="outline" size="sm" className="gap-2">
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             Atualizar
@@ -325,6 +366,25 @@ export default function FormsOnline() {
           <FormsOnlineTable {...tableProps} />
         </TabsContent>
       </Tabs>
+
+      <Dialog open={syncDialogOpen} onOpenChange={handleSyncDialogClose}>
+        <DialogContent className="max-w-5xl max-h-[85vh]">
+          <DialogHeader>
+            <DialogTitle>Sincronizar Dados — {TAB_CONFIGS[activeTab]?.category}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-500">
+            Aguarde o carregamento completo da planilha para sincronizar as respostas do Forms. Após
+            o carregamento, você pode fechar esta janela para ver os dados atualizados.
+          </p>
+          {currentShareLink && (
+            <iframe
+              src={getEmbedUrl(currentShareLink)}
+              className="w-full h-[60vh] border-0 rounded-md"
+              title="Excel Online"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
