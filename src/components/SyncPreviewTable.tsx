@@ -1,0 +1,103 @@
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
+import { Button } from '@/components/ui/button'
+import { Loader2, AlertCircle } from 'lucide-react'
+
+interface SyncPreviewTableProps {
+  data: any[] | null
+  loading: boolean
+  error: string | null
+  onRetry: () => void
+}
+
+export function SyncPreviewTable({ data, loading, error, onRetry }: SyncPreviewTableProps) {
+  if (loading) {
+    return (
+      <div className="w-full h-[50vh] flex flex-col items-center justify-center gap-3 bg-gray-50 rounded-md">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-sm text-gray-500">
+          Criando sessão e buscando dados via Microsoft Graph API...
+        </p>
+        <p className="text-xs text-gray-400">Isso garante a leitura dos dados mais recentes.</p>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="w-full h-[50vh] flex flex-col items-center justify-center gap-3 bg-red-50 rounded-md p-6 text-center">
+        <AlertCircle className="h-8 w-8 text-red-500" />
+        <p className="text-sm text-red-700 max-w-md">{error}</p>
+        <p className="text-xs text-gray-500">
+          Certifique-se de estar autenticado no Microsoft 365 nas Configurações do sistema.
+        </p>
+        <Button onClick={onRetry} variant="outline" size="sm" className="mt-2 gap-2">
+          Tentar novamente
+        </Button>
+      </div>
+    )
+  }
+
+  if (!data || data.length === 0) {
+    return (
+      <div className="w-full h-[50vh] flex flex-col items-center justify-center gap-2 bg-gray-50 rounded-md">
+        <p className="text-sm text-gray-500">Nenhum dado encontrado na planilha.</p>
+      </div>
+    )
+  }
+
+  const headers = Object.keys(data[0])
+
+  return (
+    <div className="w-full">
+      <p className="text-sm text-gray-500 mb-3">
+        {data.length} registro(s) encontrado(s) na planilha. Feche esta janela para visualizar os
+        dados normalizados na lista principal.
+      </p>
+      <div className="border rounded-md">
+        <ScrollArea className="w-full h-[50vh]">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="sticky top-0 bg-gray-50 z-10">#</TableHead>
+                {headers.map((header) => (
+                  <TableHead
+                    key={header}
+                    className="sticky top-0 bg-gray-50 z-10 whitespace-nowrap"
+                  >
+                    {header}
+                  </TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.map((row, idx) => (
+                <TableRow key={idx}>
+                  <TableCell className="text-gray-400 text-xs whitespace-nowrap">
+                    {idx + 1}
+                  </TableCell>
+                  {headers.map((header) => {
+                    const val = row[header]
+                    return (
+                      <TableCell key={header} className="whitespace-nowrap text-sm">
+                        {val !== null && val !== undefined && val !== '' ? String(val) : '-'}
+                      </TableCell>
+                    )
+                  })}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          <ScrollBar orientation="horizontal" />
+        </ScrollArea>
+      </div>
+    </div>
+  )
+}

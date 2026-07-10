@@ -273,11 +273,10 @@ export const m365Service = {
     worksheetName: string,
   ): Promise<{
     data: any[]
-    previewUrl: string | null
     error: string | null
   }> => {
     const token = getGraphToken()
-    if (!token) return { data: [], previewUrl: null, error: NO_TOKEN_ERROR }
+    if (!token) return { data: [], error: NO_TOKEN_ERROR }
 
     try {
       const encodedLink = encodeSharingUrl(sharingUrl)
@@ -288,19 +287,18 @@ export const m365Service = {
         if (driveItemRes.status === 401 || driveItemRes.status === 403) {
           return {
             data: [],
-            previewUrl: null,
             error:
               'Acesso negado pelo Microsoft 365. Verifique se o link de compartilhamento ainda é válido.',
           }
         }
-        return { data: [], previewUrl: null, error: NOT_FOUND_ERROR }
+        return { data: [], error: NOT_FOUND_ERROR }
       }
 
       const driveItem = await driveItemRes.json()
       const driveId = driveItem.parentReference?.driveId
       const itemId = driveItem.id
       if (!driveId || !itemId) {
-        return { data: [], previewUrl: null, error: NOT_FOUND_ERROR }
+        return { data: [], error: NOT_FOUND_ERROR }
       }
 
       const itemBaseUrl = `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${itemId}`
@@ -343,13 +341,6 @@ export const m365Service = {
         }
       }
 
-      let previewUrl: string | null = null
-      const previewRes = await fetchWithAuth(`${itemBaseUrl}/preview`, { method: 'POST' })
-      if (previewRes.ok) {
-        const previewData = await previewRes.json()
-        previewUrl = previewData.getUrl || null
-      }
-
       if (sessionId) {
         await fetchWithAuth(`${itemBaseUrl}/workbook/closeSession`, {
           method: 'POST',
@@ -357,17 +348,9 @@ export const m365Service = {
         }).catch(() => {})
       }
 
-      if (!previewUrl) {
-        return {
-          data: rows,
-          previewUrl: null,
-          error: 'Não foi possível gerar o link de visualização da planilha via Graph API.',
-        }
-      }
-
-      return { data: rows, previewUrl, error: null }
+      return { data: rows, error: null }
     } catch (e: any) {
-      return { data: [], previewUrl: null, error: e?.message || NOT_FOUND_ERROR }
+      return { data: [], error: e?.message || NOT_FOUND_ERROR }
     }
   },
 

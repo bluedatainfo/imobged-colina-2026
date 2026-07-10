@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo, useRef } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Search, Loader2, RefreshCw, Clock, FileSpreadsheet, AlertCircle } from 'lucide-react'
+import { Search, Loader2, RefreshCw, Clock, FileSpreadsheet } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { supabase } from '@/lib/supabase/client'
@@ -13,6 +13,7 @@ import {
   type SortColumn,
   type SortDirection,
 } from '@/components/FormsOnlineTable'
+import { SyncPreviewTable } from '@/components/SyncPreviewTable'
 
 const REFRESH_INTERVAL = 15000
 
@@ -114,20 +115,6 @@ function formatTime(date: Date): string {
   return date.toLocaleTimeString('pt-BR', { hour12: false })
 }
 
-function getEmbedUrl(shareLink: string): string {
-  if (!shareLink) return ''
-  try {
-    const url = new URL(shareLink)
-    url.searchParams.delete('e')
-    url.searchParams.delete('email')
-    url.searchParams.set('action', 'embedview')
-    return url.toString()
-  } catch {
-    const separator = shareLink.includes('?') ? '&' : '?'
-    return `${shareLink}${separator}action=embedview`
-  }
-}
-
 export default function FormsOnline() {
   const [activeTab, setActiveTab] = useState('pf')
   const [data, setData] = useState<any[]>([])
@@ -142,9 +129,8 @@ export default function FormsOnline() {
   const [currentShareLink, setCurrentShareLink] = useState<string | null>(null)
   const [currentSheetName, setCurrentSheetName] = useState<string>('Sheet1')
   const [syncedData, setSyncedData] = useState<any[] | null>(null)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
-  const [previewLoading, setPreviewLoading] = useState(false)
-  const [previewError, setPreviewError] = useState<string | null>(null)
+  const [syncLoading, setSyncLoading] = useState(false)
+  const [syncError, setSyncError] = useState<string | null>(null)
   const { toast } = useToast()
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -235,8 +221,8 @@ export default function FormsOnline() {
   useEffect(() => {
     loadData(activeTab)
     setSearch('')
-    setPreviewUrl(null)
-    setPreviewError(null)
+    setSyncedData(null)
+    setSyncError(null)
   }, [activeTab])
 
   useEffect(() => {
@@ -264,24 +250,17 @@ export default function FormsOnline() {
       return
     }
     setSyncDialogOpen(true)
-    setPreviewLoading(true)
-    setPreviewError(null)
-    setPreviewUrl(null)
+    setSyncLoading(true)
+    setSyncError(null)
     setSyncedData(null)
 
     const result = await m365Service.syncWithSession(currentShareLink, currentSheetName)
-    if (result.previewUrl) {
-      setPreviewUrl(result.previewUrl)
-      if (result.data && result.data.length > 0) {
-        setSyncedData(result.data)
-      }
+    if (result.error) {
+      setSyncError(result.error)
     } else {
-      setPreviewError(
-        result.error ||
-          'Não foi possível carregar a planilha. Verifique sua conexão com o Microsoft 365.',
-      )
+      setSyncedData(result.data || [])
     }
-    setPreviewLoading(false)
+    setSyncLoading(false)
   }
 
   const handleSyncDialogClose = (open: boolean) => {
@@ -415,28 +394,12 @@ export default function FormsOnline() {
             Aguarde o carregamento completo da planilha para garantir a sincronização dos dados.
             Após o carregamento, você pode fechar esta janela para ver a lista atualizada.
           </p>
-          {previewLoading && (
-            <div className="w-full h-[60vh] flex flex-col items-center justify-center gap-3 bg-gray-50 rounded-md">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-sm text-gray-500">Carregando planilha via Microsoft Graph...</p>
-            </div>
-          )}
-          {previewError && !previewLoading && (
-            <div className="w-full h-[60vh] flex flex-col items-center justify-center gap-3 bg-red-50 rounded-md p-6 text-center">
-              <AlertCircle className="h-8 w-8 text-red-500" />
-              <p className="text-sm text-red-700 max-w-md">{previewError}</p>
-              <p className="text-xs text-gray-500">
-                Certifique-se de estar autenticado no Microsoft 365 nas Configurações do sistema.
-              </p>
-            </div>
-          )}
-          {previewUrl && !previewLoading && (
-            <iframe
-              src={previewUrl}
-              className="w-full h-[60vh] border-0 rounded-md"
-              title="Excel Online"
-            />
-          )}
+          <SyncPreviewTable
+            data={syncedData}
+            loading={syncLoading}
+            error={syncError}
+            onRetry={handleSyncClick}
+          />
         </DialogContent>
       </Dialog>
     </div>
