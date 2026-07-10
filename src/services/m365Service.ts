@@ -56,35 +56,49 @@ const fetchWorksheet = async (
   return parseWorksheetRows(await rangeRes.json())
 }
 
-const fetchTableRows = async (
-  itemBaseUrl: string,
-  sessionHeaders: Record<string, string>,
-): Promise<any[] | null> => {
+const fetchTableRows = async (itemBaseUrl: string): Promise<any[] | null> => {
   try {
-    const tablesRes = await fetchWithAuth(`${itemBaseUrl}/workbook/tables`, {
-      headers: sessionHeaders,
-    })
+    const tablesRes = await fetchWithAuth(`${itemBaseUrl}/workbook/tables`)
     if (!tablesRes.ok) return null
 
     const tablesData = await tablesRes.json()
     const tables = tablesData.value || []
     if (tables.length === 0) return null
 
-    const allRows: any[] = []
-    for (const table of tables) {
-      const tableName = table.name
-      const rangeRes = await fetchWithAuth(
-        `${itemBaseUrl}/workbook/tables('${encodeURIComponent(tableName)}')/range`,
-        { headers: sessionHeaders },
-      )
-      if (rangeRes.ok) {
-        const rangeData = await rangeRes.json()
-        const rows = parseWorksheetRows(rangeData)
-        allRows.push(...rows)
-      }
+    const tableName = tables[0].name
+    const encodedTableName = encodeURIComponent(tableName)
+
+    const headerRes = await fetchWithAuth(
+      `${itemBaseUrl}/workbook/tables('${encodedTableName}')/headerRowRange`,
+    )
+    if (!headerRes.ok) return null
+
+    const headerData = await headerRes.json()
+    const headers = headerData.values?.[0] || []
+
+    const rowsRes = await fetchWithAuth(
+      `${itemBaseUrl}/workbook/tables('${encodedTableName}')/rows`,
+    )
+    if (!rowsRes.ok) return null
+
+    const rowsData = await rowsRes.json()
+    const tableRows = rowsData.value || []
+
+    const data: any[] = []
+    for (const tableRow of tableRows) {
+      const values = tableRow.values?.[0] || []
+      const obj: any = {}
+      let hasData = false
+      headers.forEach((header: string, index: number) => {
+        if (header) {
+          obj[header] = values[index]
+          if (values[index] !== null && values[index] !== '') hasData = true
+        }
+      })
+      if (hasData) data.push(obj)
     }
 
-    return allRows.length > 0 ? allRows : null
+    return data.length > 0 ? data : null
   } catch {
     return null
   }
@@ -108,9 +122,6 @@ export const m365Service = {
   ): Promise<FetchResult> => {
     const token = getGraphToken()
     if (!token) return { data: [], error: NO_TOKEN_ERROR }
-
-    let sessionId: string | null = null
-    let sessionCloseUrl: string | null = null
 
     try {
       const encodedLink = encodeSharingUrl(sharingUrl)
@@ -142,33 +153,8 @@ export const m365Service = {
       if (!driveId || !itemId) return { data: [], error: NOT_FOUND_ERROR }
 
       const itemBaseUrl = `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${itemId}`
-      sessionCloseUrl = `${itemBaseUrl}/workbook/closeSession`
 
-      const sessionRes = await fetchWithAuth(`${itemBaseUrl}/workbook/createSession`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ persistChanges: false }),
-      })
-      if (sessionRes.ok) {
-        const sessionData = await sessionRes.json()
-        sessionId = sessionData.id
-      }
-
-      if (sessionId) {
-        try {
-          await fetchWithAuth(`${itemBaseUrl}/workbook/refreshSession`, {
-            method: 'POST',
-            headers: { 'workbook-session-id': sessionId },
-          })
-        } catch {
-          // ignore refresh session errors — proceed with data fetch
-        }
-      }
-
-      const sessionHeaders: Record<string, string> = {}
-      if (sessionId) sessionHeaders['workbook-session-id'] = sessionId
-
-      const tableRows = await fetchTableRows(itemBaseUrl, sessionHeaders)
+      const tableRows = await fetchTableRows(itemBaseUrl)
       if (tableRows) {
         return { data: tableRows, error: null }
       }
@@ -176,7 +162,6 @@ export const m365Service = {
       const encodedSheet = encodeURIComponent(worksheetName)
       const rangeRes = await fetchWithAuth(
         `${itemBaseUrl}/workbook/worksheets('${encodedSheet}')/usedRange`,
-        { headers: sessionHeaders },
       )
 
       if (rangeRes.ok) {
@@ -184,9 +169,7 @@ export const m365Service = {
         return { data: parseWorksheetRows(rangeData), error: null }
       }
 
-      const worksheetsRes = await fetchWithAuth(`${itemBaseUrl}/workbook/worksheets`, {
-        headers: sessionHeaders,
-      })
+      const worksheetsRes = await fetchWithAuth(`${itemBaseUrl}/workbook/worksheets`)
       if (worksheetsRes.ok) {
         const worksheetsData = await worksheetsRes.json()
         const worksheets = worksheetsData.value || []
@@ -198,7 +181,6 @@ export const m365Service = {
         const firstSheetName = worksheets[0].name
         const firstRangeRes = await fetchWithAuth(
           `${itemBaseUrl}/workbook/worksheets('${encodeURIComponent(firstSheetName)}')/usedRange`,
-          { headers: sessionHeaders },
         )
 
         if (firstRangeRes.ok) {
@@ -220,17 +202,6 @@ export const m365Service = {
       console.warn('Failed to fetch Excel rows via share link:', e)
       const errorMsg = e?.message || NOT_FOUND_ERROR
       return { data: [], error: errorMsg }
-    } finally {
-      if (sessionId && sessionCloseUrl) {
-        try {
-          await fetchWithAuth(sessionCloseUrl, {
-            method: 'POST',
-            headers: { 'workbook-session-id': sessionId },
-          })
-        } catch {
-          // silently ignore session close errors
-        }
-      }
     }
   },
 
