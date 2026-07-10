@@ -33,6 +33,7 @@ const TAB_CONFIGS: Record<string, TabConfig> = {
 const COLUMN_MAPPINGS: Record<string, string> = {
   'nome completo': 'full_name',
   nome: 'full_name',
+  nome1: 'full_name',
   name: 'full_name',
   cpf: 'cpf',
   cnpj: 'cnpj',
@@ -50,6 +51,7 @@ const COLUMN_MAPPINGS: Record<string, string> = {
   'data/hora': 'created_at',
   'data de início': 'created_at',
   'data de inicio': 'created_at',
+  'data inicio': 'created_at',
   'data/hora de início': 'created_at',
   'link dos documentos': 'documents_link',
   documentos: 'documents_link',

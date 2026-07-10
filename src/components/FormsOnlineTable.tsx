@@ -63,15 +63,6 @@ function renderSortIcon(column: SortColumn, sortCol: SortColumn, sortDir: SortDi
   )
 }
 
-function formatDateTime(value: string | null): string {
-  if (!value) return '-'
-  try {
-    return new Date(value).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })
-  } catch {
-    return value
-  }
-}
-
 function getStatusBadgeClass(status: string): string {
   const s = (status || '').toLowerCase()
   if (s === 'aprovado') return 'bg-green-100 text-green-800'
@@ -93,7 +84,7 @@ function renderFormDetails(row: any) {
           const value = row[key]
           if (value === null || value === undefined || value === '') return null
           const label = FIELD_LABELS[key] || key
-          const displayValue = key === 'created_at' ? formatDateTime(value) : String(value)
+          const displayValue = String(value)
           return (
             <div key={key} className="space-y-1">
               <p className="text-sm font-medium text-gray-500">{label}</p>
@@ -206,7 +197,7 @@ export function FormsOnlineTable({
             data.map((row, idx) => (
               <TableRow key={row.id || idx}>
                 <TableCell className="font-medium">{row.full_name || 'N/A'}</TableCell>
-                <TableCell>{formatDateTime(row.created_at)}</TableCell>
+                <TableCell>{row.created_at || '-'}</TableCell>
                 <TableCell>
                   <span
                     className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeClass(row.status || '')}`}
