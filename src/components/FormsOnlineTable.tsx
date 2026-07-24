@@ -66,7 +66,17 @@ const DATE_ONLY_KEYWORDS = [
   'vencimento',
   'data de',
 ]
-const DATETIME_KEYWORDS = ['hora', 'time', 'início', 'inicio', 'start']
+const DATETIME_KEYWORDS = [
+  'hora',
+  'time',
+  'início',
+  'inicio',
+  'start',
+  'conclusão',
+  'conclusao',
+  'fim',
+  'end',
+]
 
 function isDateOnlyField(key: string): boolean {
   const lower = key.toLowerCase()

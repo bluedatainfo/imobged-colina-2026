@@ -1,20 +1,63 @@
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
+import { TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Loader2, AlertCircle } from 'lucide-react'
+import { formatExcelDateTime, formatExcelDate } from '@/lib/date-utils'
 
 interface SyncPreviewTableProps {
   data: any[] | null
   loading: boolean
   error: string | null
   onRetry: () => void
+}
+
+const DATE_ONLY_KEYWORDS = [
+  'nascimento',
+  'birth',
+  'validade',
+  'emissão',
+  'emissao',
+  'expedição',
+  'expedicao',
+  'vencimento',
+  'data de',
+]
+const DATETIME_KEYWORDS = [
+  'hora',
+  'time',
+  'início',
+  'inicio',
+  'start',
+  'conclusão',
+  'conclusao',
+  'fim',
+  'end',
+]
+
+function isDateOnlyField(key: string): boolean {
+  const lower = key.toLowerCase()
+  return (
+    DATE_ONLY_KEYWORDS.some((kw) => lower.includes(kw)) &&
+    !DATETIME_KEYWORDS.some((kw) => lower.includes(kw))
+  )
+}
+
+function isDateTimeField(key: string): boolean {
+  const lower = key.toLowerCase()
+  return DATETIME_KEYWORDS.some((kw) => lower.includes(kw))
+}
+
+function formatPreviewValue(key: string, value: unknown): string {
+  if (value === null || value === undefined || value === '') return '-'
+
+  if (isDateTimeField(key)) {
+    return formatExcelDateTime(value)
+  }
+
+  if (isDateOnlyField(key)) {
+    return formatExcelDate(value)
+  }
+
+  return String(value)
 }
 
 export function SyncPreviewTable({ data, loading, error, onRetry }: SyncPreviewTableProps) {
@@ -61,17 +104,14 @@ export function SyncPreviewTable({ data, loading, error, onRetry }: SyncPreviewT
         {data.length} registro(s) encontrado(s) na planilha. Feche esta janela para visualizar os
         dados normalizados na lista principal.
       </p>
-      <div className="border rounded-md">
-        <ScrollArea className="w-full h-[50vh]">
-          <Table>
-            <TableHeader>
+      <div className="border rounded-md bg-white">
+        <div className="h-[50vh] overflow-auto w-full relative">
+          <table className="w-full caption-bottom text-sm">
+            <TableHeader className="sticky top-0 z-20 bg-gray-50 shadow-[0_1px_0_0_#e5e7eb]">
               <TableRow>
-                <TableHead className="sticky top-0 bg-gray-50 z-10">#</TableHead>
+                <TableHead className="whitespace-nowrap w-12 font-semibold">#</TableHead>
                 {headers.map((header) => (
-                  <TableHead
-                    key={header}
-                    className="sticky top-0 bg-gray-50 z-10 whitespace-nowrap"
-                  >
+                  <TableHead key={header} className="whitespace-nowrap font-semibold">
                     {header}
                   </TableHead>
                 ))}
@@ -79,7 +119,7 @@ export function SyncPreviewTable({ data, loading, error, onRetry }: SyncPreviewT
             </TableHeader>
             <TableBody>
               {data.map((row, idx) => (
-                <TableRow key={idx}>
+                <TableRow key={idx} className="hover:bg-gray-50/50">
                   <TableCell className="text-gray-400 text-xs whitespace-nowrap">
                     {idx + 1}
                   </TableCell>
@@ -87,16 +127,15 @@ export function SyncPreviewTable({ data, loading, error, onRetry }: SyncPreviewT
                     const val = row[header]
                     return (
                       <TableCell key={header} className="whitespace-nowrap text-sm">
-                        {val !== null && val !== undefined && val !== '' ? String(val) : '-'}
+                        {formatPreviewValue(header, val)}
                       </TableCell>
                     )
                   })}
                 </TableRow>
               ))}
             </TableBody>
-          </Table>
-          <ScrollBar orientation="horizontal" />
-        </ScrollArea>
+          </table>
+        </div>
       </div>
     </div>
   )
