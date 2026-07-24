@@ -38,7 +38,7 @@ const KeysControl = lazy(() => import('./pages/KeysControl'))
 const Maintenance = lazy(() => import('./pages/Maintenance'))
 const Entities = lazy(() => import('./pages/Entities'))
 const Candidates = lazy(() => import('./pages/Candidates'))
-const FormsOnline = lazy(() => import('./pages/FormsOnline'))
+
 const SyncMonitor = lazy(() => import('./pages/SyncMonitor'))
 const AccessDenied = lazy(() => import('./pages/AccessDenied'))
 const Portal = lazy(() => import('./pages/Portal'))
@@ -55,7 +55,6 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
   const hasAccess =
     location.pathname === '/candidates' ||
-    location.pathname === '/forms-online' ||
     location.pathname === '/ongoing-contracts' ||
     checkAccess(location.pathname, user.role)
   if (!hasAccess) return <Navigate to="/access-denied" replace />
@@ -101,7 +100,6 @@ const AppRoutes = () => (
         <Route path="/maintenance" element={<Maintenance />} />
         <Route path="/entities" element={<Entities />} />
         <Route path="/candidates" element={<Candidates />} />
-        <Route path="/forms-online" element={<FormsOnline />} />
         <Route path="/sync-monitor" element={<SyncMonitor />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/templates" element={<Templates />} />

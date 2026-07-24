@@ -42,7 +42,6 @@ import { useModulesStore } from '@/stores/modules'
 
 const navigation = [
   { title: 'Painel', url: '/', icon: LayoutDashboard },
-  { title: 'Formulários OnLine', url: '/forms-online', icon: ClipboardList },
   { title: 'Gestão de Interessados', url: '/candidates', icon: UserPlus },
   { title: 'Documentos GED', url: '/documents', icon: FolderOpen },
   { title: 'Documentos Adicionais', url: '/additional-documents', icon: FilePlus },
@@ -94,7 +93,6 @@ export function AppSidebar() {
   const visibleNavigation = navigation.filter((item) => {
     if (
       item.url !== '/candidates' &&
-      item.url !== '/forms-online' &&
       item.url !== '/ongoing-contracts' &&
       !checkAccess(item.url, user?.role)
     )
