@@ -32,22 +32,52 @@ const DATETIME_KEYWORDS = [
   'fim',
   'end',
 ]
+const ADDRESS_KEYWORDS = [
+  'endereço',
+  'endereco',
+  'address',
+  'logradouro',
+  'rua',
+  'avenida',
+  'av ',
+  'bairro',
+  'cidade',
+  'estado',
+  'cep',
+  'complemento',
+  'número',
+  'numero',
+  'apartamento',
+  'ap ',
+  'bloco',
+  'torre',
+]
+
+function isAddressField(key: string): boolean {
+  const lower = key.toLowerCase().trim()
+  return ADDRESS_KEYWORDS.some((kw) => lower.includes(kw))
+}
 
 function isDateOnlyField(key: string): boolean {
   const lower = key.toLowerCase()
   return (
     DATE_ONLY_KEYWORDS.some((kw) => lower.includes(kw)) &&
-    !DATETIME_KEYWORDS.some((kw) => lower.includes(kw))
+    !DATETIME_KEYWORDS.some((kw) => lower.includes(kw)) &&
+    !isAddressField(key)
   )
 }
 
 function isDateTimeField(key: string): boolean {
   const lower = key.toLowerCase()
-  return DATETIME_KEYWORDS.some((kw) => lower.includes(kw))
+  return DATETIME_KEYWORDS.some((kw) => lower.includes(kw)) && !isAddressField(key)
 }
 
 function formatPreviewValue(key: string, value: unknown): string {
   if (value === null || value === undefined || value === '') return '-'
+
+  if (isAddressField(key)) {
+    return String(value)
+  }
 
   if (isDateTimeField(key)) {
     return formatExcelDateTime(value)
@@ -105,8 +135,8 @@ export function SyncPreviewTable({ data, loading, error, onRetry }: SyncPreviewT
         dados normalizados na lista principal.
       </p>
       <div className="border rounded-md bg-white">
-        <div className="h-[50vh] overflow-auto w-full relative">
-          <table className="w-full caption-bottom text-sm">
+        <div className="h-[50vh] overflow-auto w-full relative [direction:rtl]">
+          <table className="w-full caption-bottom text-sm [direction:ltr]">
             <TableHeader className="sticky top-0 z-20 bg-gray-50 shadow-[0_1px_0_0_#e5e7eb]">
               <TableRow>
                 <TableHead className="whitespace-nowrap w-12 font-semibold">#</TableHead>

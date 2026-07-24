@@ -77,23 +77,53 @@ const DATETIME_KEYWORDS = [
   'fim',
   'end',
 ]
+const ADDRESS_KEYWORDS = [
+  'endereço',
+  'endereco',
+  'address',
+  'logradouro',
+  'rua',
+  'avenida',
+  'av ',
+  'bairro',
+  'cidade',
+  'estado',
+  'cep',
+  'complemento',
+  'número',
+  'numero',
+  'apartamento',
+  'ap ',
+  'bloco',
+  'torre',
+]
+
+function isAddressField(key: string): boolean {
+  const lower = key.toLowerCase().trim()
+  return ADDRESS_KEYWORDS.some((kw) => lower.includes(kw))
+}
 
 function isDateOnlyField(key: string): boolean {
   const lower = key.toLowerCase()
   return (
     DATE_ONLY_KEYWORDS.some((kw) => lower.includes(kw)) &&
-    !DATETIME_KEYWORDS.some((kw) => lower.includes(kw))
+    !DATETIME_KEYWORDS.some((kw) => lower.includes(kw)) &&
+    !isAddressField(key)
   )
 }
 
 function isDateTimeField(key: string): boolean {
   const lower = key.toLowerCase()
-  return DATETIME_KEYWORDS.some((kw) => lower.includes(kw))
+  return DATETIME_KEYWORDS.some((kw) => lower.includes(kw)) && !isAddressField(key)
 }
 
 function formatFieldValue(key: string, value: unknown): string {
   if (value === null || value === undefined || value === '') return '-'
   const keyLower = key.toLowerCase()
+
+  if (isAddressField(key)) {
+    return String(value)
+  }
 
   if (keyLower === 'created_at') {
     return formatExcelDateTime(value)
