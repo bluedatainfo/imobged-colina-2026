@@ -1,7 +1,7 @@
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Loader2, AlertCircle } from 'lucide-react'
-import { formatExcelDateTime, formatExcelDate } from '@/lib/date-utils'
+import { formatExcelDateTime, formatExcelDate, getExcelTimestamp } from '@/lib/date-utils'
 
 interface SyncPreviewTableProps {
   data: any[] | null
@@ -128,11 +128,25 @@ export function SyncPreviewTable({ data, loading, error, onRetry }: SyncPreviewT
 
   const headers = Object.keys(data[0])
 
+  const sortKey = headers.find(
+    (h) =>
+      isDateTimeField(h) ||
+      h.toLowerCase().includes('hora de início') ||
+      h.toLowerCase().includes('hora de inicio'),
+  )
+
+  const sortedData = sortKey
+    ? [...data].sort((a, b) => getExcelTimestamp(a[sortKey]) - getExcelTimestamp(b[sortKey]))
+    : data
+
   return (
     <div className="w-full">
       <p className="text-sm text-gray-500 mb-3">
-        {data.length} registro(s) encontrado(s) na planilha. Feche esta janela para visualizar os
-        dados normalizados na lista principal.
+        {sortedData.length} registro(s) encontrado(s) na planilha. Feche esta janela para visualizar
+        os dados normalizados na lista principal.
+        {sortKey && (
+          <span className="block text-xs mt-1">Ordenado por "{sortKey}" (crescente).</span>
+        )}
       </p>
       <div className="border rounded-md bg-white">
         <div className="h-[50vh] overflow-auto w-full relative [direction:rtl]">
@@ -148,7 +162,7 @@ export function SyncPreviewTable({ data, loading, error, onRetry }: SyncPreviewT
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.map((row, idx) => (
+              {sortedData.map((row, idx) => (
                 <TableRow key={idx} className="hover:bg-gray-50/50">
                   <TableCell className="text-gray-400 text-xs whitespace-nowrap">
                     {idx + 1}
