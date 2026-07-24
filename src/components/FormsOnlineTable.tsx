@@ -65,6 +65,13 @@ const DATE_ONLY_KEYWORDS = [
   'expedicao',
   'vencimento',
   'data de',
+  'abertura',
+  'opening',
+  'fundação',
+  'fundacao',
+  'founding',
+  'constituição',
+  'constituicao',
 ]
 const DATETIME_KEYWORDS = [
   'hora',
@@ -247,72 +254,76 @@ export function FormsOnlineTable({
 
   return (
     <div className="bg-white border rounded-md shadow-sm">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>
-              <button
-                type="button"
-                onClick={() => onToggleSort('nome')}
-                className="inline-flex items-center font-medium hover:text-primary transition-colors"
-              >
-                Nome
-                {renderSortIcon('nome', sortColumn, sortDirection)}
-              </button>
-            </TableHead>
-            <TableHead>
-              <button
-                type="button"
-                onClick={() => onToggleSort('datetime')}
-                className="inline-flex items-center font-medium hover:text-primary transition-colors"
-              >
-                Data/Hora de Início
-                {renderSortIcon('datetime', sortColumn, sortDirection)}
-              </button>
-            </TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead className="text-right">Ações</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {data.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={4} className="text-center h-24 text-gray-500">
-                Nenhum registro encontrado.
-              </TableCell>
-            </TableRow>
-          ) : (
-            data.map((row, idx) => (
-              <TableRow key={row.id || idx}>
-                <TableCell className="font-medium">{row.full_name || 'N/A'}</TableCell>
-                <TableCell>{formatExcelDateTime(row.created_at)}</TableCell>
-                <TableCell>
-                  <span
-                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeClass(row.status || '')}`}
+      <div className="overflow-auto max-h-[70vh]" style={{ direction: 'rtl' }}>
+        <div className="[&>div]:!overflow-visible" style={{ direction: 'ltr' }}>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>
+                  <button
+                    type="button"
+                    onClick={() => onToggleSort('nome')}
+                    className="inline-flex items-center font-medium hover:text-primary transition-colors"
                   >
-                    {row.status || 'Novo'}
-                  </span>
-                </TableCell>
-                <TableCell className="text-right">
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button variant="ghost" size="sm" onClick={() => setSelectedRow(row)}>
-                        Ver Detalhes
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-                      <DialogHeader>
-                        <DialogTitle>Detalhes do Formulário</DialogTitle>
-                      </DialogHeader>
-                      {selectedRow && renderFormDetails(selectedRow)}
-                    </DialogContent>
-                  </Dialog>
-                </TableCell>
+                    Nome
+                    {renderSortIcon('nome', sortColumn, sortDirection)}
+                  </button>
+                </TableHead>
+                <TableHead>
+                  <button
+                    type="button"
+                    onClick={() => onToggleSort('datetime')}
+                    className="inline-flex items-center font-medium hover:text-primary transition-colors"
+                  >
+                    Data/Hora de Início
+                    {renderSortIcon('datetime', sortColumn, sortDirection)}
+                  </button>
+                </TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
               </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
+            </TableHeader>
+            <TableBody>
+              {data.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center h-24 text-gray-500">
+                    Nenhum registro encontrado.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                data.map((row, idx) => (
+                  <TableRow key={row.id || idx}>
+                    <TableCell className="font-medium">{row.full_name || 'N/A'}</TableCell>
+                    <TableCell>{formatExcelDateTime(row.created_at)}</TableCell>
+                    <TableCell>
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeClass(row.status || '')}`}
+                      >
+                        {row.status || 'Novo'}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="ghost" size="sm" onClick={() => setSelectedRow(row)}>
+                            Ver Detalhes
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                          <DialogHeader>
+                            <DialogTitle>Detalhes do Formulário</DialogTitle>
+                          </DialogHeader>
+                          {selectedRow && renderFormDetails(selectedRow)}
+                        </DialogContent>
+                      </Dialog>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
     </div>
   )
 }

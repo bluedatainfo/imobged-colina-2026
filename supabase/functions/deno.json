@@ -1,7 +1,7 @@
 {
   "_versions": {
-    "send-teams-notification": 3,
-    "receive-pre-registration": 5,
+    "send-teams-notification": 4,
+    "receive-pre-registration": 6,
     "send-rejection-email": 1
   }
 }
