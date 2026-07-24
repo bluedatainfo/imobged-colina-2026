@@ -136,7 +136,7 @@ export function SyncPreviewTable({ data, loading, error, onRetry }: SyncPreviewT
   )
 
   const sortedData = sortKey
-    ? [...data].sort((a, b) => getExcelTimestamp(a[sortKey]) - getExcelTimestamp(b[sortKey]))
+    ? [...data].sort((a, b) => getExcelTimestamp(b[sortKey]) - getExcelTimestamp(a[sortKey]))
     : data
 
   return (
@@ -145,7 +145,7 @@ export function SyncPreviewTable({ data, loading, error, onRetry }: SyncPreviewT
         {sortedData.length} registro(s) encontrado(s) na planilha. Feche esta janela para visualizar
         os dados normalizados na lista principal.
         {sortKey && (
-          <span className="block text-xs mt-1">Ordenado por "{sortKey}" (crescente).</span>
+          <span className="block text-xs mt-1">Ordenado por "{sortKey}" (decrescente).</span>
         )}
       </p>
       <div className="border rounded-md bg-white">
