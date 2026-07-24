@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   candidatesService,
   PreRegistration,
@@ -34,6 +34,9 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
 import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
   Download,
   ExternalLink,
   Loader2,
@@ -65,6 +68,8 @@ const STATUS_OPTIONS: PreRegistrationStatus[] = [
   'Reprovado',
 ]
 
+type SortDirection = 'desc' | 'asc' | null
+
 export default function Candidates() {
   const [candidates, setCandidates] = useState<PreRegistration[]>([])
   const [loading, setLoading] = useState(true)
@@ -76,23 +81,31 @@ export default function Candidates() {
   const [processDialogOpen, setProcessDialogOpen] = useState(false)
   const [existingProcessDialogOpen, setExistingProcessDialogOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
+  const [sortDirection, setSortDirection] = useState<SortDirection>(null)
 
-  const fetchCandidates = async () => {
+  const fetchCandidates = useCallback(async (silent = false) => {
     try {
-      setLoading(true)
+      if (!silent) setLoading(true)
       const data = await candidatesService.getCandidates()
       setCandidates(data)
     } catch (error) {
       console.error(error)
-      toast.error('Erro ao carregar interessados')
+      if (!silent) toast.error('Erro ao carregar interessados')
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     fetchCandidates()
-  }, [])
+  }, [fetchCandidates])
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchCandidates(true)
+    }, 15000)
+    return () => clearInterval(interval)
+  }, [fetchCandidates])
 
   const handleSync = async () => {
     try {
@@ -103,7 +116,7 @@ export default function Candidates() {
       } else {
         toast.info('Nenhum novo registro encontrado no SharePoint.')
       }
-      await fetchCandidates()
+      await fetchCandidates(true)
     } catch (error) {
       console.error(error)
       toast.error('Erro ao sincronizar com o SharePoint.')
@@ -159,17 +172,38 @@ export default function Candidates() {
     setIsDrawerOpen(true)
   }
 
-  const filteredCandidates = candidates.filter((c) => {
-    if ((c.category || 'PF') !== activeTab) return false
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase()
-      const matchCode = c.code?.toLowerCase().includes(term)
-      const matchName = c.full_name?.toLowerCase().includes(term)
-      const matchDoc = c.cpf?.includes(term) || c.cnpj?.includes(term)
-      return matchCode || matchName || matchDoc
-    }
-    return true
-  })
+  const toggleSort = () => {
+    setSortDirection((prev) => {
+      if (prev === null) return 'desc'
+      if (prev === 'desc') return 'asc'
+      return 'desc'
+    })
+  }
+
+  const filteredCandidates = useMemo(() => {
+    return candidates.filter((c) => {
+      if ((c.category || 'PF') !== activeTab) return false
+      if (searchTerm) {
+        const term = searchTerm.toLowerCase()
+        const matchCode = c.code?.toLowerCase().includes(term)
+        const matchName = c.full_name?.toLowerCase().includes(term)
+        const matchDoc = c.cpf?.includes(term) || c.cnpj?.includes(term)
+        return matchCode || matchName || matchDoc
+      }
+      return true
+    })
+  }, [candidates, activeTab, searchTerm])
+
+  const sortedCandidates = useMemo(() => {
+    if (!sortDirection) return filteredCandidates
+    const sorted = [...filteredCandidates]
+    sorted.sort((a, b) => {
+      const dateA = new Date(a.created_at).getTime()
+      const dateB = new Date(b.created_at).getTime()
+      return sortDirection === 'desc' ? dateB - dateA : dateA - dateB
+    })
+    return sorted
+  }, [filteredCandidates, sortDirection])
 
   if (loading && candidates.length === 0) {
     return (
@@ -216,66 +250,82 @@ export default function Candidates() {
         </TabsList>
 
         <TabsContent value={activeTab} className="space-y-4">
-          <div className="rounded-md border bg-card">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Código</TableHead>
-                  <TableHead>Data de Entrada</TableHead>
-                  <TableHead>{activeTab === 'PJ' ? 'Razão Social' : 'Nome'}</TableHead>
-                  <TableHead>{activeTab === 'PJ' ? 'CNPJ' : 'CPF'}</TableHead>
-                  <TableHead>{activeTab === 'PJ' ? 'Endereço' : 'Contato'}</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredCandidates.length === 0 ? (
+          <div className="rounded-md border bg-card overflow-hidden">
+            <div className="[direction:rtl] overflow-y-auto max-h-[60vh]">
+              <Table className="[direction:ltr]">
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                      Nenhum registro encontrado nesta categoria.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredCandidates.map((candidate) => (
-                    <TableRow
-                      key={candidate.id}
-                      className="cursor-pointer hover:bg-muted/50 transition-colors"
-                      onClick={() => openCandidateDetails(candidate)}
+                    <TableHead>Código</TableHead>
+                    <TableHead
+                      className="cursor-pointer select-none hover:bg-muted/50"
+                      onClick={toggleSort}
                     >
-                      <TableCell className="font-medium text-slate-900">
-                        {candidate.code || '-'}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        {format(new Date(candidate.created_at), 'dd/MM/yyyy HH:mm', {
-                          locale: ptBR,
-                        })}
-                      </TableCell>
-                      <TableCell className="font-medium">{candidate.full_name}</TableCell>
-                      <TableCell>
-                        {activeTab === 'PJ' ? candidate.cnpj || '-' : candidate.cpf || '-'}
-                      </TableCell>
-                      <TableCell>
-                        {activeTab === 'PJ' ? (
-                          <span className="text-sm truncate max-w-[200px] block">
-                            {candidate.address || '-'}
-                          </span>
-                        ) : (
-                          <div className="flex flex-col text-sm">
-                            <span>{candidate.email || '-'}</span>
-                            <span className="text-muted-foreground">{candidate.phone || '-'}</span>
-                          </div>
+                      <div className="flex items-center gap-1">
+                        Data de Entrada
+                        {sortDirection === 'desc' && <ArrowDown className="h-3 w-3" />}
+                        {sortDirection === 'asc' && <ArrowUp className="h-3 w-3" />}
+                        {sortDirection === null && (
+                          <ArrowUpDown className="h-3 w-3 text-muted-foreground/50" />
                         )}
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={STATUS_COLORS[candidate.status]}>
-                          {candidate.status}
-                        </Badge>
+                      </div>
+                    </TableHead>
+                    <TableHead>{activeTab === 'PJ' ? 'Razão Social' : 'Nome'}</TableHead>
+                    <TableHead>{activeTab === 'PJ' ? 'CNPJ' : 'CPF'}</TableHead>
+                    <TableHead>{activeTab === 'PJ' ? 'Endereço' : 'Contato'}</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sortedCandidates.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                        Nenhum registro encontrado nesta categoria.
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                  ) : (
+                    sortedCandidates.map((candidate) => (
+                      <TableRow
+                        key={candidate.id}
+                        className="cursor-pointer hover:bg-muted/50 transition-colors"
+                        onClick={() => openCandidateDetails(candidate)}
+                      >
+                        <TableCell className="font-medium text-slate-900">
+                          {candidate.code || '-'}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {format(new Date(candidate.created_at), 'dd/MM/yyyy HH:mm', {
+                            locale: ptBR,
+                          })}
+                        </TableCell>
+                        <TableCell className="font-medium">{candidate.full_name}</TableCell>
+                        <TableCell>
+                          {activeTab === 'PJ' ? candidate.cnpj || '-' : candidate.cpf || '-'}
+                        </TableCell>
+                        <TableCell>
+                          {activeTab === 'PJ' ? (
+                            <span className="text-sm truncate max-w-[200px] block">
+                              {candidate.address || '-'}
+                            </span>
+                          ) : (
+                            <div className="flex flex-col text-sm">
+                              <span>{candidate.email || '-'}</span>
+                              <span className="text-muted-foreground">
+                                {candidate.phone || '-'}
+                              </span>
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={STATUS_COLORS[candidate.status]}>
+                            {candidate.status}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </div>
         </TabsContent>
       </Tabs>
@@ -623,7 +673,7 @@ export default function Candidates() {
         candidate={selectedCandidate}
         onSuccess={() => {
           setProcessDialogOpen(false)
-          fetchCandidates()
+          fetchCandidates(true)
         }}
       />
 
@@ -633,7 +683,7 @@ export default function Candidates() {
         candidate={selectedCandidate}
         onSuccess={() => {
           setExistingProcessDialogOpen(false)
-          fetchCandidates()
+          fetchCandidates(true)
         }}
       />
     </div>
