@@ -138,6 +138,8 @@ export default function FormsOnline() {
   const [syncedData, setSyncedData] = useState<any[] | null>(null)
   const [syncLoading, setSyncLoading] = useState(false)
   const [syncError, setSyncError] = useState<string | null>(null)
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
   const { toast } = useToast()
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -228,6 +230,8 @@ export default function FormsOnline() {
   useEffect(() => {
     loadData(activeTab)
     setSearch('')
+    setDateFrom('')
+    setDateTo('')
     setSyncedData(null)
     setSyncError(null)
   }, [activeTab])
@@ -300,12 +304,21 @@ export default function FormsOnline() {
 
   const filteredData = useMemo(() => {
     const searchLower = search.toLowerCase()
+    const fromTime = dateFrom ? new Date(dateFrom + 'T00:00:00').getTime() : null
+    const toTime = dateTo ? new Date(dateTo + 'T23:59:59').getTime() : null
     const filtered = data.filter((item) => {
       const flatValues = [
         ...Object.values(item).filter((v) => typeof v !== 'object' || v === null),
         JSON.stringify(item.form_data || {}),
       ]
-      return flatValues.some((val) => String(val).toLowerCase().includes(searchLower))
+      const matchesSearch = flatValues.some((val) =>
+        String(val).toLowerCase().includes(searchLower),
+      )
+      if (!matchesSearch) return false
+      const recordTime = getExcelTimestamp(item.created_at)
+      if (fromTime !== null && recordTime < fromTime) return false
+      if (toTime !== null && recordTime > toTime) return false
+      return true
     })
     return [...filtered].sort((a, b) => {
       const aVal =
@@ -318,8 +331,7 @@ export default function FormsOnline() {
           : (aVal as number) - (bVal as number)
       return sortDirection === 'asc' ? cmp : -cmp
     })
-  }, [data, search, sortColumn, sortDirection])
-
+  }, [data, search, sortColumn, sortDirection, dateFrom, dateTo])
   const tableProps = {
     data: filteredData,
     loading,
@@ -363,8 +375,8 @@ export default function FormsOnline() {
         </div>
       </div>
 
-      <div className="flex items-center space-x-2">
-        <div className="relative flex-1 max-w-sm">
+      <div className="flex items-center flex-wrap gap-3">
+        <div className="relative flex-1 max-w-sm min-w-[200px]">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
           <Input
             placeholder="Buscar nos formulários..."
@@ -372,6 +384,39 @@ export default function FormsOnline() {
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
           />
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1.5">
+            <label className="text-sm font-medium text-gray-600 whitespace-nowrap">De</label>
+            <Input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="w-[150px]"
+            />
+          </div>
+          <div className="flex items-center gap-1.5">
+            <label className="text-sm font-medium text-gray-600 whitespace-nowrap">Até</label>
+            <Input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="w-[150px]"
+            />
+          </div>
+          {(dateFrom || dateTo) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setDateFrom('')
+                setDateTo('')
+              }}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              Limpar filtro
+            </Button>
+          )}
         </div>
       </div>
 
