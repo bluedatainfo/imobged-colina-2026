@@ -112,6 +112,53 @@ const fetchTableRows = async (
   }
 }
 
+const createWorkbookSessionWithRefresh = async (
+  itemBaseUrl: string,
+): Promise<{
+  sessionId: string | null
+  sessionHeaders: Record<string, string> | undefined
+}> => {
+  let sessionId: string | null = null
+  try {
+    const sessionRes = await fetchWithAuth(`${itemBaseUrl}/workbook/createSession`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ persistChanges: false }),
+    })
+    if (sessionRes.ok) {
+      const sessionData = await sessionRes.json()
+      sessionId = sessionData.id
+    }
+  } catch (e) {
+    console.warn('Failed to create workbook session', e)
+  }
+
+  const sessionHeaders: Record<string, string> | undefined = sessionId
+    ? { 'workbook-session-id': sessionId }
+    : undefined
+
+  if (sessionId) {
+    try {
+      await fetchWithAuth(`${itemBaseUrl}/workbook/refreshSession`, {
+        method: 'POST',
+        headers: { 'workbook-session-id': sessionId },
+      })
+    } catch (e) {
+      console.warn('refreshSession failed — workbook may not be connected to Microsoft Forms', e)
+    }
+  }
+
+  return { sessionId, sessionHeaders }
+}
+
+const closeWorkbookSession = async (itemBaseUrl: string, sessionId: string | null) => {
+  if (!sessionId) return
+  await fetchWithAuth(`${itemBaseUrl}/workbook/closeSession`, {
+    method: 'POST',
+    headers: { 'workbook-session-id': sessionId },
+  }).catch(() => {})
+}
+
 export const m365Service = {
   isAuthenticated: () => !!getGraphToken(),
 
@@ -162,49 +209,60 @@ export const m365Service = {
 
       const itemBaseUrl = `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${itemId}`
 
-      const tableRows = await fetchTableRows(itemBaseUrl)
-      if (tableRows) {
-        return { data: tableRows, error: null }
-      }
+      const { sessionId, sessionHeaders } = await createWorkbookSessionWithRefresh(itemBaseUrl)
 
-      const encodedSheet = encodeURIComponent(worksheetName)
-      const rangeRes = await fetchWithAuth(
-        `${itemBaseUrl}/workbook/worksheets('${encodedSheet}')/usedRange`,
-      )
-
-      if (rangeRes.ok) {
-        const rangeData = await rangeRes.json()
-        return { data: parseWorksheetRows(rangeData), error: null }
-      }
-
-      const worksheetsRes = await fetchWithAuth(`${itemBaseUrl}/workbook/worksheets`)
-      if (worksheetsRes.ok) {
-        const worksheetsData = await worksheetsRes.json()
-        const worksheets = worksheetsData.value || []
-
-        if (worksheets.length === 0) {
-          return { data: [], error: 'A planilha não contém nenhuma aba de trabalho.' }
+      try {
+        const tableRows = await fetchTableRows(itemBaseUrl, sessionHeaders)
+        if (tableRows) {
+          return { data: tableRows, error: null }
         }
 
-        const firstSheetName = worksheets[0].name
-        const firstRangeRes = await fetchWithAuth(
-          `${itemBaseUrl}/workbook/worksheets('${encodeURIComponent(firstSheetName)}')/usedRange`,
+        const encodedSheet = encodeURIComponent(worksheetName)
+        const rangeRes = await fetchWithAuth(
+          `${itemBaseUrl}/workbook/worksheets('${encodedSheet}')/usedRange`,
+          sessionHeaders ? { headers: sessionHeaders } : undefined,
         )
 
-        if (firstRangeRes.ok) {
-          const firstRangeData = await firstRangeRes.json()
-          return { data: parseWorksheetRows(firstRangeData), error: null }
+        if (rangeRes.ok) {
+          const rangeData = await rangeRes.json()
+          return { data: parseWorksheetRows(rangeData), error: null }
+        }
+
+        const worksheetsRes = await fetchWithAuth(
+          `${itemBaseUrl}/workbook/worksheets`,
+          sessionHeaders ? { headers: sessionHeaders } : undefined,
+        )
+        if (worksheetsRes.ok) {
+          const worksheetsData = await worksheetsRes.json()
+          const worksheets = worksheetsData.value || []
+
+          if (worksheets.length === 0) {
+            return { data: [], error: 'A planilha não contém nenhuma aba de trabalho.' }
+          }
+
+          const firstSheetName = worksheets[0].name
+          const firstRangeRes = await fetchWithAuth(
+            `${itemBaseUrl}/workbook/worksheets('${encodeURIComponent(firstSheetName)}')/usedRange`,
+            sessionHeaders ? { headers: sessionHeaders } : undefined,
+          )
+
+          if (firstRangeRes.ok) {
+            const firstRangeData = await firstRangeRes.json()
+            return { data: parseWorksheetRows(firstRangeData), error: null }
+          }
+
+          return {
+            data: [],
+            error: `Não foi possível ler os dados da aba "${firstSheetName}" na planilha compartilhada.`,
+          }
         }
 
         return {
           data: [],
-          error: `Não foi possível ler os dados da aba "${firstSheetName}" na planilha compartilhada.`,
+          error: `A aba "${worksheetName}" não foi encontrada na planilha compartilhada, e não foi possível listar as abas disponíveis. Verifique se o arquivo é uma planilha Excel válida.`,
         }
-      }
-
-      return {
-        data: [],
-        error: `A aba "${worksheetName}" não foi encontrada na planilha compartilhada, e não foi possível listar as abas disponíveis. Verifique se o arquivo é uma planilha Excel válida.`,
+      } finally {
+        await closeWorkbookSession(itemBaseUrl, sessionId)
       }
     } catch (e: any) {
       console.warn('Failed to fetch Excel rows via share link:', e)
@@ -317,6 +375,20 @@ export const m365Service = {
       const sessionHeaders: Record<string, string> | undefined = sessionId
         ? { 'workbook-session-id': sessionId }
         : undefined
+
+      if (sessionId) {
+        try {
+          await fetchWithAuth(`${itemBaseUrl}/workbook/refreshSession`, {
+            method: 'POST',
+            headers: { 'workbook-session-id': sessionId },
+          })
+        } catch (e) {
+          console.warn(
+            'refreshSession failed — workbook may not be connected to Microsoft Forms',
+            e,
+          )
+        }
+      }
 
       let rows: any[] = []
       const tableRows = await fetchTableRows(itemBaseUrl, sessionHeaders)
