@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   candidatesService,
   PreRegistration,
@@ -84,6 +84,7 @@ export default function Candidates() {
   const [nameFilter, setNameFilter] = useState('')
   const [docFilter, setDocFilter] = useState('')
   const [sortDirection, setSortDirection] = useState<SortDirection>(null)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
 
   const fetchCandidates = useCallback(async (silent = false) => {
     try {
@@ -217,6 +218,16 @@ export default function Candidates() {
     return sorted
   }, [filteredCandidates, sortDirection])
 
+  useEffect(() => {
+    const container = scrollContainerRef.current
+    if (!container) return
+    container.scrollLeft = 0
+    const maxScroll = container.scrollWidth - container.clientWidth
+    if (maxScroll > 0 && container.scrollLeft >= 0) {
+      container.scrollLeft = -maxScroll
+    }
+  }, [activeTab, loading])
+
   if (loading && candidates.length === 0) {
     return (
       <div className="flex h-full w-full items-center justify-center">
@@ -277,7 +288,11 @@ export default function Candidates() {
           </div>
 
           <div className="rounded-md border bg-card overflow-hidden">
-            <div style={{ direction: 'rtl' }} className="overflow-y-auto max-h-[60vh]">
+            <div
+              ref={scrollContainerRef}
+              style={{ direction: 'rtl' }}
+              className="overflow-y-auto max-h-[60vh]"
+            >
               <Table style={{ direction: 'ltr' }}>
                 <TableHeader>
                   <TableRow>
