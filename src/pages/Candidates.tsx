@@ -74,18 +74,21 @@ export default function Candidates() {
   const [candidates, setCandidates] = useState<PreRegistration[]>([])
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
   const [selectedCandidate, setSelectedCandidate] = useState<PreRegistration | null>(null)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [updating, setUpdating] = useState(false)
   const [activeTab, setActiveTab] = useState<PreRegistrationCategory>('PF')
   const [processDialogOpen, setProcessDialogOpen] = useState(false)
   const [existingProcessDialogOpen, setExistingProcessDialogOpen] = useState(false)
-  const [searchTerm, setSearchTerm] = useState('')
+  const [nameFilter, setNameFilter] = useState('')
+  const [docFilter, setDocFilter] = useState('')
   const [sortDirection, setSortDirection] = useState<SortDirection>(null)
 
   const fetchCandidates = useCallback(async (silent = false) => {
     try {
       if (!silent) setLoading(true)
+      else setIsRefreshing(true)
       const data = await candidatesService.getCandidates()
       setCandidates(data)
     } catch (error) {
@@ -93,6 +96,7 @@ export default function Candidates() {
       if (!silent) toast.error('Erro ao carregar interessados')
     } finally {
       if (!silent) setLoading(false)
+      else setIsRefreshing(false)
     }
   }, [])
 
@@ -180,19 +184,27 @@ export default function Candidates() {
     })
   }
 
+  const handleTabChange = (v: string) => {
+    setActiveTab(v as PreRegistrationCategory)
+    setNameFilter('')
+    setDocFilter('')
+  }
+
+  const docLabel = activeTab === 'PJ' ? 'CNPJ' : 'CPF'
+
   const filteredCandidates = useMemo(() => {
     return candidates.filter((c) => {
       if ((c.category || 'PF') !== activeTab) return false
-      if (searchTerm) {
-        const term = searchTerm.toLowerCase()
-        const matchCode = c.code?.toLowerCase().includes(term)
-        const matchName = c.full_name?.toLowerCase().includes(term)
-        const matchDoc = c.cpf?.includes(term) || c.cnpj?.includes(term)
-        return matchCode || matchName || matchDoc
+      if (nameFilter) {
+        if (!c.full_name?.toLowerCase().includes(nameFilter.toLowerCase())) return false
+      }
+      if (docFilter) {
+        const docValue = activeTab === 'PJ' ? c.cnpj : c.cpf
+        if (!docValue?.toLowerCase().includes(docFilter.toLowerCase())) return false
       }
       return true
     })
-  }, [candidates, activeTab, searchTerm])
+  }, [candidates, activeTab, nameFilter, docFilter])
 
   const sortedCandidates = useMemo(() => {
     if (!sortDirection) return filteredCandidates
@@ -215,18 +227,15 @@ export default function Candidates() {
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+      {isRefreshing && (
+        <div className="fixed top-0 left-0 right-0 z-50 h-0.5 overflow-hidden">
+          <div className="h-full w-full bg-gradient-to-r from-transparent via-primary to-transparent animate-pulse" />
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <h2 className="text-3xl font-bold tracking-tight text-slate-800">Gestão de Interessados</h2>
         <div className="flex flex-col sm:flex-row w-full sm:w-auto items-center gap-2">
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por código, nome ou doc..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-8 w-full"
-            />
-          </div>
           <Button onClick={handleSync} disabled={syncing || loading} className="w-full sm:w-auto">
             {syncing ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -238,11 +247,7 @@ export default function Candidates() {
         </div>
       </div>
 
-      <Tabs
-        value={activeTab}
-        onValueChange={(v) => setActiveTab(v as PreRegistrationCategory)}
-        className="space-y-4"
-      >
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
         <TabsList>
           <TabsTrigger value="PF">Pessoa Física</TabsTrigger>
           <TabsTrigger value="PJ">Pessoa Jurídica</TabsTrigger>
@@ -250,9 +255,30 @@ export default function Candidates() {
         </TabsList>
 
         <TabsContent value={activeTab} className="space-y-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Filtrar por nome..."
+                value={nameFilter}
+                onChange={(e) => setNameFilter(e.target.value)}
+                className="pl-8 w-full"
+              />
+            </div>
+            <div className="relative w-full sm:w-48">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder={`Filtrar por ${docLabel}...`}
+                value={docFilter}
+                onChange={(e) => setDocFilter(e.target.value)}
+                className="pl-8 w-full"
+              />
+            </div>
+          </div>
+
           <div className="rounded-md border bg-card overflow-hidden">
-            <div className="[direction:rtl] overflow-y-auto max-h-[60vh]">
-              <Table className="[direction:ltr]">
+            <div style={{ direction: 'rtl' }} className="overflow-y-auto max-h-[60vh]">
+              <Table style={{ direction: 'ltr' }}>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Código</TableHead>
