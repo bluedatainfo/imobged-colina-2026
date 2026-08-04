@@ -378,20 +378,35 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
         )
           throw new Error('Preencha o Nome, CPF do Proprietário, Código do Imóvel e o Endereço.')
 
-        const { data: codeData } = await supabase.rpc('generate_owner_pro_code')
-        const ownerCode = codeData || `PRO${Date.now().toString().slice(-6)}`
-        const { data: oData, error: oErr } = await supabase
-          .from('owners')
-          .insert({
-            code: ownerCode,
-            full_name: newPropData.ownerName || `Proprietário (Cód: ${newPropData.gestaoRealCode})`,
-            cpf: newPropData.ownerCpf || null,
-          })
-          .select()
-          .single()
-        if (oErr) throw oErr
+        const normalizedCpf = (newPropData.ownerCpf || '').replace(/\D/g, '')
+        const formattedCpf = formatCpfCnpj(normalizedCpf)
 
-        finalOwnerId = oData.id
+        const { data: existingOwner } = await supabase
+          .from('owners')
+          .select('id')
+          .or(`cpf.eq.${normalizedCpf},cpf.eq.${formattedCpf}`)
+          .limit(1)
+          .maybeSingle()
+
+        if (existingOwner) {
+          finalOwnerId = existingOwner.id
+        } else {
+          const { data: codeData } = await supabase.rpc('generate_owner_pro_code')
+          const ownerCode = codeData || `PRO${Date.now().toString().slice(-6)}`
+          const { data: oData, error: oErr } = await supabase
+            .from('owners')
+            .insert({
+              code: ownerCode,
+              full_name:
+                newPropData.ownerName || `Proprietário (Cód: ${newPropData.gestaoRealCode})`,
+              cpf: newPropData.ownerCpf || null,
+            })
+            .select()
+            .single()
+          if (oErr) throw oErr
+
+          finalOwnerId = oData.id
+        }
         title = newPropData.address
         address = `${newPropData.address}, ${newPropData.neighborhood}, ${newPropData.city}`
           .replace(/,\s*,/g, ',')
