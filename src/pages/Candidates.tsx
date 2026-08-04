@@ -105,12 +105,41 @@ export default function Candidates() {
     fetchCandidates()
   }, [fetchCandidates])
 
+  // 15-second silent auto-refresh cycle
   useEffect(() => {
     const interval = setInterval(() => {
       fetchCandidates(true)
     }, 15000)
     return () => clearInterval(interval)
   }, [fetchCandidates])
+
+  const scrollToLeft = useCallback(() => {
+    const container = scrollContainerRef.current
+    if (!container) return
+    // In RTL scroll containers (which keep vertical scrollbar on left),
+    // a large negative scrollLeft moves the viewport to the far left (Column 1 - Código)
+    container.scrollLeft = -Math.max(container.scrollWidth, 99999)
+    if (container.scrollLeft > 0) {
+      container.scrollLeft = 0
+    }
+  }, [])
+
+  const resetScrollPosition = useCallback(() => {
+    // Double requestAnimationFrame ensures React DOM commit and browser reflow are completed
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        scrollToLeft()
+      })
+    })
+  }, [scrollToLeft])
+
+  // Reset horizontal scroll to far-left on tab changes and initial load completion only
+  // Silent auto-refresh does not trigger this effect, keeping user scroll position intact
+  useEffect(() => {
+    if (!loading) {
+      resetScrollPosition()
+    }
+  }, [activeTab, loading, resetScrollPosition])
 
   const handleSync = async () => {
     try {
@@ -196,12 +225,24 @@ export default function Candidates() {
   const filteredCandidates = useMemo(() => {
     return candidates.filter((c) => {
       if ((c.category || 'PF') !== activeTab) return false
-      if (nameFilter) {
-        if (!c.full_name?.toLowerCase().includes(nameFilter.toLowerCase())) return false
+
+      if (nameFilter.trim()) {
+        const name = c.full_name?.toLowerCase() || ''
+        if (!name.includes(nameFilter.trim().toLowerCase())) return false
       }
-      if (docFilter) {
+
+      if (docFilter.trim()) {
+        const rawFilter = docFilter.trim().toLowerCase()
+        const cleanFilter = rawFilter.replace(/\D/g, '')
         const docValue = activeTab === 'PJ' ? c.cnpj : c.cpf
-        if (!docValue?.toLowerCase().includes(docFilter.toLowerCase())) return false
+        const rawDoc = docValue?.toLowerCase() || ''
+        const cleanDoc = rawDoc.replace(/\D/g, '')
+
+        if (cleanFilter && cleanDoc) {
+          if (!cleanDoc.includes(cleanFilter) && !rawDoc.includes(rawFilter)) return false
+        } else {
+          if (!rawDoc.includes(rawFilter)) return false
+        }
       }
       return true
     })
@@ -218,34 +259,35 @@ export default function Candidates() {
     return sorted
   }, [filteredCandidates, sortDirection])
 
-  useEffect(() => {
-    const container = scrollContainerRef.current
-    if (!container) return
-    container.scrollLeft = 0
-    const maxScroll = container.scrollWidth - container.clientWidth
-    if (maxScroll > 0 && container.scrollLeft >= 0) {
-      container.scrollLeft = -maxScroll
-    }
-  }, [activeTab, loading])
-
   if (loading && candidates.length === 0) {
     return (
-      <div className="flex h-full w-full items-center justify-center">
+      <div className="flex h-full w-full items-center justify-center min-h-[400px]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     )
   }
 
   return (
-    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6 relative">
+      {/* Subtle top indicator bar during 15s auto-refresh */}
       {isRefreshing && (
-        <div className="fixed top-0 left-0 right-0 z-50 h-0.5 overflow-hidden">
-          <div className="h-full w-full bg-gradient-to-r from-transparent via-primary to-transparent animate-pulse" />
+        <div className="fixed top-0 left-0 right-0 z-50 h-1 overflow-hidden pointer-events-none">
+          <div className="h-full w-full bg-gradient-to-r from-blue-500 via-indigo-500 to-blue-500 animate-pulse" />
         </div>
       )}
 
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <h2 className="text-3xl font-bold tracking-tight text-slate-800">Gestão de Interessados</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-3xl font-bold tracking-tight text-slate-800">
+            Gestão de Interessados
+          </h2>
+          {isRefreshing && (
+            <span className="flex items-center gap-1.5 text-xs text-blue-600 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-full animate-pulse font-medium">
+              <Loader2 className="h-3 w-3 animate-spin text-blue-600" />
+              Atualizando...
+            </span>
+          )}
+        </div>
         <div className="flex flex-col sm:flex-row w-full sm:w-auto items-center gap-2">
           <Button onClick={handleSync} disabled={syncing || loading} className="w-full sm:w-auto">
             {syncing ? (
@@ -288,32 +330,46 @@ export default function Candidates() {
           </div>
 
           <div className="rounded-md border bg-card overflow-hidden">
+            {/*
+              direction: rtl on container places vertical scrollbar on the left.
+              Table uses direction: ltr so columns read standard left-to-right.
+            */}
             <div
               ref={scrollContainerRef}
               style={{ direction: 'rtl' }}
-              className="overflow-y-auto max-h-[60vh]"
+              className="overflow-y-auto overflow-x-auto max-h-[60vh] scrollbar-thin"
             >
-              <Table style={{ direction: 'ltr' }}>
+              <Table style={{ direction: 'ltr' }} className="w-full min-w-[750px]">
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Código</TableHead>
+                    <TableHead className="w-[110px] min-w-[100px]">Código</TableHead>
                     <TableHead
-                      className="cursor-pointer select-none hover:bg-muted/50"
+                      className="cursor-pointer select-none hover:bg-muted/50 w-[160px] min-w-[150px]"
                       onClick={toggleSort}
                     >
                       <div className="flex items-center gap-1">
                         Data de Entrada
-                        {sortDirection === 'desc' && <ArrowDown className="h-3 w-3" />}
-                        {sortDirection === 'asc' && <ArrowUp className="h-3 w-3" />}
+                        {sortDirection === 'desc' && (
+                          <ArrowDown className="h-3.5 w-3.5 text-primary font-bold" />
+                        )}
+                        {sortDirection === 'asc' && (
+                          <ArrowUp className="h-3.5 w-3.5 text-primary font-bold" />
+                        )}
                         {sortDirection === null && (
-                          <ArrowUpDown className="h-3 w-3 text-muted-foreground/50" />
+                          <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground/50" />
                         )}
                       </div>
                     </TableHead>
-                    <TableHead>{activeTab === 'PJ' ? 'Razão Social' : 'Nome'}</TableHead>
-                    <TableHead>{activeTab === 'PJ' ? 'CNPJ' : 'CPF'}</TableHead>
-                    <TableHead>{activeTab === 'PJ' ? 'Endereço' : 'Contato'}</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead className="min-w-[180px]">
+                      {activeTab === 'PJ' ? 'Razão Social' : 'Nome'}
+                    </TableHead>
+                    <TableHead className="min-w-[140px]">
+                      {activeTab === 'PJ' ? 'CNPJ' : 'CPF'}
+                    </TableHead>
+                    <TableHead className="min-w-[200px]">
+                      {activeTab === 'PJ' ? 'Endereço' : 'Contato'}
+                    </TableHead>
+                    <TableHead className="w-[130px] min-w-[120px]">Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -330,33 +386,43 @@ export default function Candidates() {
                         className="cursor-pointer hover:bg-muted/50 transition-colors"
                         onClick={() => openCandidateDetails(candidate)}
                       >
-                        <TableCell className="font-medium text-slate-900">
+                        <TableCell className="font-semibold text-slate-900 whitespace-nowrap">
                           {candidate.code || '-'}
                         </TableCell>
-                        <TableCell className="whitespace-nowrap">
+                        <TableCell className="whitespace-nowrap text-sm text-slate-700">
                           {format(new Date(candidate.created_at), 'dd/MM/yyyy HH:mm', {
                             locale: ptBR,
                           })}
                         </TableCell>
-                        <TableCell className="font-medium">{candidate.full_name}</TableCell>
-                        <TableCell>
+                        <TableCell className="font-medium text-slate-900">
+                          {candidate.full_name}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap font-mono text-sm">
                           {activeTab === 'PJ' ? candidate.cnpj || '-' : candidate.cpf || '-'}
                         </TableCell>
                         <TableCell>
                           {activeTab === 'PJ' ? (
-                            <span className="text-sm truncate max-w-[200px] block">
+                            <span
+                              className="text-sm truncate max-w-[220px] block"
+                              title={candidate.address || ''}
+                            >
                               {candidate.address || '-'}
                             </span>
                           ) : (
                             <div className="flex flex-col text-sm">
-                              <span>{candidate.email || '-'}</span>
-                              <span className="text-muted-foreground">
+                              <span
+                                className="truncate max-w-[220px]"
+                                title={candidate.email || ''}
+                              >
+                                {candidate.email || '-'}
+                              </span>
+                              <span className="text-muted-foreground text-xs">
                                 {candidate.phone || '-'}
                               </span>
                             </div>
                           )}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="whitespace-nowrap">
                           <Badge className={STATUS_COLORS[candidate.status]}>
                             {candidate.status}
                           </Badge>
