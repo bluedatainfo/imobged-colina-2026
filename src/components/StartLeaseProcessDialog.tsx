@@ -26,7 +26,8 @@ import {
   CommandList,
 } from '@/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Loader2, MapPin, User, Building, Search } from 'lucide-react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Loader2, MapPin, User, Building, Search, AlertTriangle } from 'lucide-react'
 import useEntitiesStore from '@/stores/entities'
 import { supabase } from '@/lib/supabase/client'
 import { useToast } from '@/hooks/use-toast'
@@ -181,6 +182,8 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
   }
 
   const [submitting, setSubmitting] = useState(false)
+  const [existingOwnerName, setExistingOwnerName] = useState<string | null>(null)
+  const debouncedCpf = useDebounce(newPropData.ownerCpf, 400)
 
   const filteredErpOptions = useMemo(
     () => erpOptions.filter((p) => matchesSearchTerm(p, searchERP)),
@@ -193,6 +196,7 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
       setSelectedGuarantor('')
       setSelectedERPProperty(null)
       setSearchERP('')
+      setExistingOwnerName(null)
       setNewPropData({
         ownerName: '',
         ownerCpf: '',
@@ -306,6 +310,34 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
       isMounted = false
     }
   }, [debouncedSearchERP, propertyMode])
+
+  useEffect(() => {
+    if (propertyMode !== 'new' || !debouncedCpf) {
+      setExistingOwnerName(null)
+      return
+    }
+    const normalized = debouncedCpf.replace(/\D/g, '')
+    if (!normalized || normalized.length < 11) {
+      setExistingOwnerName(null)
+      return
+    }
+    const formatted = formatCpfCnpj(normalized)
+    let isMounted = true
+    supabase
+      .from('owners')
+      .select('id, full_name')
+      .or(`cpf.eq.${normalized},cpf.eq.${formatted}`)
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (isMounted) {
+          setExistingOwnerName(data?.full_name || null)
+        }
+      })
+    return () => {
+      isMounted = false
+    }
+  }, [debouncedCpf, propertyMode])
 
   const handleSubmit = async () => {
     if (!candidate) return
@@ -802,6 +834,15 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
                     placeholder="000.000.000-00"
                   />
                 </div>
+                {existingOwnerName && (
+                  <Alert className="sm:col-span-2 border-amber-400 bg-amber-50 dark:bg-amber-950/40">
+                    <AlertTriangle className="h-4 w-4 text-amber-600" />
+                    <AlertDescription className="text-amber-700 dark:text-amber-400">
+                      Proprietário já cadastrado: <strong>{existingOwnerName}</strong>. O registro
+                      existente será reutilizado para esta análise.
+                    </AlertDescription>
+                  </Alert>
+                )}
                 <div className="space-y-2 sm:col-span-2">
                   <Label>Código do Imóvel no GESTÃO REAL</Label>
                   <Input
