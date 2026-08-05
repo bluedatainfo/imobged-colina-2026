@@ -13,33 +13,48 @@ export type EntityModel = {
   source?: string
 }
 
+export type GuaranteeModel = {
+  id: string
+  nome: string
+  cpf: string
+  pessoa: string
+  celular: string
+  email: string
+  endereco: string
+  telefone: string
+  ativo: string
+}
+
 type State = {
   owners: EntityModel[]
   tenants: EntityModel[]
+  guarantees: GuaranteeModel[]
+  guaranteesError: boolean
 }
 
-let state: State = { owners: [], tenants: [] }
+let state: State = { owners: [], tenants: [], guarantees: [], guaranteesError: false }
 let listeners: Array<() => void> = []
 
 export const initEntitiesStore = async () => {
   try {
-    // Attempt to fetch from local ERP as requested
-    const [ownersRes, tenantsRes] = await Promise.all([
+    const [ownersRes, tenantsRes, guaranteesRes] = await Promise.all([
       fetch('http://192.168.10.225:9000/proprietarios').catch(() => null),
       fetch('http://192.168.10.225:9000/locatarios').catch(() => null),
+      fetch('http://192.168.10.225:9000/garantias').catch(() => null),
     ])
-
-    let oData: any[] = []
-    let tData: any[] = []
 
     let erpOwners: any[] = []
     let erpTenants: any[] = []
+    let erpGuarantees: any[] = []
 
     if (ownersRes && ownersRes.ok) {
       erpOwners = await ownersRes.json()
     }
     if (tenantsRes && tenantsRes.ok) {
       erpTenants = await tenantsRes.json()
+    }
+    if (guaranteesRes && guaranteesRes.ok) {
+      erpGuarantees = await guaranteesRes.json()
     }
 
     const { data: dbOwners } = await supabase
@@ -84,6 +99,28 @@ export const initEntitiesStore = async () => {
       source,
     })
 
+    const mapGuarantee = (g: any): GuaranteeModel => {
+      const enderecoParts = [g.endereco, g.numero, g.complemento, g.bairro, g.cidade, g.uf].filter(
+        Boolean,
+      )
+      const endereco =
+        enderecoParts.length > 0
+          ? `${g.endereco || ''}${g.numero ? ', ' + g.numero : ''}${g.complemento ? ' - ' + g.complemento : ''} - ${g.bairro || ''} - ${g.cidade || ''}/${g.uf || ''}`.trim()
+          : ''
+
+      return {
+        id: g.id?.toString() || '',
+        nome: g.nome || '',
+        cpf: g.cpf || '',
+        pessoa: g.pessoa || '',
+        celular: g.celular || '',
+        email: g.email || '',
+        endereco,
+        telefone: g.telefone || '',
+        ativo: g.ativo || '',
+      }
+    }
+
     state.owners = [
       ...erpOwners.map((o) => mapOwner(o, 'ERP')),
       ...(dbOwners || []).map((o) => mapOwner(o, 'Novo')),
@@ -94,9 +131,14 @@ export const initEntitiesStore = async () => {
       ...(dbTenants || []).map((t) => mapTenant(t, 'Novo')),
     ]
 
+    state.guarantees = erpGuarantees.map(mapGuarantee)
+    state.guaranteesError = !guaranteesRes || !guaranteesRes.ok
+
     emit()
   } catch (err) {
     console.error('Failed to sync entities with local ERP', err)
+    state.guaranteesError = true
+    emit()
   }
 }
 
