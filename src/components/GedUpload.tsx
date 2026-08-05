@@ -136,7 +136,7 @@ export function GedUpload({
   template,
 }: GedUploadProps) {
   const { settings } = useMainStore()
-  const { owners, tenants } = useEntitiesStore()
+  const { owners, tenants, guarantees, guaranteesError } = useEntitiesStore()
   const { user } = useAuth()
   const { toast } = useToast()
 
@@ -488,14 +488,33 @@ export function GedUpload({
   }, [tenants, dbCandidates, tenantSearchQuery])
 
   const localServerGuarantors = useMemo(() => {
-    const g = dbCandidates
+    const spFiadores = dbCandidates
       .filter((c) => c.category === 'Fiador')
       .map((c) => ({
         id: c.id,
         code: c.code || c.id,
-        fullName: c.full_name + ' (Fiador SharePoint)',
+        fullName: c.full_name,
         title: c.full_name,
+        source: 'SharePoint' as const,
       }))
+
+    const erpGuarantees = (guarantees || []).map((g: any) => ({
+      id: g.id,
+      code: g.id,
+      fullName: g.nome || 'Sem Nome',
+      title: g.nome || 'Sem Nome',
+      source: 'ERP' as const,
+    }))
+
+    const combined = [...spFiadores, ...erpGuarantees]
+
+    const seenIds = new Set<string>()
+    const deduped = combined.filter((item) => {
+      const key = String(item.id).toLowerCase()
+      if (seenIds.has(key)) return false
+      seenIds.add(key)
+      return true
+    })
 
     const normalizeStr = (str: any) =>
       str
@@ -507,10 +526,10 @@ export function GedUpload({
 
     const normalizedQuery = normalizeStr(guarantorSearchQuery)
 
-    return g
+    return deduped
       .filter((x) => !normalizedQuery || normalizeStr(x.fullName).includes(normalizedQuery))
       .slice(0, 50)
-  }, [dbCandidates, guarantorSearchQuery])
+  }, [dbCandidates, guarantorSearchQuery, guarantees])
 
   useEffect(() => {
     if (preselectedPropertyId && !selectedProperty) {
@@ -1174,19 +1193,32 @@ export function GedUpload({
                 className="w-full justify-between font-normal"
               >
                 {selectedGuarantor ? (
-                  <span className="truncate">
-                    {!isUuid(selectedGuarantor.code || selectedGuarantor.id) && (
-                      <>
-                        <strong className="mr-1">
-                          {selectedGuarantor.code || selectedGuarantor.id}
-                        </strong>
-                        <span> - </span>
-                      </>
-                    )}
-                    <span>{selectedGuarantor.fullName}</span>
-                  </span>
+                  <div className="flex items-center gap-2 truncate">
+                    <span className="truncate">
+                      {!isUuid(selectedGuarantor.code || selectedGuarantor.id) && (
+                        <>
+                          <strong className="mr-1">
+                            {selectedGuarantor.code || selectedGuarantor.id}
+                          </strong>
+                          <span> - </span>
+                        </>
+                      )}
+                      <span>{selectedGuarantor.fullName}</span>
+                    </span>
+                    {selectedGuarantor.source === 'SharePoint' ? (
+                      <span className="bg-primary/10 text-primary text-[10px] px-1.5 py-0.5 rounded uppercase font-semibold tracking-wider shrink-0">
+                        SharePoint
+                      </span>
+                    ) : selectedGuarantor.source === 'ERP' ? (
+                      <span className="bg-muted text-muted-foreground text-[10px] px-1.5 py-0.5 rounded uppercase font-semibold tracking-wider shrink-0">
+                        ERP Local
+                      </span>
+                    ) : null}
+                  </div>
                 ) : (
-                  <span className="text-muted-foreground">Buscar fiador no SharePoint...</span>
+                  <span className="text-muted-foreground">
+                    Buscar fiador (SharePoint + ERP Local)...
+                  </span>
                 )}
                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
               </Button>
@@ -1199,6 +1231,12 @@ export function GedUpload({
                   onValueChange={setGuarantorSearchQuery}
                 />
                 <CommandList>
+                  {guaranteesError && (
+                    <div className="px-3 py-2 text-xs text-amber-600 flex items-center gap-1.5 border-b border-border/40">
+                      <AlertCircle className="h-3 w-3 shrink-0" />
+                      <span>ERP Local indisponível — exibindo apenas fiadores do SharePoint.</span>
+                    </div>
+                  )}
                   <CommandEmpty>Nenhum fiador encontrado.</CommandEmpty>
                   <CommandGroup>
                     {localServerGuarantors.map((g) => (
@@ -1210,14 +1248,34 @@ export function GedUpload({
                           setEntityCode(g.code || g.id)
                           setGuarantorOpen(false)
                         }}
+                        className="flex items-center justify-between"
                       >
-                        <Check
-                          className={cn(
-                            'mr-2 h-4 w-4',
-                            selectedGuarantor?.id === g.id ? 'opacity-100' : 'opacity-0',
-                          )}
-                        />
-                        <span className="truncate">{g.fullName}</span>
+                        <div className="flex items-center truncate">
+                          <Check
+                            className={cn(
+                              'mr-2 h-4 w-4 shrink-0',
+                              selectedGuarantor?.id === g.id ? 'opacity-100' : 'opacity-0',
+                            )}
+                          />
+                          <span className="truncate">
+                            {!isUuid(g.code || g.id) && (
+                              <>
+                                <strong className="mr-1">{g.code || g.id}</strong>
+                                <span> - </span>
+                              </>
+                            )}
+                            <span>{g.fullName}</span>
+                          </span>
+                        </div>
+                        {g.source === 'SharePoint' ? (
+                          <span className="bg-primary/10 text-primary text-[10px] px-1.5 py-0.5 rounded uppercase font-semibold tracking-wider ml-2 shrink-0">
+                            SharePoint
+                          </span>
+                        ) : (
+                          <span className="bg-muted text-muted-foreground text-[10px] px-1.5 py-0.5 rounded uppercase font-semibold tracking-wider ml-2 shrink-0">
+                            ERP Local
+                          </span>
+                        )}
                       </CommandItem>
                     ))}
                   </CommandGroup>
