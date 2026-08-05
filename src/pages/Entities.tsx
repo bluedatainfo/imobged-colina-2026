@@ -12,6 +12,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { useToast } from '@/hooks/use-toast'
+import { formatCpf } from '@/lib/utils'
 import useEntitiesStore, {
   entitiesStore,
   EntityModel,
@@ -109,64 +110,77 @@ export default function Entities() {
                   </p>
                 </div>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>ID</TableHead>
-                      <TableHead>Nome</TableHead>
-                      <TableHead>CPF</TableHead>
-                      <TableHead>Pessoa (F/J)</TableHead>
-                      <TableHead>Celular</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Endereço</TableHead>
-                      <TableHead>Telefone</TableHead>
-                      <TableHead className="text-center">Ativo (S/N)</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredGuarantees.map((g) => (
-                      <TableRow key={g.id}>
-                        <TableCell className="font-mono font-medium">{g.id}</TableCell>
-                        <TableCell className="font-medium">{g.nome}</TableCell>
-                        <TableCell>{g.cpf || '-'}</TableCell>
-                        <TableCell>{g.pessoa || '-'}</TableCell>
-                        <TableCell>{g.celular || '-'}</TableCell>
-                        <TableCell className="truncate max-w-[180px]" title={g.email}>
-                          {g.email || '-'}
-                        </TableCell>
-                        <TableCell className="truncate max-w-[200px]" title={g.endereco}>
-                          {g.endereco || '-'}
-                        </TableCell>
-                        <TableCell>{g.telefone || '-'}</TableCell>
-                        <TableCell className="text-center">
-                          <span
-                            className={
-                              g.ativo === 'S'
-                                ? 'inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-[10px] font-medium text-green-700 ring-1 ring-inset ring-green-600/20'
-                                : 'inline-flex items-center rounded-md bg-red-50 px-2 py-1 text-[10px] font-medium text-red-700 ring-1 ring-inset ring-red-600/20'
-                            }
-                          >
-                            {g.ativo || '-'}
-                          </span>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    {filteredGuarantees.length === 0 && isFetching && (
-                      <TableRow>
-                        <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
-                          Buscando registros...
-                        </TableCell>
-                      </TableRow>
-                    )}
-                    {filteredGuarantees.length === 0 && !isFetching && (
-                      <TableRow>
-                        <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
-                          Nenhum registro encontrado.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
+                <div className="rounded-md border bg-card overflow-hidden">
+                  <div
+                    style={{ direction: 'rtl' }}
+                    className="overflow-y-auto overflow-x-auto max-h-[60vh] scrollbar-thin"
+                  >
+                    <Table style={{ direction: 'ltr' }} className="w-full min-w-[900px]">
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>ID</TableHead>
+                          <TableHead>Nome</TableHead>
+                          <TableHead>CPF</TableHead>
+                          <TableHead>Pessoa (F/J)</TableHead>
+                          <TableHead>Celular</TableHead>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Endereço</TableHead>
+                          <TableHead>Telefone</TableHead>
+                          <TableHead className="text-center">Ativo (S/N)</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredGuarantees.map((g) => (
+                          <TableRow key={g.id}>
+                            <TableCell className="font-mono font-medium">{g.id}</TableCell>
+                            <TableCell className="font-medium">{g.nome}</TableCell>
+                            <TableCell>{g.cpf ? formatCpf(g.cpf) : '-'}</TableCell>
+                            <TableCell>{g.pessoa || '-'}</TableCell>
+                            <TableCell>{g.celular || '-'}</TableCell>
+                            <TableCell className="truncate max-w-[180px]" title={g.email}>
+                              {g.email || '-'}
+                            </TableCell>
+                            <TableCell className="truncate max-w-[200px]" title={g.endereco}>
+                              {g.endereco || '-'}
+                            </TableCell>
+                            <TableCell>{g.telefone || '-'}</TableCell>
+                            <TableCell className="text-center">
+                              <span
+                                className={
+                                  g.ativo === 'S'
+                                    ? 'inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-[10px] font-medium text-green-700 ring-1 ring-inset ring-green-600/20'
+                                    : 'inline-flex items-center rounded-md bg-red-50 px-2 py-1 text-[10px] font-medium text-red-700 ring-1 ring-inset ring-red-600/20'
+                                }
+                              >
+                                {g.ativo || '-'}
+                              </span>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        {filteredGuarantees.length === 0 && isFetching && (
+                          <TableRow>
+                            <TableCell
+                              colSpan={9}
+                              className="text-center py-8 text-muted-foreground"
+                            >
+                              Buscando registros...
+                            </TableCell>
+                          </TableRow>
+                        )}
+                        {filteredGuarantees.length === 0 && !isFetching && (
+                          <TableRow>
+                            <TableCell
+                              colSpan={9}
+                              className="text-center py-8 text-muted-foreground"
+                            >
+                              Nenhum registro encontrado.
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
               )}
             </TabsContent>
           </Tabs>
@@ -178,47 +192,54 @@ export default function Entities() {
 
 function EntityTable({ list, isFetching }: { list: EntityModel[]; isFetching: boolean }) {
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Código (ID)</TableHead>
-          <TableHead>Nome Completo</TableHead>
-          <TableHead>CPF</TableHead>
-          <TableHead>Endereço</TableHead>
-          <TableHead className="text-right">Origem</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {list.map((item) => (
-          <TableRow key={item.id}>
-            <TableCell className="font-mono font-medium">{item.code}</TableCell>
-            <TableCell className="font-medium">{item.fullName}</TableCell>
-            <TableCell>{item.cpf || '-'}</TableCell>
-            <TableCell className="truncate max-w-[200px]" title={item.fullAddress}>
-              {item.fullAddress || '-'}
-            </TableCell>
-            <TableCell className="text-right">
-              <span className="inline-flex items-center rounded-md bg-secondary px-2 py-1 text-[10px] font-medium text-secondary-foreground ring-1 ring-inset ring-secondary-foreground/10">
-                ERP Local
-              </span>
-            </TableCell>
-          </TableRow>
-        ))}
-        {list.length === 0 && isFetching && (
-          <TableRow>
-            <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-              Buscando registros...
-            </TableCell>
-          </TableRow>
-        )}
-        {list.length === 0 && !isFetching && (
-          <TableRow>
-            <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-              Nenhum registro encontrado.
-            </TableCell>
-          </TableRow>
-        )}
-      </TableBody>
-    </Table>
+    <div className="rounded-md border bg-card overflow-hidden">
+      <div
+        style={{ direction: 'rtl' }}
+        className="overflow-y-auto overflow-x-auto max-h-[60vh] scrollbar-thin"
+      >
+        <Table style={{ direction: 'ltr' }} className="w-full min-w-[750px]">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Código (ID)</TableHead>
+              <TableHead>Nome Completo</TableHead>
+              <TableHead>CPF</TableHead>
+              <TableHead>Endereço</TableHead>
+              <TableHead className="text-right">Origem</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {list.map((item) => (
+              <TableRow key={item.id}>
+                <TableCell className="font-mono font-medium">{item.code}</TableCell>
+                <TableCell className="font-medium">{item.fullName}</TableCell>
+                <TableCell>{item.cpf ? formatCpf(item.cpf) : '-'}</TableCell>
+                <TableCell className="truncate max-w-[200px]" title={item.fullAddress}>
+                  {item.fullAddress || '-'}
+                </TableCell>
+                <TableCell className="text-right">
+                  <span className="inline-flex items-center rounded-md bg-secondary px-2 py-1 text-[10px] font-medium text-secondary-foreground ring-1 ring-inset ring-secondary-foreground/10">
+                    ERP Local
+                  </span>
+                </TableCell>
+              </TableRow>
+            ))}
+            {list.length === 0 && isFetching && (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                  Buscando registros...
+                </TableCell>
+              </TableRow>
+            )}
+            {list.length === 0 && !isFetching && (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                  Nenhum registro encontrado.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
   )
 }
