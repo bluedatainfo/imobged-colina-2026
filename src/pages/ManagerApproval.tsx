@@ -739,7 +739,7 @@ export default function ManagerApproval() {
               {property && (
                 <div className="space-y-4 bg-muted/20 p-5 rounded-lg border">
                   <h3 className="text-lg font-semibold flex items-center gap-2 border-b pb-2 border-border/50">
-                    <FolderOpen className="w-5 h-5 text-primary" /> Documentos do Imóvel
+                    <FolderOpen className="w-5 h-5 text-primary" /> Documentos
                   </h3>
                   {loadingProperty ? (
                     <div className="flex items-center gap-2 text-muted-foreground py-4 justify-center">

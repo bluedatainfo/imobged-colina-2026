@@ -53,7 +53,7 @@ export default function Entities() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
           <UsersRound className="w-8 h-8 text-primary" />
-          Entidades Integradas
+          Cadastros Integrados
         </h1>
         <p className="text-muted-foreground">
           Consulta de Proprietários, Locatários e Garantias integrados com o ERP Local (Modo
