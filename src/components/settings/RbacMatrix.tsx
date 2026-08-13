@@ -12,27 +12,13 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
 import useMainStore, { mainStore } from '@/stores/main'
 import { Role } from '@/lib/permissions'
+import { ALL_MODULES } from '@/lib/modulesRegistry'
 
-const MENU_ITEMS = [
-  { path: '/', label: 'Dashboard' },
-  { path: '/entities', label: 'Entidades' },
-  { path: '/documents', label: 'Documentos' },
-  { path: '/additional-documents', label: 'Documentos Adicionais' },
-  { path: '/document-alerts', label: 'Alertas GED' },
-  { path: '/sync-monitor', label: 'Monitor Sinc.' },
-  { path: '/manager-approval', label: 'Análise Ger.' },
-  { path: '/inspections', label: 'Vistorias' },
-  { path: '/keys', label: 'Chaves' },
-  { path: '/contracts', label: 'Contratos' },
-  { path: '/templates', label: 'Modelos' },
-  { path: '/properties', label: 'Imóveis' },
-  { path: '/maintenance', label: 'Manutenção' },
-  { path: '/renewals', label: 'Renovações' },
-  { path: '/legal', label: 'Jurídico' },
-  { path: '/caixa', label: 'Caixa (Boletos)' },
-  { path: '/settings', label: 'Configurações' },
-  { path: '/profile', label: 'Perfil' },
-]
+// A Matriz RBAC deriva sua lista de módulos do registro centralizado
+// (src/lib/modulesRegistry.ts). Assim, todo novo módulo cadastrado no
+// registro aparece automaticamente aqui, sem precisar de manutenção
+// manual e sem risco de ficar de fora da validação de permissões.
+const MENU_ITEMS = ALL_MODULES
 
 const availableRoles: Role[] = [
   'Admin',

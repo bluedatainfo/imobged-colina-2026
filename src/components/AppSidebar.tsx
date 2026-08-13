@@ -93,12 +93,10 @@ export function AppSidebar() {
   }
 
   const visibleNavigation = navigation.filter((item) => {
-    if (
-      item.url !== '/candidates' &&
-      item.url !== '/ongoing-contracts' &&
-      !checkAccess(item.url, user?.role)
-    )
-      return false
+    // Todos os módulos (incluindo /candidates e /ongoing-contracts) são
+    // validados por checkAccess, sem exceções hardcoded. A fonte da verdade
+    // dos módulos é ALL_MODULES (src/lib/modulesRegistry.ts).
+    if (!checkAccess(item.url, user?.role)) return false
 
     const moduleKey = moduleMapping[item.url]
     if (moduleKey && modules[moduleKey] === false) return false

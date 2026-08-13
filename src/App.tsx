@@ -6,6 +6,7 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import Layout from './components/Layout'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { checkAccess } from './lib/permissions'
+import { isRegisteredModule } from './lib/modulesRegistry'
 import { Loader2 } from 'lucide-react'
 import { initMainStore } from './stores/main'
 import { initUsersStore } from './stores/users'
@@ -54,15 +55,13 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
   if (!user) return <Navigate to="/login" replace />
 
-  // Rotas fundamentais (página inicial, perfil) são acessíveis a QUALQUER
-  // usuário autenticado, independentemente do perfil ou do RBAC configurado.
-  const isCommonRoute = location.pathname === '/' || location.pathname === '/profile'
+  // Apenas módulos registrados passam pela validação de RBAC. Outros paths
+  // (ex.: /access-denied, /properties/:id/dossier) não são "módulos de menu"
+  // e seguem fluxo próprio — `checkAccess` segue responsável pela decisão,
+  // inclusive liberando as rotas comuns (/, /profile).
+  const isProtectedModule = isRegisteredModule(location.pathname)
 
-  const hasAccess =
-    isCommonRoute ||
-    location.pathname === '/candidates' ||
-    location.pathname === '/ongoing-contracts' ||
-    checkAccess(location.pathname, user.role)
+  const hasAccess = isProtectedModule ? checkAccess(location.pathname, user.role) : true
   if (!hasAccess) return <Navigate to="/access-denied" replace />
 
   return <>{children}</>
