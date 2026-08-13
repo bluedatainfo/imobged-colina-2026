@@ -182,11 +182,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             // Ignore photo fetch errors
           }
 
-          const emailParts = emailToMatch.split('@')
-          const isAdminAlias =
-            emailParts[0].toLowerCase() === 'admin' ||
-            emailParts[0].toLowerCase() === 'administrator'
-
           const { error: sysAuthError } = await supabase.auth.signInWithPassword({
             email: 'system@imobiliaria.local',
             password: 'SystemPassword123!',
@@ -196,20 +191,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             throw new Error('Falha ao inicializar sessão do sistema: ' + sysAuthError.message)
           }
 
-          const currentUsers = usersStore.getState().users
-          const demoEmails = [
-            'admin@imobiliaria.local',
-            'corretor@imobiliaria.local',
-            'gerente@imobiliaria.local',
-          ]
-          const realUsers = currentUsers.filter((u) => !demoEmails.includes(u.email.toLowerCase()))
-          const isFirstRealUser = realUsers.length === 0
+          // Popula o store de usuários ANTES de decidir a role, para que as
+          // permissões RBAC configuradas em /settings sejam respeitadas.
+          await initUsersStore()
+
+          const existingUser = usersStore
+            .getState()
+            .users.find((u) => u.email.toLowerCase() === emailToMatch)
 
           const matched = usersStore.addUser({
             id: profileData.id,
             name: profileData.displayName || 'M365 User',
             email: emailToMatch,
-            role: isFirstRealUser || isAdminAlias ? 'Admin' : 'Vistoriador',
+            role: existingUser ? existingUser.role : 'Vistoriador',
             avatar: photoUrl,
           })
 
@@ -218,7 +212,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
           await Promise.all([
             initMainStore(),
-            initUsersStore(),
             initContractsStore(),
             initKeysStore(),
             initEntitiesStore(),
@@ -318,35 +311,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             password: 'SystemPassword123!',
           })
           .then(() => {
-            const currentUsers = usersStore.getState().users
-            const demoEmails = [
-              'admin@imobiliaria.local',
-              'corretor@imobiliaria.local',
-              'gerente@imobiliaria.local',
-            ]
-            const realUsers = currentUsers.filter(
-              (u) => !demoEmails.includes(u.email.toLowerCase()),
-            )
-            const isFirstRealUser = realUsers.length === 0
+            // Popula o store de usuários antes de decidir a role, respeitando
+            // as permissões RBAC configuradas em /settings.
+            initUsersStore()
+              .then(() => {
+                const existingUser = usersStore
+                  .getState()
+                  .users.find((u) => u.email.toLowerCase() === email.toLowerCase())
 
-            const foundUser = usersStore.addUser({
-              name,
-              email: email.toLowerCase(),
-              role: isAdminAlias || isFirstRealUser ? 'Admin' : ('Vistoriador' as Role),
-            })
+                const foundUser = usersStore.addUser({
+                  name,
+                  email: email.toLowerCase(),
+                  role: isAdminAlias
+                    ? 'Admin'
+                    : existingUser
+                      ? existingUser.role
+                      : ('Vistoriador' as Role),
+                })
 
-            setCurrentUserId(foundUser.id)
-            localStorage.setItem('app_user_id', foundUser.id)
+                setCurrentUserId(foundUser.id)
+                localStorage.setItem('app_user_id', foundUser.id)
 
-            Promise.all([
-              initMainStore(),
-              initUsersStore(),
-              initContractsStore(),
-              initKeysStore(),
-              initEntitiesStore(),
-              initTemplatesStore(),
-              initDocumentsStore(),
-            ]).then(() => resolve())
+                Promise.all([
+                  initMainStore(),
+                  initContractsStore(),
+                  initKeysStore(),
+                  initEntitiesStore(),
+                  initTemplatesStore(),
+                  initDocumentsStore(),
+                ]).then(() => resolve())
+              })
+              .catch((e) => {
+                reject(new Error('Falha de sessão interna: ' + e.message))
+              })
           })
           .catch((e) => {
             reject(new Error('Falha de sessão interna: ' + e.message))
