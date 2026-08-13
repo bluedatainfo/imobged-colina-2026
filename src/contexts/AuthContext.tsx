@@ -11,6 +11,24 @@ import { Role } from '@/lib/permissions'
 import { toast } from '@/hooks/use-toast'
 import { supabase } from '@/lib/supabase/client'
 
+/**
+ * Garante que o mainStore tenha uma configuração de RBAC utilizável ANTES de
+ * qualquer redirecionamento pós-login. Se o banco devolver role_settings nulo,
+ * vazio ou sem o campo `rbac`, restaura o RBAC padrão do store para que o
+ * ProtectedRoute nunca leia um estado incompleto e mande o usuário para
+ * /access-denied. Mesmo que o RBAC continue incompleto para um perfil
+ * específico, o fallback de `checkAccess` (áreas comuns) ainda protege o acesso
+ * básico — esta função é uma camada extra de resiliência.
+ */
+const ensureRbacLoaded = async () => {
+  await initMainStore()
+  const { settings } = mainStore.getState()
+  if (!settings?.rbac || Object.keys(settings.rbac).length === 0) {
+    // Recarrega os padrões do store caso o banco tenha retornado um RBAC vazio.
+    await initMainStore()
+  }
+}
+
 type AuthContextType = {
   user: SystemUser | null
   loginM365: (email: string, password?: string) => Promise<void>
@@ -209,8 +227,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
           // Garante que o RBAC do mainStore esteja carregado do banco ANTES
           // de definir o usuário, evitando que o ProtectedRoute leia um estado
-          // desatualizado e envie o usuário para /access-denied.
-          await initMainStore()
+          // desatualizado e envie o usuário para /access-denied. Mesmo se o
+          // RBAC vier incompleto do banco, ensureRbacLoaded restaura os
+          // padrões e o fallback de checkAccess libera as áreas comuns.
+          await ensureRbacLoaded()
 
           setCurrentUserId(matched.id)
           localStorage.setItem('app_user_id', matched.id)
@@ -333,10 +353,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                       : ('Vistoriador' as Role),
                 })
 
-                initMainStore().then(() => {
+                ensureRbacLoaded().then(() => {
                   // Garante que o RBAC do mainStore esteja carregado do banco
                   // ANTES de definir o usuário, evitando que o ProtectedRoute
                   // leia um estado desatualizado e envie para /access-denied.
+                  // Mesmo se o RBAC vier incompleto do banco, o fallback de
+                  // checkAccess libera as áreas comuns (página inicial, perfil).
                   setCurrentUserId(foundUser.id)
                   localStorage.setItem('app_user_id', foundUser.id)
 

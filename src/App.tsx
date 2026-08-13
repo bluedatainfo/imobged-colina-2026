@@ -53,7 +53,12 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
   if (!user) return <Navigate to="/login" replace />
 
+  // Rotas fundamentais (página inicial, perfil) são acessíveis a QUALQUER
+  // usuário autenticado, independentemente do perfil ou do RBAC configurado.
+  const isCommonRoute = location.pathname === '/' || location.pathname === '/profile'
+
   const hasAccess =
+    isCommonRoute ||
     location.pathname === '/candidates' ||
     location.pathname === '/ongoing-contracts' ||
     checkAccess(location.pathname, user.role)
