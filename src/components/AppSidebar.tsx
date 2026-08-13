@@ -46,7 +46,7 @@ const navigation = [
   { title: 'Documentos GED', url: '/documents', icon: FolderOpen },
   { title: 'Documentos Adicionais', url: '/additional-documents', icon: FilePlus },
   { title: 'Documentos Enviados ao SharePoint', url: '/sent-documents', icon: FileUp },
-  { title: 'Entidades (Prop. / Loc.)', url: '/entities', icon: UsersRound },
+  { title: 'Cadastros (Prop. / Loc.)', url: '/entities', icon: UsersRound },
   { title: 'Imóveis', url: '/properties', icon: Home },
   { title: 'Gestão de Modelos', url: '/templates', icon: BookOpen },
   { title: 'Ciclo de Contratos', url: '/contracts', icon: FileSignature },
