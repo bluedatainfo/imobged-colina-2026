@@ -118,6 +118,7 @@ const defaultRbac: Record<string, string[]> = {
     '/',
     '/entities',
     '/documents',
+    '/additional-documents',
     '/document-alerts',
     '/sync-monitor',
     '/manager-approval',
@@ -138,6 +139,7 @@ const defaultRbac: Record<string, string[]> = {
   Jurídico: [
     '/',
     '/documents',
+    '/additional-documents',
     '/document-alerts',
     '/contracts',
     '/properties',
@@ -150,6 +152,7 @@ const defaultRbac: Record<string, string[]> = {
     '/',
     '/entities',
     '/documents',
+    '/additional-documents',
     '/document-alerts',
     '/properties',
     '/renewals',
@@ -163,6 +166,7 @@ const defaultRbac: Record<string, string[]> = {
     '/manager-approval',
     '/contracts',
     '/documents',
+    '/additional-documents',
     '/document-alerts',
     '/properties',
     '/inspections',
@@ -277,14 +281,14 @@ export const initMainStore = async () => {
       }
     }
 
-    patchRole('Gerente', ['/sales', '/financial'])
-    patchRole('Financeiro', ['/financial'])
+    patchRole('Gerente', ['/sales', '/financial', '/additional-documents'])
+    patchRole('Financeiro', ['/financial', '/additional-documents'])
     patchRole('Corretor', ['/sales'])
     patchRole('Gerente', ['/ongoing-contracts'])
     patchRole('Vistoriador', ['/ongoing-contracts'])
-    patchRole('Jurídico', ['/ongoing-contracts'])
+    patchRole('Jurídico', ['/ongoing-contracts', '/additional-documents'])
     patchRole('Financeiro', ['/ongoing-contracts'])
-    patchRole('Gestor de Contrato', ['/ongoing-contracts'])
+    patchRole('Gestor de Contrato', ['/ongoing-contracts', '/additional-documents'])
     patchRole('Corretor', ['/ongoing-contracts'])
 
     state.settings = {

@@ -17,6 +17,7 @@ const MENU_ITEMS = [
   { path: '/', label: 'Dashboard' },
   { path: '/entities', label: 'Entidades' },
   { path: '/documents', label: 'Documentos' },
+  { path: '/additional-documents', label: 'Documentos Adicionais' },
   { path: '/document-alerts', label: 'Alertas GED' },
   { path: '/sync-monitor', label: 'Monitor Sinc.' },
   { path: '/manager-approval', label: 'Análise Ger.' },
