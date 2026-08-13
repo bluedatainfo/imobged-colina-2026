@@ -89,7 +89,7 @@ export function AppSidebar() {
     '/legal': 'legal',
     '/sales': 'sales',
     '/financial': 'financial',
-    '/caixa': 'financial',
+    '/caixa': 'caixa',
   }
 
   const visibleNavigation = navigation.filter((item) => {

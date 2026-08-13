@@ -52,6 +52,7 @@ const availableRoles: Role[] = [
   'Vistoriador',
   'Jurídico',
   'Financeiro',
+  'Caixa',
   'Corretor',
 ]
 

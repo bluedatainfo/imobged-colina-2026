@@ -17,6 +17,7 @@ export const defaultModules = {
   legal: true,
   sales: true,
   financial: true,
+  caixa: true,
 }
 
 export type ModulesSettings = typeof defaultModules
