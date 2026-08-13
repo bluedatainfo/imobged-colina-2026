@@ -114,6 +114,7 @@ type State = {
 const defaultRbac: Record<string, string[]> = {
   Admin: ['all'],
   Diretor: ['all'],
+  Caixa: ['/', '/caixa', '/profile'],
   Gerente: [
     '/',
     '/entities',
@@ -282,6 +283,7 @@ export const initMainStore = async () => {
     }
 
     patchRole('Gerente', ['/sales', '/financial', '/additional-documents'])
+    patchRole('Caixa', ['/caixa'])
     patchRole('Financeiro', ['/financial', '/additional-documents'])
     patchRole('Corretor', ['/sales'])
     patchRole('Gerente', ['/ongoing-contracts'])

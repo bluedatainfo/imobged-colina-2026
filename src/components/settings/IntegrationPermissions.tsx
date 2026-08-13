@@ -10,6 +10,7 @@ const availableRoles: Role[] = [
   'Admin',
   'Diretor',
   'Gerente',
+  'Caixa',
   'Gestor de Contrato',
   'Vistoriador',
   'Jurídico',

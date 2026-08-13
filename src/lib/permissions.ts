@@ -9,6 +9,7 @@ export type Role =
   | 'Financeiro'
   | 'Gestor de Contrato'
   | 'Corretor'
+  | 'Caixa'
 
 // Caminhos considerados "áreas comuns" — sempre acessíveis a qualquer usuário
 // autenticado. Servem como rede de segurança caso o RBAC do banco esteja vazio,

@@ -29,6 +29,7 @@ const MENU_ITEMS = [
   { path: '/maintenance', label: 'Manutenção' },
   { path: '/renewals', label: 'Renovações' },
   { path: '/legal', label: 'Jurídico' },
+  { path: '/caixa', label: 'Caixa (Boletos)' },
   { path: '/settings', label: 'Configurações' },
   { path: '/profile', label: 'Perfil' },
 ]
@@ -37,6 +38,7 @@ const availableRoles: Role[] = [
   'Admin',
   'Diretor',
   'Gerente',
+  'Caixa',
   'Gestor de Contrato',
   'Vistoriador',
   'Jurídico',

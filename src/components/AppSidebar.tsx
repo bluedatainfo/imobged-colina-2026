@@ -61,6 +61,7 @@ const navigation = [
   { title: 'Jurídico', url: '/legal', icon: Scale },
   { title: 'Vendas', url: '/sales', icon: TrendingUp },
   { title: 'Financeiro', url: '/financial', icon: Wallet },
+  { title: 'Caixa', url: '/caixa', icon: Wallet },
   { title: 'Configurações', url: '/settings', icon: Settings },
 ]
 
@@ -88,6 +89,7 @@ export function AppSidebar() {
     '/legal': 'legal',
     '/sales': 'sales',
     '/financial': 'financial',
+    '/caixa': 'financial',
   }
 
   const visibleNavigation = navigation.filter((item) => {

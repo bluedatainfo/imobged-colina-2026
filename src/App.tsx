@@ -46,6 +46,7 @@ const Profile = lazy(() => import('./pages/Profile'))
 const Templates = lazy(() => import('./pages/Templates'))
 const Sales = lazy(() => import('./pages/Sales'))
 const Financial = lazy(() => import('./pages/Financial'))
+const Caixa = lazy(() => import('./pages/Caixa'))
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAuth()
@@ -110,6 +111,7 @@ const AppRoutes = () => (
         <Route path="/templates" element={<Templates />} />
         <Route path="/sales" element={<Sales />} />
         <Route path="/financial" element={<Financial />} />
+        <Route path="/caixa" element={<Caixa />} />
         <Route path="/sent-documents" element={<SentDocuments />} />
         <Route path="/access-denied" element={<AccessDenied />} />
       </Route>
