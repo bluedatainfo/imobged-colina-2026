@@ -207,11 +207,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             avatar: photoUrl,
           })
 
+          // Garante que o RBAC do mainStore esteja carregado do banco ANTES
+          // de definir o usuário, evitando que o ProtectedRoute leia um estado
+          // desatualizado e envie o usuário para /access-denied.
+          await initMainStore()
+
           setCurrentUserId(matched.id)
           localStorage.setItem('app_user_id', matched.id)
 
           await Promise.all([
-            initMainStore(),
             initContractsStore(),
             initKeysStore(),
             initEntitiesStore(),
@@ -329,17 +333,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                       : ('Vistoriador' as Role),
                 })
 
-                setCurrentUserId(foundUser.id)
-                localStorage.setItem('app_user_id', foundUser.id)
+                initMainStore().then(() => {
+                  // Garante que o RBAC do mainStore esteja carregado do banco
+                  // ANTES de definir o usuário, evitando que o ProtectedRoute
+                  // leia um estado desatualizado e envie para /access-denied.
+                  setCurrentUserId(foundUser.id)
+                  localStorage.setItem('app_user_id', foundUser.id)
 
-                Promise.all([
-                  initMainStore(),
-                  initContractsStore(),
-                  initKeysStore(),
-                  initEntitiesStore(),
-                  initTemplatesStore(),
-                  initDocumentsStore(),
-                ]).then(() => resolve())
+                  Promise.all([
+                    initContractsStore(),
+                    initKeysStore(),
+                    initEntitiesStore(),
+                    initTemplatesStore(),
+                    initDocumentsStore(),
+                  ]).then(() => resolve())
+                })
               })
               .catch((e) => {
                 reject(new Error('Falha de sessão interna: ' + e.message))
