@@ -37,6 +37,7 @@ import {
   formatPhoneForWhatsApp,
 } from '@/lib/boletoParser'
 import { buildWhatsAppLink, exportToCsv } from '@/lib/whatsappAndExcel'
+import { createOneDrivePublicLink } from '@/lib/onedrivePublicLink'
 
 export interface ProcessedBoletoRow {
   id: string
@@ -128,8 +129,16 @@ export default function Caixa() {
         // Parse Itaú Boleto text
         const parsed = parseItauBoletoText(rawText, pdfFile.name)
 
-        // PDF Link on OneDrive
-        const pdfLink = pdfFile.webUrl || '#'
+        // PDF Link on OneDrive — generate an anonymous public sharing link via
+        // Microsoft Graph so inquilinos can open it without authentication.
+        // Falls back to the direct OneDrive webUrl if link creation fails.
+        const directLink = pdfFile.webUrl || '#'
+        const pdfLink = await createOneDrivePublicLink(
+          pdfFile.id,
+          folder.driveId,
+          folder.siteId,
+          directLink,
+        )
 
         // Cross-reference with Local ERP Tenants by Document (CPF/CNPJ) or Name
         let matchedPhone = ''
