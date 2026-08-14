@@ -136,6 +136,11 @@ export function formatPhoneForWhatsApp(phone: string): string {
 export function extractCpfFromText(rawText: string): string {
   if (!rawText) return ''
 
+  // Pre-clean raw text from common barcode lines or noise sequences that corrupt document extraction
+  const sanitizedText = rawText
+    .replace(/\d{5}\.\d{5}\s+\d{5}\.\d{6}\s+\d{5}\.\d{6}\s+\d\s+\d{14}/g, ' ') // Linea digitavel
+    .replace(/\b\d{47,48}\b/g, ' ') // Raw bar code numbers
+
   interface DocCandidate {
     raw: string
     cleaned: string
@@ -151,7 +156,7 @@ export function extractCpfFromText(rawText: string): string {
     const positions: number[] = []
     const rx = new RegExp(pattern.source, 'gi')
     let m: RegExpExecArray | null
-    while ((m = rx.exec(rawText)) !== null) {
+    while ((m = rx.exec(sanitizedText)) !== null) {
       positions.push(m.index)
       if (m.index === rx.lastIndex) rx.lastIndex++
     }
@@ -176,20 +181,20 @@ export function extractCpfFromText(rawText: string): string {
 
   const scan = (regex: RegExp, isCnpj: boolean) => {
     let match: RegExpExecArray | null
-    while ((match = regex.exec(rawText)) !== null) {
+    while ((match = regex.exec(sanitizedText)) !== null) {
       const rawMatch = match[0]
       const digits = rawMatch.replace(/\D/g, '')
       const valid = isCnpj ? isValidCnpj(digits) : isValidCpf(digits)
       if (!valid) continue
 
       const idx = match.index
-      const ctxBefore = rawText.substring(Math.max(0, idx - 150), idx)
-      const ctxAfter = rawText.substring(
+      const ctxBefore = sanitizedText.substring(Math.max(0, idx - 150), idx)
+      const ctxAfter = sanitizedText.substring(
         idx + rawMatch.length,
-        Math.min(rawText.length, idx + rawMatch.length + 150),
+        Math.min(sanitizedText.length, idx + rawMatch.length + 150),
       )
       const fullCtx = (ctxBefore + ' ' + ctxAfter).toLowerCase()
-      const prefix = rawText.substring(Math.max(0, idx - 30), idx)
+      const prefix = sanitizedText.substring(Math.max(0, idx - 30), idx)
 
       let score = 10
 
@@ -254,8 +259,28 @@ export function extractCpfFromText(rawText: string): string {
 }
 
 const STOP_WORDS_NAME = new Set([
+  'PAGO',
+  'PAGADOR',
+  'SACADO',
+  'DO',
+  'DE',
+  'DA',
+  'DOS',
+  'DAS',
+  'E',
+  'DEL',
+  'DELLA',
+  'NOME',
   'CPF',
   'CNPJ',
+  'ENDERECO',
+  'ENDEREÇO',
+  'CIDADE',
+  'UF',
+  'CEP',
+  'VENCIMENTO',
+  'VALOR',
+  'DOCUMENTO',
   'RUA',
   'AV',
   'AVENIDA',
@@ -264,15 +289,7 @@ const STOP_WORDS_NAME = new Set([
   'PRACA',
   'ESTRADA',
   'RODOVIA',
-  'ENDEREÇO',
-  'ENDERECO',
-  'CEP',
   'BAIRRO',
-  'CIDADE',
-  'UF',
-  'VENCIMENTO',
-  'VALOR',
-  'DOCUMENTO',
   'NOSSO',
   'NUMERO',
   'NÚMERO',
@@ -299,10 +316,7 @@ const STOP_WORDS_NAME = new Set([
   'MUNICÍPIO',
   'MUNICIPIO',
   'COMPLEMENTO',
-  'PAGADOR',
-  'SACADO',
   'DADOS',
-  'NOME',
   'RAZÃO',
   'RAZAO',
   'SOCIAL',
@@ -322,6 +336,8 @@ const STOP_WORDS_NAME = new Set([
   'ACRÉSCIMOS',
   'ACRESCIMOS',
   'COBRADO',
+  'COBRAR',
+  'ENCIMENTO',
   'ESPÉCIE',
   'ESPECIE',
   'MOEDA',
@@ -536,18 +552,31 @@ function cleanExtractedName(raw: string): string {
 
     const upperWord = cleanWord.toUpperCase()
 
+    // Stop name extraction immediately if an address keyword, city or state pattern is detected
+    if (ADDRESS_KEYWORDS.has(upperWord) || UF_SET.has(upperWord)) {
+      break
+    }
+
     if (STOP_WORDS_NAME.has(upperWord)) {
       if (validWords.length >= 1) break
       continue
     }
 
-    if (cleanWord.length === 1 && !/^[eEaA]$/.test(cleanWord)) continue
+    // Connective check & short word filter (ignore candidates shorter than 3 chars unless valid connective e/a/de/do/da/dos/das)
+    const isConnective = /^(?:[eEaA]|DE|DO|DA|DOS|DAS|DEL)$/i.test(cleanWord)
+    if (cleanWord.length < 3 && !isConnective) {
+      continue
+    }
 
     validWords.push(upperWord)
   }
 
-  if (validWords.length === 0) return ''
+  // Filter out candidates consisting ONLY of connectives or shorter than 3 chars total
+  const nonConnectives = validWords.filter((w) => !/^(?:[eEaA]|DE|DO|DA|DOS|DAS|DEL)$/i.test(w))
+  if (nonConnectives.length === 0) return ''
+
   const result = validWords.join(' ')
+  if (result.length < 3) return ''
   if (isAddressLine(result)) return ''
   return result
 }
@@ -647,12 +676,10 @@ export function extractNameFromText(rawText: string, validCpf: string, fileName:
 
   const candidates: NameCandidate[] = []
 
-  if (fileFallback && fileFallback !== 'NÃO IDENTIFICADO' && !isAddressLine(fileFallback)) {
-    candidates.push({ name: fileFallback, score: 400 })
-  }
-
   if (!rawText) {
-    if (candidates.length > 0) return candidates[0].name
+    if (fileFallback && fileFallback !== 'NÃO IDENTIFICADO' && !isAddressLine(fileFallback)) {
+      return fileFallback
+    }
     return 'NÃO IDENTIFICADO'
   }
 
@@ -660,20 +687,41 @@ export function extractNameFromText(rawText: string, validCpf: string, fileName:
   const benefPos = indexLabels(rawText, BENEF_LABELS)
 
   const isAcceptableName = (name: string): boolean => {
-    if (!name) return false
+    if (!name || name.length < 3) return false
     if (isAddressLine(name)) return false
     const words = name.split(/\s+/).filter(Boolean)
     if (words.length === 0) return false
+    // Ignore candidate names consisting only of connectives
+    const nonConnectives = words.filter((w) => !/^(?:[eEaA]|DE|DO|DA|DOS|DAS|DEL)$/i.test(w))
+    if (nonConnectives.length === 0) return false
     return true
   }
 
-  // Strategy 1: name attached to the Pagador's CPF/CNPJ (highest confidence)
+  // Strategy 1: Prioritize the block of text IMMEDIATELY following the "Pagador" or "Sacado" labels
+  const labelAfterPatterns = [
+    /(?:Nome\s+do\s+Pagador\/CPF\/CNPJ\/Endereço|Nome\s+do\s+Pagador\/CPF\/CNPJ|Dados\s+do\s+Pagador|Pagador\s*\/\s*Sacado|Pagador\s*\/\s*Avalista|Pagador|Sacado)[:\s/]*([A-Za-zÁÀÂÃÉÊÍÓÔÕÚÇáàâãéêíóôõúç\s'.-]{3,120})/gi,
+  ]
+
+  for (const rx of labelAfterPatterns) {
+    let m: RegExpExecArray | null
+    while ((m = rx.exec(rawText)) !== null) {
+      const idx = m.index
+      if (isBeneficiaryRegion(idx, pagadorPos, benefPos)) continue
+
+      const captured = m[1]
+      const cleaned = cleanExtractedName(captured)
+      if (isAcceptableName(cleaned)) {
+        const words = cleaned.split(/\s+/).filter(Boolean)
+        candidates.push({ name: cleaned, score: 2000 + words.length * 10 })
+      }
+    }
+  }
+
+  // Strategy 2: name attached to the Pagador's CPF/CNPJ (highest confidence when present)
   if (validCpf) {
     const rawDigits = validCpf.replace(/\D/g, '')
     const formattedDoc = cleanCpf(rawDigits)
 
-    // Build a flexible pattern that also matches the document when the PDF
-    // renderer inserts spaces between the digit groups (e.g. "11 222 333 0001 81").
     const groups = rawDigits.length === 14 ? [2, 3, 3, 4, 2] : [3, 3, 3, 2]
     let pos = 0
     const spacedParts: string[] = []
@@ -690,18 +738,17 @@ export function extractNameFromText(rawText: string, validCpf: string, fileName:
     while ((m = docRx.exec(rawText)) !== null) {
       const idx = m.index
 
-      // Skip the Beneficiário's document occurrence (e.g. Imobiliária Colina's CNPJ)
       if (isBeneficiaryRegion(idx, pagadorPos, benefPos)) continue
 
-      // Text BEFORE the document (the name usually precedes CPF/CNPJ on a boleto)
+      // Text BEFORE the document
       const beforeText = rawText.substring(Math.max(0, idx - 160), idx)
       const nameBefore = cleanExtractedName(beforeText)
       if (isAcceptableName(nameBefore)) {
         const wordsBefore = nameBefore.split(/\s+/).filter(Boolean)
-        candidates.push({ name: nameBefore, score: 1100 + wordsBefore.length * 20 })
+        candidates.push({ name: nameBefore, score: 1500 + wordsBefore.length * 20 })
       }
 
-      // Text AFTER the document (some layouts put the name after the CPF)
+      // Text AFTER the document
       const afterText = rawText.substring(
         idx + m[0].length,
         Math.min(rawText.length, idx + m[0].length + 160),
@@ -709,33 +756,14 @@ export function extractNameFromText(rawText: string, validCpf: string, fileName:
       const nameAfter = cleanExtractedName(afterText)
       if (isAcceptableName(nameAfter)) {
         const wordsAfter = nameAfter.split(/\s+/).filter(Boolean)
-        candidates.push({ name: nameAfter, score: 850 + wordsAfter.length * 20 })
+        candidates.push({ name: nameAfter, score: 1200 + wordsAfter.length * 20 })
       }
     }
   }
 
-  // Strategy 2: explicit Pagador / Sacado labels
-  const pagadorPatterns = [
-    /(?:Pagador\s*\/\s*Sacado|Pagador\s*\/\s*Avalista|Nome\s+do\s+Pagador|Dados\s+do\s+Pagador|Pagador|Sacado)[:\s-]+\s*([A-Za-zÁÀÂÃÉÊÍÓÔÕÚÇáàâãéêíóôõúç\s'.-]{3,100})/gi,
-    /(?:Nome[:\s]+)([A-Za-zÁÀÂÃÉÊÍÓÔÕÚÇáàâãéêíóôõúç\s'.-]{3,100})/gi,
-  ]
-
-  for (const rx of pagadorPatterns) {
-    let m: RegExpExecArray | null
-    while ((m = rx.exec(rawText)) !== null) {
-      const idx = m.index
-      // Only trust labeled captures that sit in the Pagador region
-      if (isBeneficiaryRegion(idx, pagadorPos, benefPos)) continue
-
-      const captured = m[1]
-      const cleaned = cleanExtractedName(captured)
-      if (isAcceptableName(cleaned)) {
-        const words = cleaned.split(/\s+/).filter(Boolean)
-        let score = 600 + words.length * 10
-        if (/pagador/i.test(m[0])) score += 200
-        candidates.push({ name: cleaned, score })
-      }
-    }
+  // File fallback candidate as lower priority
+  if (fileFallback && fileFallback !== 'NÃO IDENTIFICADO' && isAcceptableName(fileFallback)) {
+    candidates.push({ name: fileFallback, score: 300 })
   }
 
   if (candidates.length > 0) {
