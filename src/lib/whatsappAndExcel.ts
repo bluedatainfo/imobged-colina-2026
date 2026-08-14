@@ -25,27 +25,29 @@ export function buildWhatsAppLink(
   const cleanPhone = formatPhoneForWhatsApp(targetPhone)
   if (!cleanPhone) return ''
 
-  const message = `🚨 BOLETO PARA PAGAMENTO 🚨
+  const message = `📨BOLETO PARA PAGAMENTO📨
 
 Olá, ${tenantName}!
 
-Segue o boleto referente à sua locação.
+Segue o boleto referente ao seu contrato de locação.
 
 📅 Vencimento: ${dueDate}
 💰 Valor: R$ ${amount}
 
-🔗 Acesse o boleto:
+🔗 Acesse o seu boleto aqui ⬇️:
 ${pdfLink}
 
-⚠️ Antes de efetuar o pagamento, confira atentamente todos os dados e itens apresentados no boleto, incluindo beneficiário, vencimento, valor e demais informações.
+⚠️ ATENÇÃO: Antes de realizar o pagamento, confira atentamente o beneficiário, vencimento, valor e demais informações do boleto.
 
-Em caso de qualquer divergência, entre em contato conosco antes de realizar o pagamento.
+Em caso de qualquer divergência, não efetue o pagamento e entre em contato conosco.
 
-Agradecemos pela atenção!
+🚨 AVISO IMPORTANTE: Efetue o pagamento até a data de vencimento do boleto para evitar a incidência de encargos por atraso, conforme previsto em contrato.
 
-Jackson e Cristina
-Setor Financeiro
-IMOBILIÁRIA COLINA`
+Agradecemos pela atenção.
+
+IMOBILIÁRIA COLINA
+Cristina e Jackson
+Setor Financeiro`
 
   const encodedMessage = encodeURIComponent(message)
   return `https://wa.me/${cleanPhone}?text=${encodedMessage}`
