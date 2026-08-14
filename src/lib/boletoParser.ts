@@ -70,28 +70,23 @@ export function isValidCnpj(cnpj: string): boolean {
   if (digits.length !== 14) return false
   if (/^(\d)\1{13}$/.test(digits)) return false
 
-  let size = digits.length - 2
-  let numbers = digits.substring(0, size)
-  const digitsPart = digits.substring(size)
+  const weight1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
   let sum = 0
-  let pos = size - 7
-  for (let i = size; i >= 1; i--) {
-    sum += parseInt(numbers.charAt(size - i), 10) * pos--
-    if (pos < 2) pos = 9
+  for (let i = 0; i < 12; i++) {
+    sum += parseInt(digits.charAt(i), 10) * weight1[i]
   }
-  let result = sum % 11 < 2 ? 0 : 11 - (sum % 11)
-  if (result !== parseInt(digitsPart.charAt(0), 10)) return false
+  let rev = sum % 11
+  const d1 = rev < 2 ? 0 : 11 - rev
+  if (d1 !== parseInt(digits.charAt(12), 10)) return false
 
-  size = size + 1
-  numbers = digits.substring(0, size)
+  const weight2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
   sum = 0
-  pos = size - 7
-  for (let i = size; i >= 1; i--) {
-    sum += parseInt(numbers.charAt(size - i), 10) * pos--
-    if (pos < 2) pos = 9
+  for (let i = 0; i < 13; i++) {
+    sum += parseInt(digits.charAt(i), 10) * weight2[i]
   }
-  result = sum % 11 < 2 ? 0 : 11 - (sum % 11)
-  if (result !== parseInt(digitsPart.charAt(10), 10)) return false
+  rev = sum % 11
+  const d2 = rev < 2 ? 0 : 11 - rev
+  if (d2 !== parseInt(digits.charAt(13), 10)) return false
 
   return true
 }
@@ -129,85 +124,115 @@ export function formatPhoneForWhatsApp(phone: string): string {
 }
 
 /**
- * Extracts valid CPF or CNPJ from text, excluding barcode/linha digitável segments
+ * Extracts valid CPF (11 digits) or CNPJ (14 digits) from text, excluding barcode segments
  */
 export function extractCpfFromText(rawText: string): string {
   if (!rawText) return ''
 
-  interface CpfCandidate {
+  interface DocCandidate {
     raw: string
     cleaned: string
+    digits: string
+    isCnpj: boolean
     score: number
   }
 
-  const candidates: CpfCandidate[] = []
+  const candidates: DocCandidate[] = []
 
-  // Regex for potential 11-digit CPF sequences (formatted or digits only)
-  // Ensures boundaries so we don't pick up mid-digit sequences from long barcode numbers
+  // 1. Scan for 11-digit CPF patterns
   const cpfRegex = /(?<!\d)(?:\d{3}[.\s]?\d{3}[.\s]?\d{3}[-.\s]?\d{2}|\d{11})(?!\d)/g
-
   let match: RegExpExecArray | null
+
   while ((match = cpfRegex.exec(rawText)) !== null) {
     const rawMatch = match[0]
     const digits = rawMatch.replace(/\D/g, '')
 
     if (isValidCpf(digits)) {
       const idx = match.index
-      const ctxBefore = rawText.substring(Math.max(0, idx - 80), idx)
+      const ctxBefore = rawText.substring(Math.max(0, idx - 100), idx)
       const ctxAfter = rawText.substring(
         idx + rawMatch.length,
-        Math.min(rawText.length, idx + rawMatch.length + 80),
+        Math.min(rawText.length, idx + rawMatch.length + 100),
       )
       const fullCtx = (ctxBefore + ' ' + ctxAfter).toLowerCase()
 
       let score = 10
 
-      // Priority if context mentions CPF / Pagador / Sacado / Inscrição
-      if (/cpf|pagador|sacado|inquilino|inscricao|inscrição/i.test(fullCtx)) {
+      if (
+        /cpf|pagador|sacado|inquilino|locatario|locatário|inscricao|inscrição|dados do pagador/i.test(
+          fullCtx,
+        )
+      ) {
         score += 200
       }
 
-      // Extra priority if preceded immediately by CPF or Pagador label
-      if (/(?:cpf|pagador|sacado)[:\s]*$/i.test(ctxBefore.trim())) {
+      if (/(?:cpf|pagador|sacado|pagador\/sacado)[:\s]*$/i.test(ctxBefore.trim())) {
         score += 300
       }
 
-      // Prefer standard formatted CPF string over raw digits
       if (/\d{3}\.\d{3}\.\d{3}[-.\s]?\d{2}/.test(rawMatch)) {
         score += 50
       }
 
-      // Penalize if context indicates Beneficiário / Payee instead of Pagador
-      if (/beneficiar|cedente/i.test(ctxBefore.toLowerCase())) {
-        score -= 50
+      if (/beneficiar|cedente|emissor|cooperativa/i.test(ctxBefore.toLowerCase())) {
+        score -= 150
       }
 
       candidates.push({
         raw: rawMatch,
         cleaned: cleanCpf(digits),
+        digits,
+        isCnpj: false,
         score,
       })
     }
   }
 
-  // Fallback: Check if there's a valid CNPJ if no valid CPF was found
-  if (candidates.length === 0) {
-    const cnpjRegex = /(?<!\d)(?:\d{2}\.\d{3}\.\d{3}\/\d{4}[-.\s]?\d{2}|\d{14})(?!\d)/g
-    while ((match = cnpjRegex.exec(rawText)) !== null) {
-      const rawMatch = match[0]
-      const digits = rawMatch.replace(/\D/g, '')
+  // 2. Scan for 14-digit CNPJ patterns
+  const cnpjRegex = /(?<!\d)(?:\d{2}[.\s]?\d{3}[.\s]?\d{3}[/\s]?\d{4}[-.\s]?\d{2}|\d{14})(?!\d)/g
 
-      if (isValidCnpj(digits)) {
-        const idx = match.index
-        const ctxBefore = rawText.substring(Math.max(0, idx - 80), idx)
-        if (/pagador|sacado|inquilino/i.test(ctxBefore)) {
-          candidates.push({
-            raw: rawMatch,
-            cleaned: cleanCpf(digits),
-            score: 100,
-          })
-        }
+  while ((match = cnpjRegex.exec(rawText)) !== null) {
+    const rawMatch = match[0]
+    const digits = rawMatch.replace(/\D/g, '')
+
+    if (isValidCnpj(digits)) {
+      const idx = match.index
+      const ctxBefore = rawText.substring(Math.max(0, idx - 100), idx)
+      const ctxAfter = rawText.substring(
+        idx + rawMatch.length,
+        Math.min(rawText.length, idx + rawMatch.length + 100),
+      )
+      const fullCtx = (ctxBefore + ' ' + ctxAfter).toLowerCase()
+
+      let score = 10
+
+      if (
+        /cnpj|pagador|sacado|inquilino|locatario|locatário|inscricao|inscrição|dados do pagador/i.test(
+          fullCtx,
+        )
+      ) {
+        score += 200
       }
+
+      if (/(?:cnpj|pagador|sacado|pagador\/sacado)[:\s]*$/i.test(ctxBefore.trim())) {
+        score += 300
+      }
+
+      if (/\d{2}\.\d{3}\.\d{3}\/\d{4}[-.\s]?\d{2}/.test(rawMatch)) {
+        score += 50
+      }
+
+      if (/beneficiar|cedente|emissor|cooperativa/i.test(ctxBefore.toLowerCase())) {
+        score -= 150
+      }
+
+      candidates.push({
+        raw: rawMatch,
+        cleaned: cleanCpf(digits),
+        digits,
+        isCnpj: true,
+        score,
+      })
     }
   }
 
@@ -252,8 +277,6 @@ const STOP_WORDS_NAME = new Set([
   'BRADESCO',
   'CAIXA',
   'BANCO',
-  'S/A',
-  'SA',
   'BENEFICIARIO',
   'BENEFICIÁRIO',
   'CEDENTE',
@@ -296,18 +319,203 @@ const STOP_WORDS_NAME = new Set([
   'QUANTIDADE',
   'ACEITE',
   'PROCESSAMENTO',
+  'SALAO',
+  'SALÃO',
+  'LOJA',
+  'SALA',
+  'GALPAO',
+  'GALPÃO',
+  'JUNDIAI',
+  'JUNDIAÍ',
+  'VILA',
+  'ARENS',
+  'PARQUE',
+  'JARDIM',
+  'RESIDENCIAL',
+  'CONDOMINIO',
+  'CONDOMÍNIO',
+  'EDIFICIO',
+  'EDIFÍCIO',
+  'BLOCO',
+  'APTO',
+  'APT',
+  'APARTAMENTO',
 ])
+
+const ADDRESS_KEYWORDS = new Set([
+  'RUA',
+  'AV',
+  'AVENIDA',
+  'ALAMEDA',
+  'PRAÇA',
+  'PRACA',
+  'ESTRADA',
+  'RODOVIA',
+  'TRAVESSA',
+  'PASSEIO',
+  'LOTE',
+  'LOTEAMENTO',
+  'QUADRA',
+  'BLOCO',
+  'APTO',
+  'APT',
+  'APARTAMENTO',
+  'CASA',
+  'LOJA',
+  'SALA',
+  'SALAO',
+  'SALÃO',
+  'GALPAO',
+  'GALPÃO',
+  'ANDAR',
+  'CONJUNTO',
+  'KM',
+  'BAIRRO',
+  'CIDADE',
+  'MUNICÍPIO',
+  'MUNICIPIO',
+  'ENDEREÇO',
+  'ENDERECO',
+  'COMPLEMENTO',
+  'CEP',
+  'UF',
+  'JARDIM',
+  'VILA',
+  'PARQUE',
+  'CENTRO',
+  'RESIDENCIAL',
+  'CHACARA',
+  'CHÁCARA',
+  'FAZENDA',
+  'SITIO',
+  'SÍTIO',
+  'JUNDIAI',
+  'JUNDIAÍ',
+  'CAMPINAS',
+  'SANTOS',
+  'SOROCABA',
+  'PIRACICABA',
+  'BARUERI',
+  'OSASCO',
+  'GUARULHOS',
+  'SANTO',
+  'ANDRE',
+  'BERNARDO',
+  'CAETANO',
+  'SÃO',
+  'SAO',
+  'PAULO',
+  'RIO',
+  'JANEIRO',
+  'HORIZONTE',
+  'CURITIBA',
+  'PORTO',
+  'ALEGRE',
+  'ARENS',
+])
+
+const UF_SET = new Set([
+  'AC',
+  'AL',
+  'AM',
+  'AP',
+  'BA',
+  'CE',
+  'DF',
+  'ES',
+  'GO',
+  'MA',
+  'MG',
+  'MS',
+  'MT',
+  'PA',
+  'PB',
+  'PE',
+  'PI',
+  'PR',
+  'RJ',
+  'RN',
+  'RO',
+  'RR',
+  'RS',
+  'SC',
+  'SE',
+  'SP',
+  'TO',
+])
+
+function isAddressLine(text: string): boolean {
+  if (!text) return false
+  const clean = text.trim()
+  if (!clean) return false
+
+  if (/\b\d{5}[-.\s]?\d{3}\b/.test(clean)) return true
+
+  const words = clean.toUpperCase().split(/\s+/)
+  if (words.length === 0) return false
+
+  const first = words[0]
+  if (
+    [
+      'RUA',
+      'AV',
+      'AVENIDA',
+      'ALAMEDA',
+      'PRAÇA',
+      'PRACA',
+      'ESTRADA',
+      'RODOVIA',
+      'TRAVESSA',
+      'SALAO',
+      'SALÃO',
+      'LOJA',
+      'SALA',
+      'GALPAO',
+      'GALPÃO',
+      'APTO',
+      'APT',
+      'APARTAMENTO',
+      'BLOCO',
+      'CASA',
+      'RESIDENCIAL',
+      'CONDOMINIO',
+      'CONDOMÍNIO',
+    ].includes(first)
+  ) {
+    return true
+  }
+
+  let matches = 0
+  for (const w of words) {
+    if (ADDRESS_KEYWORDS.has(w) || UF_SET.has(w)) {
+      matches++
+    }
+  }
+
+  if (matches / words.length >= 0.4) {
+    return true
+  }
+
+  return false
+}
 
 function cleanExtractedName(raw: string): string {
   if (!raw) return ''
-  const tokens = raw.trim().split(/\s+/)
+
+  let text = raw
+    .replace(/(?:cpf|cnpj|inscricao|inscrição|doc|documento)[:\s]*[\d./-]+/gi, ' ')
+    .replace(/\b\d{2,3}[.\s]?\d{3}[.\s]?\d{3}[-./\s]?\d{2,4}[-.\s]?\d{2}\b/g, ' ')
+    .replace(/\b\d{5,}\b/g, ' ')
+
+  const tokens = text.trim().split(/\s+/)
   const validWords: string[] = []
 
   for (const token of tokens) {
     if (/\d/.test(token)) {
-      if (validWords.length >= 2) break
+      if (validWords.length >= 1) break
       continue
     }
+
     const cleanWord = token.replace(
       /^[^A-Za-zÁÀÂÃÉÊÍÓÔÕÚÇáàâãéêíóôõúç]+|[^A-Za-zÁÀÂÃÉÊÍÓÔÕÚÇáàâãéêíóôõúç]+$/g,
       '',
@@ -315,19 +523,21 @@ function cleanExtractedName(raw: string): string {
     if (!cleanWord) continue
 
     const upperWord = cleanWord.toUpperCase()
+
     if (STOP_WORDS_NAME.has(upperWord)) {
-      if (validWords.length >= 2) break
+      if (validWords.length >= 1) break
       continue
     }
 
-    // Connectors like 'de', 'da', 'do', 'dos', 'das', 'e' are allowed
     if (cleanWord.length === 1 && !/^[eEaA]$/.test(cleanWord)) continue
 
     validWords.push(upperWord)
   }
 
   if (validWords.length === 0) return ''
-  return validWords.join(' ')
+  const result = validWords.join(' ')
+  if (isAddressLine(result)) return ''
+  return result
 }
 
 function extractNameFromFileName(fileName: string): string {
@@ -341,10 +551,10 @@ function extractNameFromFileName(fileName: string): string {
 }
 
 /**
- * Extracts the tenant full name from PDF text, prioritizing Pagador/Sacado fields over fileName
+ * Extracts the tenant full name or corporate name from PDF text, prioritizing Pagador/Sacado fields
  */
 export function extractNameFromText(rawText: string, validCpf: string, fileName: string): string {
-  if (!rawText) return extractNameFromFileName(fileName)
+  const fileFallback = extractNameFromFileName(fileName)
 
   interface NameCandidate {
     name: string
@@ -353,10 +563,19 @@ export function extractNameFromText(rawText: string, validCpf: string, fileName:
 
   const candidates: NameCandidate[] = []
 
-  // Strategy 1: Search after explicit "Pagador" / "Sacado" / "Nome" labels
+  if (fileFallback && fileFallback !== 'NÃO IDENTIFICADO' && !isAddressLine(fileFallback)) {
+    candidates.push({ name: fileFallback, score: 400 })
+  }
+
+  if (!rawText) {
+    if (candidates.length > 0) return candidates[0].name
+    return 'NÃO IDENTIFICADO'
+  }
+
+  // Strategy 1: Explicit Pagador / Sacado labels
   const pagadorPatterns = [
-    /(?:Pagador\s*\/\s*Sacado|Pagador\s*\/\s*Avalista|Nome\s+do\s+Pagador|Dados\s+do\s+Pagador|Pagador|Sacado)[:\s-]+\s*([A-Za-zÁÀÂÃÉÊÍÓÔÕÚÇáàâãéêíóôõúç\s'.-]{3,80})/gi,
-    /(?:Nome[:\s]+)([A-Za-zÁÀÂÃÉÊÍÓÔÕÚÇáàâãéêíóôõúç\s'.-]{3,80})/gi,
+    /(?:Pagador\s*\/\s*Sacado|Pagador\s*\/\s*Avalista|Nome\s+do\s+Pagador|Dados\s+do\s+Pagador|Pagador|Sacado)[:\s-]+\s*([A-Za-zÁÀÂÃÉÊÍÓÔÕÚÇáàâãéêíóôõúç\s'.-]{3,100})/gi,
+    /(?:Nome[:\s]+)([A-Za-zÁÀÂÃÉÊÍÓÔÕÚÇáàâãéêíóôõúç\s'.-]{3,100})/gi,
   ]
 
   for (const rx of pagadorPatterns) {
@@ -364,64 +583,71 @@ export function extractNameFromText(rawText: string, validCpf: string, fileName:
     while ((m = rx.exec(rawText)) !== null) {
       const captured = m[1]
       const cleaned = cleanExtractedName(captured)
-      const words = cleaned.split(/\s+/).filter(Boolean)
-      if (words.length >= 2) {
-        let score = 500 + words.length * 10
-        if (/pagador/i.test(m[0])) score += 300
-        candidates.push({ name: cleaned, score })
-      } else if (words.length === 1 && words[0].length >= 3) {
-        candidates.push({ name: cleaned, score: 100 })
+      if (cleaned && !isAddressLine(cleaned)) {
+        const words = cleaned.split(/\s+/).filter(Boolean)
+        if (words.length >= 1) {
+          let score = 600 + words.length * 10
+          if (/pagador/i.test(m[0])) score += 200
+          candidates.push({ name: cleaned, score })
+        }
       }
     }
   }
 
-  // Strategy 2: Proximity to valid CPF (if found)
+  // Strategy 2: Proximity to valid CPF / CNPJ (if found)
   if (validCpf) {
     const rawDigits = validCpf.replace(/\D/g, '')
-    const formattedCpf = cleanCpf(rawDigits)
+    const formattedDoc = cleanCpf(rawDigits)
 
-    const cpfPatternStr = `(?:${formattedCpf.replace(/\./g, '\\.').replace(/-/g, '\\-')}|${rawDigits})`
-    const cpfRx = new RegExp(cpfPatternStr, 'g')
+    const docPatternStr = `(?:${formattedDoc.replace(/\./g, '\\.').replace(/\//g, '\\/').replace(/-/g, '\\-')}|${rawDigits})`
+    const docRx = new RegExp(docPatternStr, 'g')
 
     let m: RegExpExecArray | null
-    while ((m = cpfRx.exec(rawText)) !== null) {
+    while ((m = docRx.exec(rawText)) !== null) {
       const idx = m.index
-      // Text before CPF
-      const beforeText = rawText.substring(Math.max(0, idx - 100), idx)
+
+      // Text before CPF/CNPJ
+      const beforeText = rawText.substring(Math.max(0, idx - 120), idx)
       const nameBefore = cleanExtractedName(beforeText)
-      const wordsBefore = nameBefore.split(/\s+/).filter(Boolean)
-      if (wordsBefore.length >= 2) {
-        candidates.push({ name: nameBefore, score: 800 + wordsBefore.length * 10 })
+      if (nameBefore && !isAddressLine(nameBefore)) {
+        const wordsBefore = nameBefore.split(/\s+/).filter(Boolean)
+        if (wordsBefore.length >= 1) {
+          candidates.push({ name: nameBefore, score: 900 + wordsBefore.length * 10 })
+        }
       }
 
-      // Text after CPF
+      // Text after CPF/CNPJ
       const afterText = rawText.substring(
         idx + m[0].length,
-        Math.min(rawText.length, idx + m[0].length + 100),
+        Math.min(rawText.length, idx + m[0].length + 120),
       )
       const nameAfter = cleanExtractedName(afterText)
-      const wordsAfter = nameAfter.split(/\s+/).filter(Boolean)
-      if (wordsAfter.length >= 2) {
-        candidates.push({ name: nameAfter, score: 700 + wordsAfter.length * 10 })
+      if (nameAfter && !isAddressLine(nameAfter)) {
+        const wordsAfter = nameAfter.split(/\s+/).filter(Boolean)
+        if (wordsAfter.length >= 1) {
+          candidates.push({ name: nameAfter, score: 850 + wordsAfter.length * 10 })
+        }
       }
     }
   }
 
-  // Strategy 3: Search for blocks of capitalized words representing full names in text
-  const fullNameRegex =
-    /(?<![A-Za-zÁÀÂÃÉÊÍÓÔÕÚÇáàâãéêíóôõúç])([A-ZÁÀÂÃÉÊÍÓÔÕÚÇ][a-záàâãéêíóôõúçA-ZÁÀÂÃÉÊÍÓÔÕÚÇ]+(?:\s+(?:de|da|do|dos|das|e|[A-ZÁÀÂÃÉÊÍÓÔÕÚÇ][a-záàâãéêíóôõúçA-ZÁÀÂÃÉÊÍÓÔÕÚÇ]+)){1,5})(?![A-Za-zÁÀÂÃÉÊÍÓÔÕÚÇáàâãéêíóôõúç])/g
+  // Strategy 3: Blocks of words representing individual or corporate names
+  const nameRegex =
+    /(?<![A-Za-zÁÀÂÃÉÊÍÓÔÕÚÇáàâãéêíóôõúç])([A-ZÁÀÂÃÉÊÍÓÔÕÚÇ][a-záàâãéêíóôõúçA-ZÁÀÂÃÉÊÍÓÔÕÚÇ]+(?:\s+(?:de|da|do|dos|das|e|LTDA|ME|EPP|EIRELI|S\/A|SA|[A-ZÁÀÂÃÉÊÍÓÔÕÚÇ][a-záàâãéêíóôõúçA-ZÁÀÂÃÉÊÍÓÔÕÚÇ]+)){1,6})(?![A-Za-zÁÀÂÃÉÊÍÓÔÕÚÇáàâãéêíóôõúç])/g
   let fnMatch: RegExpExecArray | null
-  while ((fnMatch = fullNameRegex.exec(rawText)) !== null) {
+  while ((fnMatch = nameRegex.exec(rawText)) !== null) {
     const cleaned = cleanExtractedName(fnMatch[1])
-    const words = cleaned.split(/\s+/).filter(Boolean)
-    if (words.length >= 2) {
-      const idx = fnMatch.index
-      const ctx = rawText.substring(
-        Math.max(0, idx - 40),
-        Math.min(rawText.length, idx + fnMatch[0].length + 40),
-      )
-      if (!/beneficiar|cedente|imobiliaria|banco|ltda|s\/a|condominio/i.test(ctx)) {
-        candidates.push({ name: cleaned, score: 200 + words.length * 10 })
+    if (cleaned && !isAddressLine(cleaned)) {
+      const words = cleaned.split(/\s+/).filter(Boolean)
+      if (words.length >= 2) {
+        const idx = fnMatch.index
+        const ctx = rawText.substring(
+          Math.max(0, idx - 40),
+          Math.min(rawText.length, idx + fnMatch[0].length + 40),
+        )
+        if (!/beneficiar|cedente|imobiliaria|banco|cooperativa/i.test(ctx)) {
+          candidates.push({ name: cleaned, score: 200 + words.length * 10 })
+        }
       }
     }
   }
@@ -431,7 +657,7 @@ export function extractNameFromText(rawText: string, validCpf: string, fileName:
     return candidates[0].name
   }
 
-  return extractNameFromFileName(fileName)
+  return fileFallback || 'NÃO IDENTIFICADO'
 }
 
 /**
@@ -551,7 +777,7 @@ export function extractDueDateFromText(rawText: string): string {
 }
 
 /**
- * Parses Itaú Boleto text to extract: Name, CPF, Due Date (Vencimento), Amount (Valor)
+ * Parses Itaú Boleto text to extract: Name, CPF/CNPJ, Due Date (Vencimento), Amount (Valor)
  */
 export function parseItauBoletoText(rawText: string, fileName: string): ParsedBoleto {
   const cpf = extractCpfFromText(rawText)
