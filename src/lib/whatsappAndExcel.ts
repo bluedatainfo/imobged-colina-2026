@@ -1,6 +1,54 @@
 import { formatPhoneForWhatsApp } from './boletoParser'
 
 /**
+ * Hybrid encoder for WhatsApp message URLs.
+ *
+ * `encodeURIComponent` turns emojis (and other non-ASCII) into `%XX` hex
+ * sequences that WhatsApp Web cannot decode, showing � in their place.
+ * This encoder keeps emojis, accents, letters and digits NATIVE (no %XX)
+ * and only encodes the characters that would otherwise break the URL:
+ * spaces, line breaks and the reserved/special URL characters.
+ */
+function encodeWhatsAppMessage(message: string): string {
+  let result = ''
+  for (const char of message) {
+    switch (char) {
+      case ' ':
+        result += '%20'
+        break
+      case '\n':
+        result += '%0A'
+        break
+      case '\r':
+        result += '%0D'
+        break
+      case '#':
+        result += '%23'
+        break
+      case '&':
+        result += '%26'
+        break
+      case '=':
+        result += '%3D'
+        break
+      case '?':
+        result += '%3F'
+        break
+      case '%':
+        result += '%25'
+        break
+      case '+':
+        result += '%2B'
+        break
+      default:
+        // Emojis, accents, letters and numbers stay native
+        result += char
+    }
+  }
+  return result
+}
+
+/**
  * Generates WhatsApp wa.me link with encoded message
  */
 export function buildWhatsAppLink(
@@ -49,7 +97,7 @@ IMOBILIÁRIA COLINA
 Cristina e Jackson
 Setor Financeiro`
 
-  const encodedMessage = encodeURIComponent(message)
+  const encodedMessage = encodeWhatsAppMessage(message)
   return `https://wa.me/${cleanPhone}?text=${encodedMessage}`
 }
 
