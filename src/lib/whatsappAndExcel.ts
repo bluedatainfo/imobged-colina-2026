@@ -50,17 +50,7 @@ Cristina e Jackson
 Setor Financeiro`
 
   const encodedMessage = encodeURIComponent(message)
-  // WhatsApp Web não decodifica corretamente os emojis codificados por
-  // encodeURIComponent (sequências como %F0%9F%93%A8), exibindo um caractere
-  // estranho no lugar. Decodificamos seletivamente apenas os bytes dos emojis
-  // (sequências UTF-8 de 4 bytes, plano astral) de volta para caracteres
-  // Unicode nativos, mantendo espaços (%20), quebras de linha (%0A), acentos
-  // e demais caracteres codificados.
-  const emojiDecodedMessage = encodedMessage.replace(
-    /(?:%F[0-4]%[0-9A-F]{2}%[0-9A-F]{2}%[0-9A-F]{2})/gi,
-    (match) => decodeURIComponent(match),
-  )
-  return `https://wa.me/${cleanPhone}?text=${emojiDecodedMessage}`
+  return `https://wa.me/${cleanPhone}?text=${encodedMessage}`
 }
 
 /**
