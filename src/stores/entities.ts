@@ -11,6 +11,8 @@ export type EntityModel = {
   createdAt: string
   updatedAt: string
   source?: string
+  celular?: string
+  telefone?: string
 }
 
 export type GuaranteeModel = {
@@ -97,6 +99,8 @@ export const initEntitiesStore = async () => {
       createdAt: t.dtinclusao || t.created_at || new Date().toISOString(),
       updatedAt: t.dtalteracao || t.updated_at || new Date().toISOString(),
       source,
+      celular: t.celular || t.telefone || '',
+      telefone: t.telefone || '',
     })
 
     const mapGuarantee = (g: any): GuaranteeModel => {

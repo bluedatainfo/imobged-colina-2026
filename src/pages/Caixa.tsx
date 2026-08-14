@@ -131,63 +131,111 @@ export default function Caixa() {
         // PDF Link on OneDrive
         const pdfLink = pdfFile.webUrl || '#'
 
-        // Cross-reference with Local ERP Tenants by CPF or Name
+        // Cross-reference with Local ERP Tenants by Document (CPF/CNPJ) or Name
         let matchedPhone = ''
         let tenantFound = false
+        let finalName = parsed.name
 
         const cleanParsedCpf = parsed.cpf.replace(/\D/g, '')
+        const hasValidDoc = Boolean(
+          cleanParsedCpf && (cleanParsedCpf.length === 11 || cleanParsedCpf.length === 14),
+        )
+
+        const matchByNameStrict = (erpName: string, pdfName: string): boolean => {
+          if (!erpName || !pdfName) return false
+          const e = erpName.trim().toLowerCase()
+          const p = pdfName.trim().toLowerCase()
+
+          // Only match by name if pdfName is longer than 5 characters
+          if (p.length <= 5) return false
+
+          // Strict comparison: exact match or one string contains the other with high overlap
+          if (e === p) return true
+
+          // Split into non-connective tokens
+          const tokenize = (str: string) =>
+            str
+              .split(/\s+/)
+              .filter((w) => w.length > 2 && !/^(de|do|da|dos|das|e|del|della)$/i.test(w))
+
+          const eTokens = tokenize(e)
+          const pTokens = tokenize(p)
+
+          if (eTokens.length === 0 || pTokens.length === 0) return false
+
+          // Match if all significant tokens of either name are included in the other
+          const pInE = pTokens.every((pt) => eTokens.includes(pt))
+          const eInP = eTokens.every((et) => pTokens.includes(et))
+
+          return pInE || eInP
+        }
 
         // 1. Search in local ERP Tenants store
-        let tenantMatch = tenants.find((t) => {
-          const tCpf = (t.cpf || '').replace(/\D/g, '')
-          if (cleanParsedCpf && tCpf && cleanParsedCpf === tCpf) return true
-          if (
-            parsed.name &&
-            parsed.name !== 'NÃO IDENTIFICADO' &&
-            t.fullName.toLowerCase().includes(parsed.name.toLowerCase())
-          ) {
-            return true
-          }
-          return false
-        })
+        let matchedTenantObj: { fullName: string; phone: string } | null = null
 
-        if (tenantMatch) {
-          tenantFound = true
-          // ERP tenant address or info
-          matchedPhone = (tenantMatch as any).celular || (tenantMatch as any).telefone || ''
+        const tenantByDoc = hasValidDoc
+          ? tenants.find((t) => {
+              const tCpf = (t.cpf || '').replace(/\D/g, '')
+              return tCpf && tCpf === cleanParsedCpf
+            })
+          : null
+
+        if (tenantByDoc) {
+          matchedTenantObj = {
+            fullName: tenantByDoc.fullName,
+            phone: tenantByDoc.celular || tenantByDoc.telefone || '',
+          }
+        } else if (!hasValidDoc) {
+          // Fallback to name matching ONLY if NO valid document is present
+          const tenantByName = tenants.find((t) => matchByNameStrict(t.fullName, parsed.name))
+          if (tenantByName) {
+            matchedTenantObj = {
+              fullName: tenantByName.fullName,
+              phone: tenantByName.celular || tenantByName.telefone || '',
+            }
+          }
         }
 
-        // 2. Search in guarantees/ERP fallback if phone not in tenant object
-        if (!matchedPhone && cleanParsedCpf) {
-          const guaranteeMatch = guarantees.find((g) => g.cpf.replace(/\D/g, '') === cleanParsedCpf)
+        // 2. Search in guarantees store if not found in tenants
+        if (!matchedTenantObj && hasValidDoc) {
+          const guaranteeMatch = guarantees.find(
+            (g) => (g.cpf || '').replace(/\D/g, '') === cleanParsedCpf,
+          )
           if (guaranteeMatch) {
-            matchedPhone = guaranteeMatch.celular || guaranteeMatch.telefone || ''
-            tenantFound = true
+            matchedTenantObj = {
+              fullName: guaranteeMatch.nome,
+              phone: guaranteeMatch.celular || guaranteeMatch.telefone || '',
+            }
+          }
+        } else if (!matchedTenantObj && !hasValidDoc) {
+          const guaranteeByName = guarantees.find((g) => matchByNameStrict(g.nome, parsed.name))
+          if (guaranteeByName) {
+            matchedTenantObj = {
+              fullName: guaranteeByName.nome,
+              phone: guaranteeByName.celular || guaranteeByName.telefone || '',
+            }
           }
         }
 
-        // 3. Fallback search via direct API fetch if store empty or missing
-        if (!matchedPhone) {
+        // 3. Direct ERP API fallback if store search didn't find a match
+        if (!matchedTenantObj) {
           try {
             const erpRes = await fetch('http://192.168.10.225:9000/locatarios').catch(() => null)
             if (erpRes && erpRes.ok) {
               const erpList = await erpRes.json()
               const foundErp = erpList.find((item: any) => {
                 const iCpf = (item.cpf || item.documento || '').replace(/\D/g, '')
-                if (cleanParsedCpf && iCpf && cleanParsedCpf === iCpf) return true
-                if (
-                  parsed.name &&
-                  parsed.name !== 'NÃO IDENTIFICADO' &&
-                  item.nome &&
-                  item.nome.toLowerCase().includes(parsed.name.toLowerCase())
-                ) {
-                  return true
+                if (hasValidDoc) {
+                  return iCpf && iCpf === cleanParsedCpf
+                } else {
+                  return matchByNameStrict(item.nome || item.fullName || '', parsed.name)
                 }
-                return false
               })
               if (foundErp) {
-                matchedPhone = foundErp.celular || foundErp.telefone || ''
-                tenantFound = true
+                matchedTenantObj = {
+                  fullName: foundErp.nome || foundErp.fullName || parsed.name,
+                  phone: foundErp.celular || foundErp.telefone || '',
+                }
               }
             }
           } catch (e) {
@@ -195,10 +243,21 @@ export default function Caixa() {
           }
         }
 
+        // Override data if match is found in ERP
+        if (matchedTenantObj) {
+          tenantFound = true
+          if (matchedTenantObj.fullName) {
+            finalName = matchedTenantObj.fullName
+          }
+          matchedPhone = matchedTenantObj.phone
+        }
+
+        const displayPhone = matchedPhone ? matchedPhone : 'NÃO ENCONTRADO'
+
         // Generate WhatsApp link
         const whatsappLink = buildWhatsAppLink(
           matchedPhone,
-          parsed.name,
+          finalName,
           parsed.dueDate,
           parsed.amount,
           pdfLink,
@@ -207,11 +266,11 @@ export default function Caixa() {
         rows.push({
           id: pdfFile.id,
           fileName: pdfFile.name,
-          name: parsed.name,
+          name: finalName,
           cpf: parsed.cpf,
           dueDate: parsed.dueDate,
           amount: parsed.amount,
-          phone: matchedPhone || 'NÃO ENCONTRADO',
+          phone: displayPhone,
           tenantFound,
           pdfLink,
           whatsappLink,

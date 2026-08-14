@@ -69,7 +69,7 @@ export function exportToCsv(
   const headers = [
     'Nome',
     'Celular',
-    'CPF',
+    'CPF/CNPJ',
     'Vencimento',
     'Valor',
     'Link PDF (OneDrive)',

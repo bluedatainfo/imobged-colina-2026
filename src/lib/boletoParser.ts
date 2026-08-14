@@ -258,18 +258,12 @@ export function extractCpfFromText(rawText: string): string {
   return ''
 }
 
+const CONNECTIVES = new Set(['DE', 'DO', 'DA', 'DOS', 'DAS', 'E', 'DEL', 'DELLA'])
+
 const STOP_WORDS_NAME = new Set([
   'PAGO',
   'PAGADOR',
   'SACADO',
-  'DO',
-  'DE',
-  'DA',
-  'DOS',
-  'DAS',
-  'E',
-  'DEL',
-  'DELLA',
   'NOME',
   'CPF',
   'CNPJ',
@@ -524,7 +518,7 @@ function isAddressLine(text: string): boolean {
   return false
 }
 
-function cleanExtractedName(raw: string): string {
+export function cleanExtractedName(raw: string): string {
   if (!raw) return ''
 
   let text = raw
@@ -552,27 +546,39 @@ function cleanExtractedName(raw: string): string {
 
     const upperWord = cleanWord.toUpperCase()
 
-    // Stop name extraction immediately if an address keyword, city or state pattern is detected
-    if (ADDRESS_KEYWORDS.has(upperWord) || UF_SET.has(upperWord)) {
-      break
+    // Connectives (DE, DO, DA, DOS, DAS, E, DEL, DELLA) are part of names and MUST NOT break extraction
+    if (CONNECTIVES.has(upperWord)) {
+      if (validWords.length >= 1) {
+        validWords.push(upperWord)
+      }
+      continue
     }
 
-    if (STOP_WORDS_NAME.has(upperWord)) {
+    // Stop name extraction immediately if a hard stop word (ADDRESS_KEYWORDS, UF_SET, or STOP_WORDS_NAME) is detected
+    if (
+      ADDRESS_KEYWORDS.has(upperWord) ||
+      UF_SET.has(upperWord) ||
+      STOP_WORDS_NAME.has(upperWord)
+    ) {
       if (validWords.length >= 1) break
       continue
     }
 
-    // Connective check & short word filter (ignore candidates shorter than 3 chars unless valid connective e/a/de/do/da/dos/das)
-    const isConnective = /^(?:[eEaA]|DE|DO|DA|DOS|DAS|DEL)$/i.test(cleanWord)
-    if (cleanWord.length < 3 && !isConnective) {
+    // Short word filter (ignore non-connective tokens shorter than 2 chars)
+    if (cleanWord.length < 2) {
       continue
     }
 
     validWords.push(upperWord)
   }
 
-  // Filter out candidates consisting ONLY of connectives or shorter than 3 chars total
-  const nonConnectives = validWords.filter((w) => !/^(?:[eEaA]|DE|DO|DA|DOS|DAS|DEL)$/i.test(w))
+  // Pop trailing connectives if any
+  while (validWords.length > 0 && CONNECTIVES.has(validWords[validWords.length - 1])) {
+    validWords.pop()
+  }
+
+  // Filter out candidates consisting ONLY of connectives
+  const nonConnectives = validWords.filter((w) => !CONNECTIVES.has(w))
   if (nonConnectives.length === 0) return ''
 
   const result = validWords.join(' ')
@@ -619,6 +625,10 @@ function indexLabels(rawText: string, labels: string[]): number[] {
 }
 
 const PAGADOR_LABELS = [
+  'pagador\\s*\\/\\s*sacado',
+  'pagador\\s*\\/\\s*avalista',
+  'nome\\s+do\\s+pagador',
+  'dados\\s+do\\s+pagador',
   'pagador',
   'sacado',
   'inquilino',
@@ -626,8 +636,6 @@ const PAGADOR_LABELS = [
   'devedor',
   'cliente',
   'contratante',
-  'pagador\\s*\\/\\s*sacado',
-  'pagador\\s*\\/\\s*avalista',
 ]
 const BENEF_LABELS = [
   'benefici[aá]rio',
@@ -699,7 +707,7 @@ export function extractNameFromText(rawText: string, validCpf: string, fileName:
 
   // Strategy 1: Prioritize the block of text IMMEDIATELY following the "Pagador" or "Sacado" labels
   const labelAfterPatterns = [
-    /(?:Nome\s+do\s+Pagador\/CPF\/CNPJ\/Endereço|Nome\s+do\s+Pagador\/CPF\/CNPJ|Dados\s+do\s+Pagador|Pagador\s*\/\s*Sacado|Pagador\s*\/\s*Avalista|Pagador|Sacado)[:\s/]*([A-Za-zÁÀÂÃÉÊÍÓÔÕÚÇáàâãéêíóôõúç\s'.-]{3,120})/gi,
+    /(?:Nome\s+do\s+Pagador\/CPF\/CNPJ\/Endereço(?:\/Cidade\/UF\/CEP)?|Nome\s+do\s+Pagador\/CPF\/CNPJ|Dados\s+do\s+Pagador|Pagador\s*\/\s*Sacado|Pagador\s*\/\s*Avalista|Pagador|Sacado)[:\s/]*([A-Za-zÁÀÂÃÉÊÍÓÔÕÚÇáàâãéêíóôõúç\s'.-]{3,120})/gi,
   ]
 
   for (const rx of labelAfterPatterns) {

@@ -49,6 +49,20 @@ describe('boletoParser CNPJ and Name extraction', () => {
     expect(name).toBe('AGAPRO VEDAÇÕES')
   })
 
+  it('keeps connectives like DE in names without truncating', () => {
+    const text = `
+      Nome do Pagador/CPF/CNPJ/Endereço/Cidade/UF/CEP
+      ADRIANA BRUMATTI DE PAULI 12517401896
+      RUA ZUFEREY AP 202 BL 06 ED JÚLIA
+      JARDIM PITANGUEIRAS I JUNDIAI SP 13202420
+    `
+    const cpf = extractCpfFromText(text)
+    const name = extractNameFromText(text, cpf, 'ADRIANA BRUMATTI 3327.pdf')
+
+    expect(cpf).toBe('125.174.018-96')
+    expect(name).toBe('ADRIANA BRUMATTI DE PAULI')
+  })
+
   it('parses full boleto text with business tenant', () => {
     const text = `
       PAGADOR: AGAPRO VEDAÇÕES LTDA
