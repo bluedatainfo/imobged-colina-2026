@@ -425,7 +425,7 @@ export default function Caixa() {
                   <TableHeader className="bg-muted/50">
                     <TableRow>
                       <TableHead>Inquilino / Nome</TableHead>
-                      <TableHead>CPF</TableHead>
+                      <TableHead>CPF/CNPJ</TableHead>
                       <TableHead>Vencimento</TableHead>
                       <TableHead>Valor (R$)</TableHead>
                       <TableHead>Celular (ERP)</TableHead>

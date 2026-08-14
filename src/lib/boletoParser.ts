@@ -124,7 +124,14 @@ export function formatPhoneForWhatsApp(phone: string): string {
 }
 
 /**
- * Extracts valid CPF (11 digits) or CNPJ (14 digits) from text, excluding barcode segments
+ * Extracts valid CPF (11 digits) or CNPJ (14 digits) from text, excluding barcode segments.
+ *
+ * The key difficulty is that a boleto always carries TWO relevant documents:
+ * the Beneficiário's (Imobiliária Colina) and the Pagador/Sacado's. We must keep
+ * only the Pagador's. We decide which "region" each candidate belongs to by
+ * comparing the character distance to the nearest "pagador/sacado" label vs the
+ * nearest "beneficiário/cedente" label — this is far more reliable than a fixed
+ * context-window penalty.
  */
 export function extractCpfFromText(rawText: string): string {
   if (!rawText) return ''
@@ -139,102 +146,104 @@ export function extractCpfFromText(rawText: string): string {
 
   const candidates: DocCandidate[] = []
 
-  // 1. Scan for 11-digit CPF patterns
-  const cpfRegex = /(?<!\d)(?:\d{3}[.\s]?\d{3}[.\s]?\d{3}[-.\s]?\d{2}|\d{11})(?!\d)/g
-  let match: RegExpExecArray | null
+  // Pre-compute label positions so we can attribute each document to a region.
+  const labelPositions = (pattern: RegExp): number[] => {
+    const positions: number[] = []
+    const rx = new RegExp(pattern.source, 'gi')
+    let m: RegExpExecArray | null
+    while ((m = rx.exec(rawText)) !== null) {
+      positions.push(m.index)
+      if (m.index === rx.lastIndex) rx.lastIndex++
+    }
+    return positions
+  }
 
-  while ((match = cpfRegex.exec(rawText)) !== null) {
-    const rawMatch = match[0]
-    const digits = rawMatch.replace(/\D/g, '')
+  const pagadorLabelPos = labelPositions(
+    /pagador|sacado|inquilino|locat[aá]rio|devedor|cliente|contratante|pagador\s*\/\s*sacado|pagador\s*\/\s*avalista/gi,
+  )
+  const benefLabelPos = labelPositions(
+    /benefici[aá]rio|beneficiar|cedente|emissor|cooperativa|favorecido|credor|recebedor/gi,
+  )
 
-    if (isValidCpf(digits)) {
+  const nearestDist = (positions: number[], idx: number): number => {
+    let min = Infinity
+    for (const p of positions) {
+      const d = Math.abs(p - idx)
+      if (d < min) min = d
+    }
+    return min
+  }
+
+  const scan = (regex: RegExp, isCnpj: boolean) => {
+    let match: RegExpExecArray | null
+    while ((match = regex.exec(rawText)) !== null) {
+      const rawMatch = match[0]
+      const digits = rawMatch.replace(/\D/g, '')
+      const valid = isCnpj ? isValidCnpj(digits) : isValidCpf(digits)
+      if (!valid) continue
+
       const idx = match.index
-      const ctxBefore = rawText.substring(Math.max(0, idx - 100), idx)
+      const ctxBefore = rawText.substring(Math.max(0, idx - 150), idx)
       const ctxAfter = rawText.substring(
         idx + rawMatch.length,
-        Math.min(rawText.length, idx + rawMatch.length + 100),
+        Math.min(rawText.length, idx + rawMatch.length + 150),
       )
       const fullCtx = (ctxBefore + ' ' + ctxAfter).toLowerCase()
+      const prefix = rawText.substring(Math.max(0, idx - 30), idx)
 
       let score = 10
 
+      // Strong: document explicitly labeled right before it
+      // (CPF:, CNPJ:, CPF/CNPJ:, CNPJ/CPF:, DOC:, DOCUMENTO:)
+      if (/(?:cpf\s*\/\s*cnpj|cnpj\s*\/\s*cpf|cpf|cnpj|doc(?:umento)?)\s*[:/]?\s*$/i.test(prefix)) {
+        score += 400
+      }
+
+      // Region decision: which label is this document closest to?
+      const distPagador = nearestDist(pagadorLabelPos, idx)
+      const distBenef = nearestDist(benefLabelPos, idx)
+
+      if (distBenef !== Infinity && distBenef < distPagador) {
+        // Closer to the Beneficiário/Cedente label -> this is the Beneficiário's
+        // document (e.g. Imobiliária Colina's CNPJ). Exclude it hard.
+        score -= 100000
+      } else if (distPagador !== Infinity) {
+        if (distPagador <= 60) score += 350
+        else if (distPagador <= 120) score += 200
+        else if (distPagador <= 220) score += 80
+      }
+
+      // Light context confirmation
       if (
-        /cpf|pagador|sacado|inquilino|locatario|locatário|inscricao|inscrição|dados do pagador/i.test(
+        /cpf|cnpj|pagador|sacado|inquilino|locat[aá]rio|inscriç[aã]o|dados do pagador/i.test(
           fullCtx,
         )
       ) {
-        score += 200
-      }
-
-      if (/(?:cpf|pagador|sacado|pagador\/sacado)[:\s]*$/i.test(ctxBefore.trim())) {
-        score += 300
-      }
-
-      if (/\d{3}\.\d{3}\.\d{3}[-.\s]?\d{2}/.test(rawMatch)) {
         score += 50
       }
 
-      if (/beneficiar|cedente|emissor|cooperativa/i.test(ctxBefore.toLowerCase())) {
-        score -= 150
-      }
-
-      candidates.push({
-        raw: rawMatch,
-        cleaned: cleanCpf(digits),
-        digits,
-        isCnpj: false,
-        score,
-      })
-    }
-  }
-
-  // 2. Scan for 14-digit CNPJ patterns
-  const cnpjRegex = /(?<!\d)(?:\d{2}[.\s]?\d{3}[.\s]?\d{3}[/\s]?\d{4}[-.\s]?\d{2}|\d{14})(?!\d)/g
-
-  while ((match = cnpjRegex.exec(rawText)) !== null) {
-    const rawMatch = match[0]
-    const digits = rawMatch.replace(/\D/g, '')
-
-    if (isValidCnpj(digits)) {
-      const idx = match.index
-      const ctxBefore = rawText.substring(Math.max(0, idx - 100), idx)
-      const ctxAfter = rawText.substring(
-        idx + rawMatch.length,
-        Math.min(rawText.length, idx + rawMatch.length + 100),
-      )
-      const fullCtx = (ctxBefore + ' ' + ctxAfter).toLowerCase()
-
-      let score = 10
-
+      // Formatting bonus (properly masked documents are more trustworthy)
       if (
-        /cnpj|pagador|sacado|inquilino|locatario|locatário|inscricao|inscrição|dados do pagador/i.test(
-          fullCtx,
-        )
+        isCnpj
+          ? /\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/.test(rawMatch)
+          : /\d{3}\.\d{3}\.\d{3}-\d{2}/.test(rawMatch)
       ) {
-        score += 200
+        score += 30
       }
 
-      if (/(?:cnpj|pagador|sacado|pagador\/sacado)[:\s]*$/i.test(ctxBefore.trim())) {
-        score += 300
+      // Belt-and-suspenders: penalize anything still smelling like the Beneficiário
+      if (/beneficiar|benefici[aá]rio|cedente|emissor|cooperativa|favorecido/i.test(ctxBefore)) {
+        score -= 1000
       }
 
-      if (/\d{2}\.\d{3}\.\d{3}\/\d{4}[-.\s]?\d{2}/.test(rawMatch)) {
-        score += 50
-      }
-
-      if (/beneficiar|cedente|emissor|cooperativa/i.test(ctxBefore.toLowerCase())) {
-        score -= 150
-      }
-
-      candidates.push({
-        raw: rawMatch,
-        cleaned: cleanCpf(digits),
-        digits,
-        isCnpj: true,
-        score,
-      })
+      candidates.push({ raw: rawMatch, cleaned: cleanCpf(digits), digits, isCnpj, score })
     }
   }
+
+  // CPF (11 digits)
+  scan(/(?<!\d)(?:\d{3}[.\s]?\d{3}[.\s]?\d{3}[-.\s]?\d{2}|\d{11})(?!\d)/g, false)
+  // CNPJ (14 digits)
+  scan(/(?<!\d)(?:\d{2}[.\s]?\d{3}[.\s]?\d{3}[/\s]?\d{4}[-.\s]?\d{2}|\d{14})(?!\d)/g, true)
 
   if (candidates.length > 0) {
     candidates.sort((a, b) => b.score - a.score)
@@ -507,7 +516,10 @@ function cleanExtractedName(raw: string): string {
     .replace(/\b\d{2,3}[.\s]?\d{3}[.\s]?\d{3}[-./\s]?\d{2,4}[-.\s]?\d{2}\b/g, ' ')
     .replace(/\b\d{5,}\b/g, ' ')
 
-  const tokens = text.trim().split(/\s+/)
+  const tokens = text
+    .trim()
+    .split(/[\s/\\|]+/)
+    .filter(Boolean)
   const validWords: string[] = []
 
   for (const token of tokens) {
@@ -551,15 +563,87 @@ function extractNameFromFileName(fileName: string): string {
 }
 
 /**
- * Extracts the tenant full name or corporate name from PDF text, prioritizing Pagador/Sacado fields
+ * A candidate human/company name found in the PDF text.
+ */
+interface NameCandidate {
+  name: string
+  score: number
+}
+
+/**
+ * Indexes every occurrence of any of the given label words in `rawText` so we
+ * can later attribute a candidate name/document to the nearest label (Pagador
+ * vs Beneficiário) by character distance.
+ */
+function indexLabels(rawText: string, labels: string[]): number[] {
+  const positions: number[] = []
+  for (const label of labels) {
+    const rx = new RegExp(label, 'gi')
+    let m: RegExpExecArray | null
+    while ((m = rx.exec(rawText)) !== null) {
+      positions.push(m.index)
+      if (m.index === rx.lastIndex) rx.lastIndex++
+    }
+  }
+  positions.sort((a, b) => a - b)
+  return positions
+}
+
+const PAGADOR_LABELS = [
+  'pagador',
+  'sacado',
+  'inquilino',
+  'locat[aá]rio',
+  'devedor',
+  'cliente',
+  'contratante',
+  'pagador\\s*\\/\\s*sacado',
+  'pagador\\s*\\/\\s*avalista',
+]
+const BENEF_LABELS = [
+  'benefici[aá]rio',
+  'beneficiar',
+  'cedente',
+  'emissor',
+  'cooperativa',
+  'favorecido',
+  'credor',
+  'recebedor',
+  'imob[ií]li[aá]ria',
+]
+
+function nearestDistance(positions: number[], idx: number): number {
+  let min = Infinity
+  for (const p of positions) {
+    const d = Math.abs(p - idx)
+    if (d < min) min = d
+    if (p > idx) break
+  }
+  return min
+}
+
+function isBeneficiaryRegion(idx: number, pagadorPos: number[], benefPos: number[]): boolean {
+  const dPag = nearestDistance(pagadorPos, idx)
+  const dBen = nearestDistance(benefPos, idx)
+  return dBen !== Infinity && dBen < dPag
+}
+
+/**
+ * Extracts the tenant full name or corporate name from PDF text.
+ *
+ * Strategy (in priority order, each producing scored candidates):
+ *  1. The text immediately around the Pagador's CPF/CNPJ (the single most
+ *     reliable cue on a boleto) — prefer the name that appears right BEFORE the
+ *     document, falling back to the text right AFTER it.
+ *  2. Explicit "Pagador / Sacado" label captures.
+ *  3. File-name fallback.
+ *
+ * Beneficiário/Cedente text is actively suppressed by region attribution so
+ * "Imobiliária Colina" is never returned, and address-looking fragments
+ * ("SALAO VILA ARENS JUNDIAI") are dropped by cleanExtractedName/isAddressLine.
  */
 export function extractNameFromText(rawText: string, validCpf: string, fileName: string): string {
   const fileFallback = extractNameFromFileName(fileName)
-
-  interface NameCandidate {
-    name: string
-    score: number
-  }
 
   const candidates: NameCandidate[] = []
 
@@ -572,7 +656,65 @@ export function extractNameFromText(rawText: string, validCpf: string, fileName:
     return 'NÃO IDENTIFICADO'
   }
 
-  // Strategy 1: Explicit Pagador / Sacado labels
+  const pagadorPos = indexLabels(rawText, PAGADOR_LABELS)
+  const benefPos = indexLabels(rawText, BENEF_LABELS)
+
+  const isAcceptableName = (name: string): boolean => {
+    if (!name) return false
+    if (isAddressLine(name)) return false
+    const words = name.split(/\s+/).filter(Boolean)
+    if (words.length === 0) return false
+    return true
+  }
+
+  // Strategy 1: name attached to the Pagador's CPF/CNPJ (highest confidence)
+  if (validCpf) {
+    const rawDigits = validCpf.replace(/\D/g, '')
+    const formattedDoc = cleanCpf(rawDigits)
+
+    // Build a flexible pattern that also matches the document when the PDF
+    // renderer inserts spaces between the digit groups (e.g. "11 222 333 0001 81").
+    const groups = rawDigits.length === 14 ? [2, 3, 3, 4, 2] : [3, 3, 3, 2]
+    let pos = 0
+    const spacedParts: string[] = []
+    for (const n of groups) {
+      spacedParts.push(rawDigits.slice(pos, pos + n))
+      pos += n
+    }
+    const spacedDoc = spacedParts.join('[./\\s-]?')
+
+    const docPatternStr = `(?:${formattedDoc.replace(/\./g, '\\.').replace(/\//g, '\\/').replace(/-/g, '\\-')}|${rawDigits}|${spacedDoc})`
+    const docRx = new RegExp(docPatternStr, 'g')
+
+    let m: RegExpExecArray | null
+    while ((m = docRx.exec(rawText)) !== null) {
+      const idx = m.index
+
+      // Skip the Beneficiário's document occurrence (e.g. Imobiliária Colina's CNPJ)
+      if (isBeneficiaryRegion(idx, pagadorPos, benefPos)) continue
+
+      // Text BEFORE the document (the name usually precedes CPF/CNPJ on a boleto)
+      const beforeText = rawText.substring(Math.max(0, idx - 160), idx)
+      const nameBefore = cleanExtractedName(beforeText)
+      if (isAcceptableName(nameBefore)) {
+        const wordsBefore = nameBefore.split(/\s+/).filter(Boolean)
+        candidates.push({ name: nameBefore, score: 1100 + wordsBefore.length * 20 })
+      }
+
+      // Text AFTER the document (some layouts put the name after the CPF)
+      const afterText = rawText.substring(
+        idx + m[0].length,
+        Math.min(rawText.length, idx + m[0].length + 160),
+      )
+      const nameAfter = cleanExtractedName(afterText)
+      if (isAcceptableName(nameAfter)) {
+        const wordsAfter = nameAfter.split(/\s+/).filter(Boolean)
+        candidates.push({ name: nameAfter, score: 850 + wordsAfter.length * 20 })
+      }
+    }
+  }
+
+  // Strategy 2: explicit Pagador / Sacado labels
   const pagadorPatterns = [
     /(?:Pagador\s*\/\s*Sacado|Pagador\s*\/\s*Avalista|Nome\s+do\s+Pagador|Dados\s+do\s+Pagador|Pagador|Sacado)[:\s-]+\s*([A-Za-zÁÀÂÃÉÊÍÓÔÕÚÇáàâãéêíóôõúç\s'.-]{3,100})/gi,
     /(?:Nome[:\s]+)([A-Za-zÁÀÂÃÉÊÍÓÔÕÚÇáàâãéêíóôõúç\s'.-]{3,100})/gi,
@@ -581,73 +723,17 @@ export function extractNameFromText(rawText: string, validCpf: string, fileName:
   for (const rx of pagadorPatterns) {
     let m: RegExpExecArray | null
     while ((m = rx.exec(rawText)) !== null) {
+      const idx = m.index
+      // Only trust labeled captures that sit in the Pagador region
+      if (isBeneficiaryRegion(idx, pagadorPos, benefPos)) continue
+
       const captured = m[1]
       const cleaned = cleanExtractedName(captured)
-      if (cleaned && !isAddressLine(cleaned)) {
+      if (isAcceptableName(cleaned)) {
         const words = cleaned.split(/\s+/).filter(Boolean)
-        if (words.length >= 1) {
-          let score = 600 + words.length * 10
-          if (/pagador/i.test(m[0])) score += 200
-          candidates.push({ name: cleaned, score })
-        }
-      }
-    }
-  }
-
-  // Strategy 2: Proximity to valid CPF / CNPJ (if found)
-  if (validCpf) {
-    const rawDigits = validCpf.replace(/\D/g, '')
-    const formattedDoc = cleanCpf(rawDigits)
-
-    const docPatternStr = `(?:${formattedDoc.replace(/\./g, '\\.').replace(/\//g, '\\/').replace(/-/g, '\\-')}|${rawDigits})`
-    const docRx = new RegExp(docPatternStr, 'g')
-
-    let m: RegExpExecArray | null
-    while ((m = docRx.exec(rawText)) !== null) {
-      const idx = m.index
-
-      // Text before CPF/CNPJ
-      const beforeText = rawText.substring(Math.max(0, idx - 120), idx)
-      const nameBefore = cleanExtractedName(beforeText)
-      if (nameBefore && !isAddressLine(nameBefore)) {
-        const wordsBefore = nameBefore.split(/\s+/).filter(Boolean)
-        if (wordsBefore.length >= 1) {
-          candidates.push({ name: nameBefore, score: 900 + wordsBefore.length * 10 })
-        }
-      }
-
-      // Text after CPF/CNPJ
-      const afterText = rawText.substring(
-        idx + m[0].length,
-        Math.min(rawText.length, idx + m[0].length + 120),
-      )
-      const nameAfter = cleanExtractedName(afterText)
-      if (nameAfter && !isAddressLine(nameAfter)) {
-        const wordsAfter = nameAfter.split(/\s+/).filter(Boolean)
-        if (wordsAfter.length >= 1) {
-          candidates.push({ name: nameAfter, score: 850 + wordsAfter.length * 10 })
-        }
-      }
-    }
-  }
-
-  // Strategy 3: Blocks of words representing individual or corporate names
-  const nameRegex =
-    /(?<![A-Za-zÁÀÂÃÉÊÍÓÔÕÚÇáàâãéêíóôõúç])([A-ZÁÀÂÃÉÊÍÓÔÕÚÇ][a-záàâãéêíóôõúçA-ZÁÀÂÃÉÊÍÓÔÕÚÇ]+(?:\s+(?:de|da|do|dos|das|e|LTDA|ME|EPP|EIRELI|S\/A|SA|[A-ZÁÀÂÃÉÊÍÓÔÕÚÇ][a-záàâãéêíóôõúçA-ZÁÀÂÃÉÊÍÓÔÕÚÇ]+)){1,6})(?![A-Za-zÁÀÂÃÉÊÍÓÔÕÚÇáàâãéêíóôõúç])/g
-  let fnMatch: RegExpExecArray | null
-  while ((fnMatch = nameRegex.exec(rawText)) !== null) {
-    const cleaned = cleanExtractedName(fnMatch[1])
-    if (cleaned && !isAddressLine(cleaned)) {
-      const words = cleaned.split(/\s+/).filter(Boolean)
-      if (words.length >= 2) {
-        const idx = fnMatch.index
-        const ctx = rawText.substring(
-          Math.max(0, idx - 40),
-          Math.min(rawText.length, idx + fnMatch[0].length + 40),
-        )
-        if (!/beneficiar|cedente|imobiliaria|banco|cooperativa/i.test(ctx)) {
-          candidates.push({ name: cleaned, score: 200 + words.length * 10 })
-        }
+        let score = 600 + words.length * 10
+        if (/pagador/i.test(m[0])) score += 200
+        candidates.push({ name: cleaned, score })
       }
     }
   }
