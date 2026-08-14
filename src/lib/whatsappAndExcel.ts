@@ -1,3 +1,5 @@
+import { formatPhoneForWhatsApp } from './boletoParser'
+
 /**
  * Generates WhatsApp wa.me link with encoded message
  */
@@ -8,7 +10,19 @@ export function buildWhatsAppLink(
   amount: string,
   pdfLink: string,
 ): string {
-  const cleanPhone = phone.replace(/\D/g, '')
+  if (!phone || phone === 'NÃO ENCONTRADO' || phone === 'NÃO ENCONTRADOS') return ''
+
+  // If phone contains multiple numbers like "11-99544-5749 / 11-96423-6385", use the first number
+  let targetPhone = phone
+  if (phone.includes('/')) {
+    targetPhone = phone.split('/')[0].trim()
+  } else if (phone.includes(';')) {
+    targetPhone = phone.split(';')[0].trim()
+  } else if (phone.includes(',')) {
+    targetPhone = phone.split(',')[0].trim()
+  }
+
+  const cleanPhone = formatPhoneForWhatsApp(targetPhone)
   if (!cleanPhone) return ''
 
   const message = `🚨 BOLETO PARA PAGAMENTO 🚨

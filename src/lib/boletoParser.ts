@@ -87,23 +87,99 @@ export function parseItauBoletoText(rawText: string, fileName: string): ParsedBo
     dueDate = dueDateMatch[1]
   }
 
-  // 3. Amount (Valor) extraction
-  // Patterns like: Valor do Documento R$ 1.234,56 or Valor: R$ 1.234,56 or R$ 123,45
-  const amountRegex =
-    /(?:Valor\s+do\s+Documento|Valor\s+Cobrado|Valor|(=>\s*Valor))[:\s]*(?:R\$\s*)?([\d.,]+)/i
-  const amountMatch = rawText.match(amountRegex)
-  if (amountMatch) {
-    amount = amountMatch[2].trim()
-  } else {
-    // Fallback search for R$ XX,XX
-    const rsMatch = rawText.match(/R\$\s*([\d.,]+)/i)
-    if (rsMatch) {
-      amount = rsMatch[1].trim()
+  // 3. Amount (Valor do Documento) extraction
+  // Helper to parse BRL currency float
+  const parseBrlFloat = (str: string): number => {
+    if (!str) return 0
+    const clean = str.replace(/[^\d.,]/g, '').trim()
+    if (!clean) return 0
+    if (clean.includes(',')) {
+      const norm = clean.replace(/\./g, '').replace(',', '.')
+      const val = parseFloat(norm)
+      return isNaN(val) ? 0 : val
+    }
+    const val = parseFloat(clean)
+    return isNaN(val) ? 0 : val
+  }
+
+  const isJurosOrAtraso = (ctx: string): boolean => {
+    return /juros|atraso|multa|mora|por\s+dia|dia\s+de|encargo|perman/i.test(ctx)
+  }
+
+  interface Candidate {
+    raw: string
+    val: number
+    score: number
+  }
+
+  const candidates: Candidate[] = []
+
+  // Strategy A: Explicit Label Match ("Valor do Documento", "Valor Cobrado", "(=>) Valor do Documento")
+  const labelRegexes = [
+    /(?:Valor\s+do\s+Documento|Valor\s+Documento|Valor\s+Cobrado|\(=>\)\s*Valor\s*(?:do\s*Documento)?)[:\s]*R?\$?\s*([\d.]+,\d{2})/gi,
+    /(?:Valor\s+do\s+Documento|Valor\s+Documento|Valor\s+Cobrado|\(=>\)\s*Valor)[:\s\S]{0,40}?(?:R\$\s*)?([\d.]+,\d{2})/gi,
+  ]
+
+  for (const rx of labelRegexes) {
+    let m: RegExpExecArray | null
+    while ((m = rx.exec(rawText)) !== null) {
+      const valStr = m[1]?.trim()
+      if (!valStr) continue
+      const idx = m.index
+      const ctx = rawText.substring(
+        Math.max(0, idx - 40),
+        Math.min(rawText.length, idx + m[0].length + 40),
+      )
+      if (!isJurosOrAtraso(ctx)) {
+        const num = parseBrlFloat(valStr)
+        if (num > 0) {
+          candidates.push({ raw: valStr, val: num, score: 1000 + num })
+        }
+      }
     }
   }
 
-  // 4. Name extraction
-  // Pagador: [NOME DO INQUILINO] or Beneficiário / Sacado / Nome
+  // Strategy B: General currency match scan (e.g. "1.573,00" or "R$ 1.573,00")
+  const currencyRegex = /(?:R\$\s*)?([\d]{1,3}(?:\.[\d]{3})*,[\d]{2})/g
+  let cm: RegExpExecArray | null
+  while ((cm = currencyRegex.exec(rawText)) !== null) {
+    const valStr = cm[1]?.trim()
+    if (!valStr) continue
+    const idx = cm.index
+    const ctx = rawText.substring(
+      Math.max(0, idx - 50),
+      Math.min(rawText.length, idx + cm[0].length + 50),
+    )
+
+    if (!isJurosOrAtraso(ctx)) {
+      const num = parseBrlFloat(valStr)
+      if (num > 0) {
+        let score = 10
+        if (/valor|documento|cobrado/i.test(ctx)) {
+          score += 200
+        }
+        if (num > 5) {
+          score += 100
+        }
+        candidates.push({ raw: valStr, val: num, score: score + num / 100 })
+      }
+    }
+  }
+
+  if (candidates.length > 0) {
+    candidates.sort((a, b) => b.score - a.score)
+    amount = candidates[0].raw
+  } else {
+    // Fallback if no formatted BRL string was found with comma
+    const fallbackMatch = rawText.match(
+      /(?:Valor\s+do\s+Documento|Valor)[:\s]*(?:R\$\s*)?([\d.,]+)/i,
+    )
+    if (fallbackMatch && fallbackMatch[1]) {
+      amount = fallbackMatch[1].trim()
+    }
+  }
+
+  // 4. Name extraction  // Pagador: [NOME DO INQUILINO] or Beneficiário / Sacado / Nome
   const pagadorRegex =
     /(?:Pagador|Sacado|Nome)[:\s]+([A-ZÁÀÂÃÉÊÍÓÔÕÚÇ\s]{3,50})(?=\s+(?:CPF|CNPJ|CPF\/CNPJ|Rua|Av|Endereço|-\s*CPF|\d{3}))/i
   const pagadorMatch = rawText.match(pagadorRegex)

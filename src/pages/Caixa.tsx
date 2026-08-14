@@ -270,6 +270,36 @@ export default function Caixa() {
     )
   })
 
+  const handlePhoneChange = (id: string, newPhone: string) => {
+    setProcessedRows((prevRows) =>
+      prevRows.map((row) => {
+        if (row.id !== id) return row
+
+        const clean = newPhone.trim()
+        const isFound = Boolean(
+          clean &&
+          clean.toUpperCase() !== 'NÃO ENCONTRADO' &&
+          clean.toUpperCase() !== 'NÃO ENCONTRADOS',
+        )
+
+        const newWhatsappLink = buildWhatsAppLink(
+          newPhone,
+          row.name,
+          row.dueDate,
+          row.amount,
+          row.pdfLink,
+        )
+
+        return {
+          ...row,
+          phone: newPhone,
+          tenantFound: isFound,
+          whatsappLink: newWhatsappLink,
+        }
+      }),
+    )
+  }
+
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text)
     toast({
@@ -437,18 +467,23 @@ export default function Caixa() {
                             R$ {row.amount}
                           </TableCell>
 
-                          <TableCell>
-                            {row.tenantFound ? (
-                              <div className="flex items-center gap-1.5 text-xs text-emerald-600 font-medium">
-                                <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                                <span>{row.phone}</span>
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-1.5 text-xs text-amber-600">
-                                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                                <span>{row.phone}</span>
-                              </div>
-                            )}
+                          <TableCell className="w-[220px]">
+                            <div className="flex items-center gap-1.5">
+                              {row.tenantFound ||
+                              (row.phone &&
+                                row.phone.toUpperCase() !== 'NÃO ENCONTRADO' &&
+                                row.phone.toUpperCase() !== 'NÃO ENCONTRADOS') ? (
+                                <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+                              ) : (
+                                <AlertCircle className="w-4 h-4 shrink-0 text-amber-600" />
+                              )}
+                              <Input
+                                value={row.phone}
+                                onChange={(e) => handlePhoneChange(row.id, e.target.value)}
+                                placeholder="Celular do locatário"
+                                className="h-8 text-xs font-medium"
+                              />
+                            </div>
                           </TableCell>
 
                           <TableCell className="text-center">
