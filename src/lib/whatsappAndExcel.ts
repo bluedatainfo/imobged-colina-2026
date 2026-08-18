@@ -73,23 +73,23 @@ export function buildWhatsAppLink(
   const cleanPhone = formatPhoneForWhatsApp(targetPhone)
   if (!cleanPhone) return ''
 
-  const message = `📨BOLETO PARA PAGAMENTO📨
+  const message = `BOLETO PARA PAGAMENTO
 
 Olá, ${tenantName}!
 
 Segue o boleto referente ao seu contrato de locação.
 
-📅 Vencimento: ${dueDate}
-💰 Valor: R$ ${amount}
+Vencimento: ${dueDate}
+Valor: R$ ${amount}
 
-🔗 Acesse o seu boleto aqui ⬇️:
+Acesse o seu boleto aqui:
 ${pdfLink}
 
-⚠️ ATENÇÃO: Antes de realizar o pagamento, confira atentamente o beneficiário, vencimento, valor e demais informações do boleto.
+ATENÇÃO: Antes de realizar o pagamento, confira atentamente o beneficiário, vencimento, valor e demais informações do boleto.
 
 Em caso de qualquer divergência, não efetue o pagamento e entre em contato conosco.
 
-🚨 AVISO IMPORTANTE: Efetue o pagamento até a data de vencimento do boleto para evitar a incidência de encargos por atraso, conforme previsto em contrato.
+AVISO IMPORTANTE: Efetue o pagamento até a data de vencimento do boleto para evitar a incidência de encargos por atraso, conforme previsto em contrato.
 
 Agradecemos pela atenção.
 
