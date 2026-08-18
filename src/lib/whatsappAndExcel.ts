@@ -81,6 +81,9 @@ export function buildWhatsAppLink(
       breakdown
         .map((item) => {
           const dateStr = item.dueDate || dueDate
+          if (item.description === 'REEMBOLSO DESP. LOCATÁRIO') {
+            return `${item.description}: R$ ${item.value}`
+          }
           return `${item.description}: R$ ${item.value} (Vencimento: ${dateStr})`
         })
         .join('\n')

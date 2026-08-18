@@ -543,9 +543,11 @@ export default function Caixa() {
                                           R$ {item.value}
                                         </span>
                                       </div>
-                                      <span className="text-[10px] text-muted-foreground/80">
-                                        Vencimento: {item.dueDate || row.dueDate}
-                                      </span>
+                                      {item.description !== 'REEMBOLSO DESP. LOCATÁRIO' && (
+                                        <span className="text-[10px] text-muted-foreground/80">
+                                          Vencimento: {item.dueDate || row.dueDate}
+                                        </span>
+                                      )}
                                     </div>
                                   ))}
                                 </div>
