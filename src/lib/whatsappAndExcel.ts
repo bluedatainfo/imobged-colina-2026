@@ -1,4 +1,4 @@
-import { formatPhoneForWhatsApp } from './boletoParser'
+import { formatPhoneForWhatsApp, BoletoBreakdownItem } from './boletoParser'
 
 /**
  * Hybrid encoder for WhatsApp message URLs.
@@ -57,6 +57,7 @@ export function buildWhatsAppLink(
   dueDate: string,
   amount: string,
   pdfLink: string,
+  breakdown?: BoletoBreakdownItem[],
 ): string {
   if (!phone || phone === 'NÃO ENCONTRADO' || phone === 'NÃO ENCONTRADOS') return ''
 
@@ -73,6 +74,12 @@ export function buildWhatsAppLink(
   const cleanPhone = formatPhoneForWhatsApp(targetPhone)
   if (!cleanPhone) return ''
 
+  let breakdownSection = ''
+  if (breakdown && breakdown.length > 0) {
+    breakdownSection =
+      '\n' + breakdown.map((item) => `${item.description}: R$ ${item.value}`).join('\n') + '\n'
+  }
+
   const message = `BOLETO PARA PAGAMENTO
 
 Olá, ${tenantName}!
@@ -80,8 +87,7 @@ Olá, ${tenantName}!
 Segue o boleto referente ao seu contrato de locação.
 
 Vencimento: ${dueDate}
-Valor: R$ ${amount}
-
+Valor: R$ ${amount}${breakdownSection}
 Acesse o seu boleto aqui:
 ${pdfLink}
 

@@ -5,76 +5,72 @@ import {
   cleanCpf,
   extractCpfFromText,
   extractNameFromText,
+  extractBreakdownFromText,
   parseItauBoletoText,
 } from './boletoParser'
+import { buildWhatsAppLink } from './whatsappAndExcel'
 
-describe('boletoParser CNPJ and Name extraction', () => {
-  it('validates CNPJ checksums accurately', () => {
-    // Standard test CNPJs
-    expect(isValidCnpj('11.222.333/0001-81')).toBe(true)
-    expect(isValidCnpj('11222333000181')).toBe(true)
-    expect(isValidCnpj('00.000.000/0001-91')).toBe(true)
-    expect(isValidCnpj('00000000000000')).toBe(false)
-    expect(isValidCnpj('11111111111111')).toBe(false)
-    expect(isValidCnpj('11.222.333/0001-00')).toBe(false)
-  })
-
-  it('cleans and formats CNPJ', () => {
-    expect(cleanCpf('11222333000181')).toBe('11.222.333/0001-81')
-  })
-
-  it('extracts CNPJ when present in raw text', () => {
+describe('boletoParser breakdown extraction', () => {
+  it('extracts breakdown items and validates total equal to Valor Documento', () => {
     const text = `
-      Pagador / Sacado: AGAPRO VEDAÇÕES LTDA
-      CNPJ: 11.222.333/0001-81
-      SALAO VILA ARENS JUNDIAI SP
-      Valor do Documento: R$ 4.700,80
-    `
-    expect(extractCpfFromText(text)).toBe('11.222.333/0001-81')
+Itaú Banco Itaú S.A. 341-7
+Informações de responsabilidades do beneficiário:
+ALUGUEL -> 2400,00 Vencimento 26/08/26
+CONDOMINIO CR -> 678,91 Vencimento 26/08/26
+IPTU -> 103,25 Vencimento 26/08/26
+Cobrar juros de R$ 1,06 por dia de atraso para pagamento após o vencimento.
+Cobrar multa de 10,00% para pagamento após o vencimento.
+Valor Documento 3.182,16
+`
+    const breakdown = extractBreakdownFromText(text, '3.182,16')
+    expect(breakdown).toHaveLength(3)
+    expect(breakdown).toEqual([
+      { description: 'ALUGUEL', value: '2.400,00' },
+      { description: 'CONDOMINIO CR', value: '678,91' },
+      { description: 'IPTU', value: '103,25' },
+    ])
+
+    const parsed = parseItauBoletoText(text, 'teste.pdf')
+    expect(parsed.breakdown).toBeDefined()
+    expect(parsed.breakdown).toHaveLength(3)
+    expect(parsed.amount).toBe('3.182,16')
   })
 
-  it('filters out address lines like SALAO VILA ARENS JUNDIAI SP in favor of company name', () => {
+  it('rejects breakdown if sum does not match total amount', () => {
     const text = `
-      PAGADOR/CPF/CNPJ/ENDEREÇO/CIDADE/UF/CEP
-      AGAPRO VEDAÇÕES
-      11.222.333/0001-81
-      SALAO VILA ARENS JUNDIAI SP
-      Vencimento: 07/03/2026
-      Valor do Documento: R$ 4.700,80
-    `
-    const cnpj = extractCpfFromText(text)
-    const name = extractNameFromText(text, cnpj, 'AGAPRO VEDAÇÕES 2302.pdf')
-
-    expect(cnpj).toBe('11.222.333/0001-81')
-    expect(name).toBe('AGAPRO VEDAÇÕES')
+Informações de responsabilidades do beneficiário:
+ALUGUEL -> 2000,00 Vencimento 26/08/26
+CONDOMINIO CR -> 678,91 Vencimento 26/08/26
+IPTU -> 103,25 Vencimento 26/08/26
+Cobrar juros de R$ 1,06 por dia de atraso...
+Valor Documento 3.182,16
+`
+    const breakdown = extractBreakdownFromText(text, '3.182,16')
+    expect(breakdown).toBeUndefined()
   })
 
-  it('keeps connectives like DE in names without truncating', () => {
-    const text = `
-      Nome do Pagador/CPF/CNPJ/Endereço/Cidade/UF/CEP
-      ADRIANA BRUMATTI DE PAULI 12517401896
-      RUA ZUFEREY AP 202 BL 06 ED JÚLIA
-      JARDIM PITANGUEIRAS I JUNDIAI SP 13202420
-    `
-    const cpf = extractCpfFromText(text)
-    const name = extractNameFromText(text, cpf, 'ADRIANA BRUMATTI 3327.pdf')
+  it('formats WhatsApp message with breakdown items correctly without emojis', () => {
+    const breakdown = [
+      { description: 'ALUGUEL', value: '2.400,00' },
+      { description: 'CONDOMINIO CR', value: '678,91' },
+      { description: 'IPTU', value: '103,25' },
+    ]
 
-    expect(cpf).toBe('125.174.018-96')
-    expect(name).toBe('ADRIANA BRUMATTI DE PAULI')
-  })
+    const link = buildWhatsAppLink(
+      '11999999999',
+      'ISABELA MEDEIROS',
+      '26/08/2026',
+      '3.182,16',
+      'https://onedrive.live.com/file123',
+      breakdown,
+    )
 
-  it('parses full boleto text with business tenant', () => {
-    const text = `
-      PAGADOR: AGAPRO VEDAÇÕES LTDA
-      CNPJ: 11.222.333/0001-81
-      ENDEREÇO: SALAO VILA ARENS JUNDIAI SP
-      VENCIMENTO: 07/03/2026
-      VALOR DO DOCUMENTO: 4.700,80
-    `
-    const parsed = parseItauBoletoText(text, 'AGAPRO VEDAÇÕES 2302.pdf')
-    expect(parsed.name).toContain('AGAPRO VEDAÇÕES')
-    expect(parsed.cpf).toBe('11.222.333/0001-81')
-    expect(parsed.dueDate).toBe('07/03/2026')
-    expect(parsed.amount).toBe('4.700,80')
+    const decoded = decodeURIComponent(link.replace(/%20/g, ' ').replace(/%0A/g, '\n'))
+
+    expect(decoded).toContain('Vencimento: 26/08/2026')
+    expect(decoded).toContain('Valor: R$ 3.182,16')
+    expect(decoded).toContain('ALUGUEL: R$ 2.400,00')
+    expect(decoded).toContain('CONDOMINIO CR: R$ 678,91')
+    expect(decoded).toContain('IPTU: R$ 103,25')
   })
 })

@@ -3,6 +3,11 @@ import * as pdfjsLib from 'pdfjs-dist'
 // Configure worker to use cdnjs CDN matching pdfjs-dist version or standard worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`
 
+export interface BoletoBreakdownItem {
+  description: string
+  value: string // e.g. "2.400,00"
+}
+
 export interface ParsedBoleto {
   fileName: string
   name: string
@@ -10,6 +15,7 @@ export interface ParsedBoleto {
   dueDate: string // DD/MM/YYYY
   amount: string // e.g. "1.234,56"
   rawText: string
+  breakdown?: BoletoBreakdownItem[]
 }
 
 export async function extractTextFromPdfBlob(blob: Blob): Promise<string> {
@@ -899,13 +905,107 @@ export function extractDueDateFromText(rawText: string): string {
 }
 
 /**
- * Parses Itaú Boleto text to extract: Name, CPF/CNPJ, Due Date (Vencimento), Amount (Valor)
+ * Helper to convert Brazilian formatted number (e.g. "2.400,00" or "2400,00") into number in cents to avoid float rounding errors
+ */
+function parseBrlToCents(valStr: string): number {
+  if (!valStr) return 0
+  const clean = valStr.replace(/[^\d.,]/g, '').trim()
+  if (!clean) return 0
+  let norm = clean
+  if (clean.includes(',')) {
+    norm = clean.replace(/\./g, '').replace(',', '.')
+  }
+  const floatVal = parseFloat(norm)
+  if (isNaN(floatVal)) return 0
+  return Math.round(floatVal * 100)
+}
+
+/**
+ * Extracts breakdown (desmembramento) items from the Itaú boleto text.
+ * Looks for 'Informações de responsabilidades do beneficiário' (or similar) section,
+ * extracts items up to line starting with 'Cobrar juros de...',
+ * matches pattern `[DESCRIPTION] -> [VALUE] Vencimento [DATE]` or similar,
+ * and validates that sum of extracted items equals total amount.
+ */
+export function extractBreakdownFromText(
+  rawText: string,
+  totalAmountStr: string,
+): BoletoBreakdownItem[] | undefined {
+  if (!rawText) return undefined
+
+  // Locate the header line
+  const headerMatch = rawText.match(/Informações\s+de\s+responsabilidades\s+do\s+beneficiário:?/i)
+  if (!headerMatch) return undefined
+
+  const headerIndex = headerMatch.index! + headerMatch[0].length
+  const textAfterHeader = rawText.substring(headerIndex)
+
+  // Find the end line starting with "Cobrar juros de..." (or "Cobrar multa...", or next section)
+  const endMatch = textAfterHeader.match(/Cobrar\s+juros\s+de/i)
+  const sectionText = endMatch
+    ? textAfterHeader.substring(0, endMatch.index)
+    : textAfterHeader.substring(0, 1000)
+
+  // Pattern: [DESCRIPTION] -> [VALUE] Vencimento [DATE]
+  // Note: PDF text extraction might have line breaks or varying spaces around -> or Vencimento
+  // Example: "ALUGUEL -> 2400,00 Vencimento 26/08/26"
+  // Example: "CONDOMINIO CR -> 678,91 Vencimento 26/08/26"
+  const itemRegex =
+    /([A-Za-z0-9\s/._-]+?)\s*->\s*([\d]{1,3}(?:\.[\d]{3})*,[\d]{2}|[\d]+,[\d]{2})\s*(?:Vencimento|\bVenc\b|\bVenc:\b)?\s*(\d{2}\/\d{2}\/\d{2,4})?/gi
+
+  const items: BoletoBreakdownItem[] = []
+  let match: RegExpExecArray | null
+
+  while ((match = itemRegex.exec(sectionText)) !== null) {
+    const rawDesc = match[1]?.trim()
+    const rawVal = match[2]?.trim()
+
+    if (rawDesc && rawVal) {
+      // Clean up description (remove leading/trailing symbols or common noise)
+      const cleanDesc = rawDesc
+        .replace(/^[^A-Za-z0-9]+/, '')
+        .replace(/[^A-Za-z0-9\s/._-]+$/, '')
+        .trim()
+
+      if (cleanDesc) {
+        // Format value to standard BRL string "X.XXX,XX"
+        const cents = parseBrlToCents(rawVal)
+        const formattedVal = (cents / 100).toLocaleString('pt-BR', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })
+
+        items.push({
+          description: cleanDesc,
+          value: formattedVal,
+        })
+      }
+    }
+  }
+
+  if (items.length === 0) return undefined
+
+  // Validation: Sum of item values must match totalAmountStr exactly
+  const totalCents = parseBrlToCents(totalAmountStr)
+  const itemsSumCents = items.reduce((sum, item) => sum + parseBrlToCents(item.value), 0)
+
+  if (totalCents > 0 && itemsSumCents === totalCents) {
+    return items
+  }
+
+  // If sum does not match, return undefined to ensure data integrity
+  return undefined
+}
+
+/**
+ * Parses Itaú Boleto text to extract: Name, CPF/CNPJ, Due Date (Vencimento), Amount (Valor), Breakdown
  */
 export function parseItauBoletoText(rawText: string, fileName: string): ParsedBoleto {
   const cpf = extractCpfFromText(rawText)
   const name = extractNameFromText(rawText, cpf, fileName)
   const dueDate = extractDueDateFromText(rawText)
   const amount = extractAmountFromText(rawText)
+  const breakdown = extractBreakdownFromText(rawText, amount)
 
   return {
     fileName,
@@ -914,5 +1014,6 @@ export function parseItauBoletoText(rawText: string, fileName: string): ParsedBo
     dueDate: dueDate || 'NÃO IDENTIFICADO',
     amount: amount || '0,00',
     rawText,
+    breakdown,
   }
 }

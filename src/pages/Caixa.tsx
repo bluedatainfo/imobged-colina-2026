@@ -35,6 +35,7 @@ import {
   parseItauBoletoText,
   cleanCpf,
   formatPhoneForWhatsApp,
+  BoletoBreakdownItem,
 } from '@/lib/boletoParser'
 import { buildWhatsAppLink, exportToCsv } from '@/lib/whatsappAndExcel'
 import { createOneDrivePublicLink } from '@/lib/onedrivePublicLink'
@@ -51,6 +52,7 @@ export interface ProcessedBoletoRow {
   pdfLink: string
   whatsappLink: string
   rawText?: string
+  breakdown?: BoletoBreakdownItem[]
 }
 
 export default function Caixa() {
@@ -270,6 +272,7 @@ export default function Caixa() {
           parsed.dueDate,
           parsed.amount,
           pdfLink,
+          parsed.breakdown,
         )
 
         rows.push({
@@ -284,6 +287,7 @@ export default function Caixa() {
           pdfLink,
           whatsappLink,
           rawText,
+          breakdown: parsed.breakdown,
         })
       }
 
@@ -356,6 +360,7 @@ export default function Caixa() {
           row.dueDate,
           row.amount,
           row.pdfLink,
+          row.breakdown,
         )
 
         return {
@@ -520,6 +525,23 @@ export default function Caixa() {
                               >
                                 {row.fileName}
                               </span>
+                              {row.breakdown && row.breakdown.length > 0 && (
+                                <div className="mt-1 space-y-0.5">
+                                  {row.breakdown.map((item, idx) => (
+                                    <div
+                                      key={idx}
+                                      className="text-[11px] text-muted-foreground flex items-center justify-between gap-2 max-w-[220px]"
+                                    >
+                                      <span className="font-mono text-xs text-foreground/80">
+                                        {item.description}:
+                                      </span>
+                                      <span className="font-semibold text-xs text-foreground/90">
+                                        R$ {item.value}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           </TableCell>
 
