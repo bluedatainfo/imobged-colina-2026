@@ -955,11 +955,12 @@ export function extractBreakdownFromText(
     : textAfterHeader.substring(0, 1000)
 
   // Pattern: [DESCRIPTION] -> [VALUE] Vencimento [DATE]
+  // Note: VALUE can be a standard positive BRL or negative in parentheses e.g. (250,00) or -250,00
   // Note: PDF text extraction might have line breaks or varying spaces around -> or Vencimento
   // Example: "ALUGUEL -> 2400,00 Vencimento 26/08/26"
-  // Example: "CONDOMINIO CR -> 678,91 Vencimento 26/08/26"
+  // Example: "REEMBOLSO -> (250,00) Vencimento 26/08/26"
   const itemRegex =
-    /([A-Za-z0-9\s/._-]+?)\s*->\s*([\d]{1,3}(?:\.[\d]{3})*,[\d]{2}|[\d]+,[\d]{2})\s*(?:Vencimento|\bVenc\b|\bVenc:\b)?\s*(\d{2}\/\d{2}\/\d{2,4})?/gi
+    /([A-Za-z0-9\s/._-]+?)\s*->\s*(\(?-?[\d]{1,3}(?:\.[\d]{3})*,[\d]{2}\)?|\(?-?[\d]+,[\d]{2}\)?)\s*(?:Vencimento|\bVenc\b|\bVenc:\b)?\s*(\d{2}\/\d{2}\/\d{2,4})?/gi
 
   const items: BoletoBreakdownItem[] = []
   let match: RegExpExecArray | null
@@ -967,6 +968,7 @@ export function extractBreakdownFromText(
   while ((match = itemRegex.exec(sectionText)) !== null) {
     const rawDesc = match[1]?.trim()
     const rawVal = match[2]?.trim()
+    const rawDueDate = match[3]?.trim()
 
     if (rawDesc && rawVal) {
       // Clean up description (remove leading/trailing symbols or common noise)
@@ -976,16 +978,37 @@ export function extractBreakdownFromText(
         .trim()
 
       if (cleanDesc) {
-        // Format value to standard BRL string "X.XXX,XX"
+        // Remove noise words/prefixes like "Desconto/Abatimento", "Desconto", "Abatimento", "Juros/Multa", "Juros e Multa", "Juros", "Multa"
+        let sanitizedDesc = cleanDesc
+          .replace(
+            /^(?:Desconto\s*\/\s*Abatimento|Desconto|Abatimento|Descontos|Abatimentos)\s*/i,
+            '',
+          )
+          .replace(/^(?:Juros\s*\/\s*Multa|Juros\s+e\s+Multa|Juros|Multa)\s*/i, '')
+          .replace(
+            /\s*(?:Desconto\s*\/\s*Abatimento|Desconto|Abatimento|Descontos|Abatimentos)$/i,
+            '',
+          )
+          .replace(/\s*(?:Juros\s*\/\s*Multa|Juros\s+e\s+Multa|Juros|Multa)$/i, '')
+          .trim()
+
+        if (!sanitizedDesc) {
+          sanitizedDesc = cleanDesc
+        }
+
+        // Format value to standard BRL string "X.XXX,XX" or "(X.XXX,XX)" if negative
         const cents = parseBrlToCents(rawVal)
-        const formattedVal = (cents / 100).toLocaleString('pt-BR', {
+        const absVal = Math.abs(cents) / 100
+        const formattedAbs = absVal.toLocaleString('pt-BR', {
           minimumFractionDigits: 2,
           maximumFractionDigits: 2,
         })
+        const formattedVal = cents < 0 ? `(${formattedAbs})` : formattedAbs
 
         items.push({
-          description: cleanDesc,
+          description: sanitizedDesc,
           value: formattedVal,
+          dueDate: rawDueDate,
         })
       }
     }

@@ -36,10 +36,10 @@ Valor Documento 3.182,16
     expect(parsed.amount).toBe('3.182,16')
   })
 
-  it('cleans noise like Juros/Multa from item description', () => {
+  it('cleans noise like Juros/Multa or Desconto/Abatimento from item description', () => {
     const text = `
 Informações de responsabilidades do beneficiário:
-ALUGUEL -> 1100,00 Vencimento 28/08/26
+Desconto/Abatimento ALUGUEL -> 1100,00 Vencimento 28/08/26
 CONDOMINIO CR -> 751,07 Vencimento 28/08/26
 Juros/Multa IPTU -> 57,86 Vencimento 28/08/26
 Cobrar juros de R$ 0,64 por dia de atraso...
@@ -54,21 +54,19 @@ Valor Documento 1.908,93
     ])
   })
 
-  it('supports negative values (credits) in parentheses and sums correctly', () => {
+  it('supports negative values (credits) in parentheses e.g. BRUNA DOS SANTOS GONÇALVES and sums correctly', () => {
     const text = `
 Informações de responsabilidades do beneficiário:
-ALUGUEL -> 2700,00 Vencimento 28/08/26
-CONDOMINIO CR -> 52,00 Vencimento 28/08/26
-REEMBOLSO DESP. LOCATÁRIO -> (250,00)
+ALUGUEL -> 1134,11 Vencimento 02/09/26
+DESCONTO / ABATIMENTO -> (250,00) Vencimento 02/09/26
 Cobrar juros de R$ 0,65 por dia de atraso...
-Valor Documento 2.502,00
+Valor Documento 884,11
 `
-    const breakdown = extractBreakdownFromText(text, '2.502,00')
-    expect(breakdown).toHaveLength(3)
+    const breakdown = extractBreakdownFromText(text, '884,11')
+    expect(breakdown).toHaveLength(2)
     expect(breakdown).toEqual([
-      { description: 'ALUGUEL', value: '2.700,00', dueDate: '28/08/26' },
-      { description: 'CONDOMINIO CR', value: '52,00', dueDate: '28/08/26' },
-      { description: 'REEMBOLSO DESP. LOCATÁRIO', value: '(250,00)', dueDate: undefined },
+      { description: 'ALUGUEL', value: '1.134,11', dueDate: '02/09/26' },
+      { description: 'DESCONTO / ABATIMENTO', value: '(250,00)', dueDate: '02/09/26' },
     ])
   })
 

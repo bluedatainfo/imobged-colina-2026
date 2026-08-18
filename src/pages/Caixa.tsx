@@ -543,11 +543,9 @@ export default function Caixa() {
                                           R$ {item.value}
                                         </span>
                                       </div>
-                                      {item.dueDate && (
-                                        <span className="text-[10px] text-muted-foreground/80">
-                                          Vencimento: {item.dueDate}
-                                        </span>
-                                      )}
+                                      <span className="text-[10px] text-muted-foreground/80">
+                                        Vencimento: {item.dueDate || row.dueDate}
+                                      </span>
                                     </div>
                                   ))}
                                 </div>

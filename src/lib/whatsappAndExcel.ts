@@ -74,17 +74,16 @@ export function buildWhatsAppLink(
   const cleanPhone = formatPhoneForWhatsApp(targetPhone)
   if (!cleanPhone) return ''
 
-  let breakdownSection = ''
+  let breakdownLines = ''
   if (breakdown && breakdown.length > 0) {
-    breakdownSection =
+    breakdownLines =
       '\n' +
       breakdown
         .map((item) => {
-          const datePart = item.dueDate ? ` (Vencimento: ${item.dueDate})` : ''
-          return `${item.description}: R$ ${item.value}${datePart}`
+          const dateStr = item.dueDate || dueDate
+          return `${item.description}: R$ ${item.value} (Vencimento: ${dateStr})`
         })
-        .join('\n') +
-      '\n'
+        .join('\n')
   }
 
   const message = `BOLETO PARA PAGAMENTO
@@ -94,7 +93,8 @@ Olá, ${tenantName}!
 Segue o boleto referente ao seu contrato de locação.
 
 Vencimento: ${dueDate}
-Valor: R$ ${amount}${breakdownSection}
+Valor: R$ ${amount}${breakdownLines}
+
 Acesse o seu boleto aqui:
 ${pdfLink}
 
