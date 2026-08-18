@@ -26,6 +26,15 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Progress } from '@/components/ui/progress'
 import { useToast } from '@/hooks/use-toast'
 import useEntitiesStore from '@/stores/entities'
 import { fetchWithAuth } from '@/lib/m365'
@@ -63,6 +72,15 @@ export default function Caixa() {
   const [loading, setLoading] = useState(false)
   const [processedRows, setProcessedRows] = useState<ProcessedBoletoRow[]>([])
   const [searchTerm, setSearchTerm] = useState('')
+
+  // "Enviar Todos para WhatsApp" flow state
+  const [showSendAllDialog, setShowSendAllDialog] = useState(false)
+  const [isSendingAll, setIsSendingAll] = useState(false)
+  const [sendAllProgress, setSendAllProgress] = useState(0)
+  const [sendAllTotal, setSendAllTotal] = useState(0)
+  const [sendAllDone, setSendAllDone] = useState(false)
+  const [sendAllSkipped, setSendAllSkipped] = useState(0)
+  const [sendAllOpened, setSendAllOpened] = useState(0)
 
   // Batch process PDFs in selected folder
   const processFolderPdfFiles = async (folder: OneDriveFolder) => {
@@ -381,6 +399,94 @@ export default function Caixa() {
     })
   }
 
+  // Rows that have a valid WhatsApp link (i.e. a usable phone number),
+  // skipping entries whose phone is "NÃO ENCONTRADO" / "NÃO ENCONTRADOS".
+  const getSendableRows = () =>
+    processedRows.filter(
+      (r) =>
+        r.whatsappLink &&
+        r.phone &&
+        r.phone.toUpperCase() !== 'NÃO ENCONTRADO' &&
+        r.phone.toUpperCase() !== 'NÃO ENCONTRADOS',
+    )
+
+  const handleOpenSendAllDialog = () => {
+    const sendable = getSendableRows()
+    if (processedRows.length === 0) {
+      toast({
+        variant: 'destructive',
+        title: 'Sem dados para enviar',
+        description: 'Selecione e processe uma pasta com boletos antes de enviar.',
+      })
+      return
+    }
+    if (sendable.length === 0) {
+      toast({
+        variant: 'destructive',
+        title: 'Nenhum celular válido',
+        description:
+          'Não há locatários com celular válido para envio. Revise as linhas "NÃO ENCONTRADO".',
+      })
+      return
+    }
+    setSendAllDone(false)
+    setSendAllProgress(0)
+    setSendAllOpened(0)
+    setSendAllSkipped(0)
+    setSendAllTotal(sendable.length)
+    setShowSendAllDialog(true)
+  }
+
+  const handleConfirmSendAll = () => {
+    const sendable = getSendableRows()
+    setIsSendingAll(true)
+    setSendAllDone(false)
+    setSendAllProgress(0)
+    setSendAllOpened(0)
+    setSendAllSkipped(processedRows.length - sendable.length)
+
+    // Count how many links we still need to open.
+    let index = 0
+    let opened = 0
+
+    const openNext = () => {
+      if (index >= sendable.length) {
+        setIsSendingAll(false)
+        setSendAllDone(true)
+        setSendAllOpened(opened)
+        toast({
+          title: 'Envio concluído',
+          description: `${opened} conversa(s) aberta(s) no WhatsApp. ${
+            processedRows.length - sendable.length
+          } item(ns) pulado(s) (sem celular).`,
+        })
+        return
+      }
+
+      const row = sendable[index]
+      // Defensive: skip any row that lost its link in the meantime.
+      if (row.whatsappLink) {
+        window.open(row.whatsappLink, '_blank', 'noopener,noreferrer')
+        opened += 1
+      }
+
+      index += 1
+      setSendAllProgress(index)
+      setSendAllOpened(opened)
+
+      // Schedule the next opening (~1.5s) to avoid the browser blocking pop-ups.
+      setTimeout(openNext, 1500)
+    }
+
+    openNext()
+  }
+
+  const handleCancelSendAll = () => {
+    // Note: already-opened tabs cannot be closed back. We just stop the chain.
+    setShowSendAllDialog(false)
+    setIsSendingAll(false)
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -397,12 +503,20 @@ export default function Caixa() {
 
         <div className="flex items-center gap-2">
           {processedRows.length > 0 && (
-            <Button
-              onClick={handleExportExcel}
-              className="gap-2 bg-emerald-600 hover:bg-emerald-700"
-            >
-              <FileSpreadsheet className="w-4 h-4" /> Exportar para Excel
-            </Button>
+            <>
+              <Button
+                onClick={handleExportExcel}
+                className="gap-2 bg-emerald-600 hover:bg-emerald-700"
+              >
+                <FileSpreadsheet className="w-4 h-4" /> Exportar para Excel
+              </Button>
+              <Button
+                onClick={handleOpenSendAllDialog}
+                className="gap-2 bg-green-500 hover:bg-green-600"
+              >
+                <Send className="w-4 h-4" /> Enviar Todos para WhatsApp
+              </Button>
+            </>
           )}
 
           <OneDriveFolderPicker onSelectFolder={handleFolderSelected} />
@@ -644,6 +758,85 @@ export default function Caixa() {
           )}
         </CardContent>
       </Card>
+
+      {/* Modal: Enviar Todos para WhatsApp */}
+      <Dialog
+        open={showSendAllDialog}
+        onOpenChange={(open) => {
+          if (!open) handleCancelSendAll()
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Send className="w-5 h-5 text-green-600" /> Enviar Todos para WhatsApp
+            </DialogTitle>
+            <DialogDescription>
+              {isSendingAll
+                ? `Enviando ${sendAllProgress} de ${sendAllTotal}...`
+                : sendAllDone
+                  ? 'Envio concluído.'
+                  : `Deseja enviar WhatsApp para ${sendAllTotal} locatário(s)?`}
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Confirmation list (names + phones) — only before sending */}
+          {!isSendingAll && !sendAllDone && (
+            <div className="max-h-64 overflow-y-auto rounded-md border border-border bg-muted/30">
+              <ul className="divide-y divide-border text-sm">
+                {getSendableRows().map((row) => (
+                  <li key={row.id} className="flex items-center justify-between gap-3 px-3 py-2">
+                    <span className="font-medium text-foreground truncate">{row.name}</span>
+                    <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
+                      {row.phone}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Progress bar while sending */}
+          {isSendingAll && (
+            <div className="space-y-2">
+              <Progress value={sendAllTotal ? (sendAllProgress / sendAllTotal) * 100 : 0} />
+              <p className="text-xs text-muted-foreground text-center">
+                Abrindo conversas no WhatsApp Web... Não feche esta janela.
+              </p>
+            </div>
+          )}
+
+          {/* Completion message */}
+          {sendAllDone && (
+            <div className="rounded-md border border-emerald-200 bg-emerald-50 dark:bg-emerald-950/40 p-3 text-sm text-emerald-800 dark:text-emerald-300">
+              <p className="font-medium">{sendAllOpened} conversa(s) aberta(s) no WhatsApp.</p>
+              <p className="text-xs mt-0.5">{sendAllSkipped} item(ns) pulado(s) (sem celular).</p>
+            </div>
+          )}
+
+          {/* Known limitation notice — always visible */}
+          <p className="text-[11px] leading-snug text-muted-foreground">
+            Limitação conhecida: o navegador não permite o envio automático da mensagem. Cada
+            conversa aberta ainda exigirá um clique manual em “Enviar” no WhatsApp Web.
+          </p>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={handleCancelSendAll} disabled={isSendingAll}>
+              {sendAllDone ? 'Fechar' : 'Cancelar'}
+            </Button>
+            {!sendAllDone && (
+              <Button
+                onClick={handleConfirmSendAll}
+                disabled={isSendingAll}
+                className="gap-2 bg-green-500 hover:bg-green-600"
+              >
+                <Send className="w-4 h-4" />
+                {isSendingAll ? 'Enviando...' : 'Enviar Todos'}
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
