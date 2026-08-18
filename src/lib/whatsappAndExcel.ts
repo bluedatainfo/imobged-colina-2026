@@ -77,7 +77,14 @@ export function buildWhatsAppLink(
   let breakdownSection = ''
   if (breakdown && breakdown.length > 0) {
     breakdownSection =
-      '\n' + breakdown.map((item) => `${item.description}: R$ ${item.value}`).join('\n') + '\n'
+      '\n' +
+      breakdown
+        .map((item) => {
+          const datePart = item.dueDate ? ` (Vencimento: ${item.dueDate})` : ''
+          return `${item.description}: R$ ${item.value}${datePart}`
+        })
+        .join('\n') +
+      '\n'
   }
 
   const message = `BOLETO PARA PAGAMENTO

@@ -527,17 +527,27 @@ export default function Caixa() {
                               </span>
                               {row.breakdown && row.breakdown.length > 0 && (
                                 <div className="mt-1 space-y-0.5">
+                                  <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-0.5">
+                                    Valores
+                                  </div>
                                   {row.breakdown.map((item, idx) => (
                                     <div
                                       key={idx}
-                                      className="text-[11px] text-muted-foreground flex items-center justify-between gap-2 max-w-[220px]"
+                                      className="text-[11px] text-muted-foreground flex flex-col gap-0.5 max-w-[240px]"
                                     >
-                                      <span className="font-mono text-xs text-foreground/80">
-                                        {item.description}:
-                                      </span>
-                                      <span className="font-semibold text-xs text-foreground/90">
-                                        R$ {item.value}
-                                      </span>
+                                      <div className="flex items-center justify-between gap-2">
+                                        <span className="font-mono text-xs text-foreground/80">
+                                          {item.description}:
+                                        </span>
+                                        <span className="font-semibold text-xs text-foreground/90">
+                                          R$ {item.value}
+                                        </span>
+                                      </div>
+                                      {item.dueDate && (
+                                        <span className="text-[10px] text-muted-foreground/80">
+                                          Vencimento: {item.dueDate}
+                                        </span>
+                                      )}
                                     </div>
                                   ))}
                                 </div>

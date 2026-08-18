@@ -5,7 +5,8 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs
 
 export interface BoletoBreakdownItem {
   description: string
-  value: string // e.g. "2.400,00"
+  value: string // e.g. "2.400,00" or "-250,00" / "(250,00)"
+  dueDate?: string // e.g. "28/08/26" or "28/08/2026"
 }
 
 export interface ParsedBoleto {
@@ -909,7 +910,13 @@ export function extractDueDateFromText(rawText: string): string {
  */
 function parseBrlToCents(valStr: string): number {
   if (!valStr) return 0
-  const clean = valStr.replace(/[^\d.,]/g, '').trim()
+  const trimmed = valStr.trim()
+  const isNegative =
+    trimmed.startsWith('-') ||
+    (trimmed.startsWith('(') && trimmed.endsWith(')')) ||
+    /\(-?[\d.,]+\)/.test(trimmed)
+
+  const clean = trimmed.replace(/[^\d.,]/g, '').trim()
   if (!clean) return 0
   let norm = clean
   if (clean.includes(',')) {
@@ -917,7 +924,8 @@ function parseBrlToCents(valStr: string): number {
   }
   const floatVal = parseFloat(norm)
   if (isNaN(floatVal)) return 0
-  return Math.round(floatVal * 100)
+  const cents = Math.round(floatVal * 100)
+  return isNegative ? -cents : cents
 }
 
 /**

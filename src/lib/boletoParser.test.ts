@@ -25,15 +25,51 @@ Valor Documento 3.182,16
     const breakdown = extractBreakdownFromText(text, '3.182,16')
     expect(breakdown).toHaveLength(3)
     expect(breakdown).toEqual([
-      { description: 'ALUGUEL', value: '2.400,00' },
-      { description: 'CONDOMINIO CR', value: '678,91' },
-      { description: 'IPTU', value: '103,25' },
+      { description: 'ALUGUEL', value: '2.400,00', dueDate: '26/08/26' },
+      { description: 'CONDOMINIO CR', value: '678,91', dueDate: '26/08/26' },
+      { description: 'IPTU', value: '103,25', dueDate: '26/08/26' },
     ])
 
     const parsed = parseItauBoletoText(text, 'teste.pdf')
     expect(parsed.breakdown).toBeDefined()
     expect(parsed.breakdown).toHaveLength(3)
     expect(parsed.amount).toBe('3.182,16')
+  })
+
+  it('cleans noise like Juros/Multa from item description', () => {
+    const text = `
+Informações de responsabilidades do beneficiário:
+ALUGUEL -> 1100,00 Vencimento 28/08/26
+CONDOMINIO CR -> 751,07 Vencimento 28/08/26
+Juros/Multa IPTU -> 57,86 Vencimento 28/08/26
+Cobrar juros de R$ 0,64 por dia de atraso...
+Valor Documento 1.908,93
+`
+    const breakdown = extractBreakdownFromText(text, '1.908,93')
+    expect(breakdown).toHaveLength(3)
+    expect(breakdown).toEqual([
+      { description: 'ALUGUEL', value: '1.100,00', dueDate: '28/08/26' },
+      { description: 'CONDOMINIO CR', value: '751,07', dueDate: '28/08/26' },
+      { description: 'IPTU', value: '57,86', dueDate: '28/08/26' },
+    ])
+  })
+
+  it('supports negative values (credits) in parentheses and sums correctly', () => {
+    const text = `
+Informações de responsabilidades do beneficiário:
+ALUGUEL -> 2700,00 Vencimento 28/08/26
+CONDOMINIO CR -> 52,00 Vencimento 28/08/26
+REEMBOLSO DESP. LOCATÁRIO -> (250,00)
+Cobrar juros de R$ 0,65 por dia de atraso...
+Valor Documento 2.502,00
+`
+    const breakdown = extractBreakdownFromText(text, '2.502,00')
+    expect(breakdown).toHaveLength(3)
+    expect(breakdown).toEqual([
+      { description: 'ALUGUEL', value: '2.700,00', dueDate: '28/08/26' },
+      { description: 'CONDOMINIO CR', value: '52,00', dueDate: '28/08/26' },
+      { description: 'REEMBOLSO DESP. LOCATÁRIO', value: '(250,00)', dueDate: undefined },
+    ])
   })
 
   it('rejects breakdown if sum does not match total amount', () => {
@@ -49,28 +85,28 @@ Valor Documento 3.182,16
     expect(breakdown).toBeUndefined()
   })
 
-  it('formats WhatsApp message with breakdown items correctly without emojis', () => {
+  it('formats WhatsApp message with breakdown items including Vencimento correctly', () => {
     const breakdown = [
-      { description: 'ALUGUEL', value: '2.400,00' },
-      { description: 'CONDOMINIO CR', value: '678,91' },
-      { description: 'IPTU', value: '103,25' },
+      { description: 'ALUGUEL', value: '1.100,00', dueDate: '28/08/26' },
+      { description: 'CONDOMINIO CR', value: '751,07', dueDate: '28/08/26' },
+      { description: 'IPTU', value: '57,86', dueDate: '28/08/26' },
     ]
 
     const link = buildWhatsAppLink(
       '11999999999',
-      'ISABELA MEDEIROS',
-      '26/08/2026',
-      '3.182,16',
+      'DANILO DE SOUZA SANTOS',
+      '05/09/2026',
+      '1.908,93',
       'https://onedrive.live.com/file123',
       breakdown,
     )
 
     const decoded = decodeURIComponent(link.replace(/%20/g, ' ').replace(/%0A/g, '\n'))
 
-    expect(decoded).toContain('Vencimento: 26/08/2026')
-    expect(decoded).toContain('Valor: R$ 3.182,16')
-    expect(decoded).toContain('ALUGUEL: R$ 2.400,00')
-    expect(decoded).toContain('CONDOMINIO CR: R$ 678,91')
-    expect(decoded).toContain('IPTU: R$ 103,25')
+    expect(decoded).toContain('Vencimento: 05/09/2026')
+    expect(decoded).toContain('Valor: R$ 1.908,93')
+    expect(decoded).toContain('ALUGUEL: R$ 1.100,00 (Vencimento: 28/08/26)')
+    expect(decoded).toContain('CONDOMINIO CR: R$ 751,07 (Vencimento: 28/08/26)')
+    expect(decoded).toContain('IPTU: R$ 57,86 (Vencimento: 28/08/26)')
   })
 })
