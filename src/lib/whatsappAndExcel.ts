@@ -77,7 +77,7 @@ export function buildWhatsAppLink(
   let breakdownLines = ''
   if (breakdown && breakdown.length > 0) {
     breakdownLines =
-      '\n' +
+      '\n\n' +
       breakdown
         .map((item) => {
           const dateStr = item.dueDate || dueDate

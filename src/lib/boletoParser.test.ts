@@ -54,19 +54,21 @@ Valor Documento 1.908,93
     ])
   })
 
-  it('supports negative values (credits) in parentheses e.g. BRUNA DOS SANTOS GONÇALVES and sums correctly', () => {
+  it('supports negative values (credits) in parentheses and accented names e.g. REEMBOLSO DESP. LOCATÁRIO and sums correctly', () => {
     const text = `
 Informações de responsabilidades do beneficiário:
-ALUGUEL -> 1134,11 Vencimento 02/09/26
-DESCONTO / ABATIMENTO -> (250,00) Vencimento 02/09/26
+ALUGUEL -> 900,00 Vencimento 28/08/26
+CONDOMINIO CR -> 200,00 Vencimento 28/08/26
+REEMBOLSO DESP. LOCATÁRIO -> (215,89) Vencimento 02/09/26
 Cobrar juros de R$ 0,65 por dia de atraso...
 Valor Documento 884,11
 `
     const breakdown = extractBreakdownFromText(text, '884,11')
-    expect(breakdown).toHaveLength(2)
+    expect(breakdown).toHaveLength(3)
     expect(breakdown).toEqual([
-      { description: 'ALUGUEL', value: '1.134,11', dueDate: '02/09/26' },
-      { description: 'DESCONTO / ABATIMENTO', value: '(250,00)', dueDate: '02/09/26' },
+      { description: 'ALUGUEL', value: '900,00', dueDate: '28/08/26' },
+      { description: 'CONDOMINIO CR', value: '200,00', dueDate: '28/08/26' },
+      { description: 'REEMBOLSO DESP. LOCATÁRIO', value: '(215,89)', dueDate: '02/09/26' },
     ])
   })
 
@@ -101,7 +103,9 @@ Valor Documento 3.182,16
 
     const decoded = decodeURIComponent(link.replace(/%20/g, ' ').replace(/%0A/g, '\n'))
 
-    expect(decoded).toContain('Vencimento: 05/09/2026')
+    expect(decoded).toContain(
+      'Vencimento: 05/09/2026\nValor: R$ 1.908,93\n\nALUGUEL: R$ 1.100,00 (Vencimento: 28/08/26)',
+    )
     expect(decoded).toContain('Valor: R$ 1.908,93')
     expect(decoded).toContain('ALUGUEL: R$ 1.100,00 (Vencimento: 28/08/26)')
     expect(decoded).toContain('CONDOMINIO CR: R$ 751,07 (Vencimento: 28/08/26)')

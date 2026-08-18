@@ -960,7 +960,7 @@ export function extractBreakdownFromText(
   // Example: "ALUGUEL -> 2400,00 Vencimento 26/08/26"
   // Example: "REEMBOLSO -> (250,00) Vencimento 26/08/26"
   const itemRegex =
-    /([A-Za-z0-9\s/._-]+?)\s*->\s*(\(?-?[\d]{1,3}(?:\.[\d]{3})*,[\d]{2}\)?|\(?-?[\d]+,[\d]{2}\)?)\s*(?:Vencimento|\bVenc\b|\bVenc:\b)?\s*(\d{2}\/\d{2}\/\d{2,4})?/gi
+    /([A-Za-z0-9ÁÀÂÃÉÊÍÓÔÕÚÇáàâãéêíóôõúç\s/._-]+?)\s*->\s*(\(?-?[\d]{1,3}(?:\.[\d]{3})*,[\d]{2}\)?|\(?-?[\d]+,[\d]{2}\)?)\s*(?:Vencimento|\bVenc\b|\bVenc:\b)?\s*(\d{2}\/\d{2}\/\d{2,4})?/gi
 
   const items: BoletoBreakdownItem[] = []
   let match: RegExpExecArray | null
@@ -973,8 +973,8 @@ export function extractBreakdownFromText(
     if (rawDesc && rawVal) {
       // Clean up description (remove leading/trailing symbols or common noise)
       const cleanDesc = rawDesc
-        .replace(/^[^A-Za-z0-9]+/, '')
-        .replace(/[^A-Za-z0-9\s/._-]+$/, '')
+        .replace(/^[^A-Za-z0-9ÁÀÂÃÉÊÍÓÔÕÚÇáàâãéêíóôõúç]+/, '')
+        .replace(/[^A-Za-z0-9ÁÀÂÃÉÊÍÓÔÕÚÇáàâãéêíóôõúç\s/._-]+$/, '')
         .trim()
 
       if (cleanDesc) {
