@@ -6,16 +6,19 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import useMainStore from '@/stores/main'
 import useContractsStore from '@/stores/contracts'
+import useDocumentsStore from '@/stores/documents'
 import { DocumentViewer } from '@/components/DocumentViewer'
 
 export default function PropertyDossier() {
   const { id } = useParams()
   const { properties, inspectionsData, sharepoint } = useMainStore()
   const { contracts } = useContractsStore()
+  const { documents } = useDocumentsStore()
   const [viewDoc, setViewDoc] = useState<string | null>(null)
 
   const property = properties.find((p) => p.id === id)
   const propertyContracts = contracts.filter((c) => c.propertyId === id)
+  const propertyDocuments = id ? documents.filter((d) => d.propertyId === id) : []
   const inspection = id ? inspectionsData[id] : null
 
   if (!property) {
@@ -161,6 +164,55 @@ export default function PropertyDossier() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Documentos cadastrados (GED) com rastreamento de operador. */}
+          {propertyDocuments.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-primary" /> Documentos do Imóvel (GED)
+                </CardTitle>
+                <CardDescription>
+                  Documentos cadastrados no sistema com o operador que os adicionou.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {propertyDocuments.map((doc) => (
+                    <div
+                      key={doc.id}
+                      className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/30 transition-colors"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="bg-primary/10 p-2 rounded-md shrink-0">
+                          <FileText className="w-5 h-5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm line-clamp-1">{doc.name}</p>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                              {doc.category}
+                            </Badge>
+                            <span>
+                              Adicionado em {new Date(doc.uploadDate).toLocaleDateString('pt-BR')}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      {doc.operator && (
+                        <Badge
+                          variant="outline"
+                          className="text-xs bg-primary/5 text-primary border-primary/20"
+                        >
+                          Operador: {doc.operator}
+                        </Badge>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
 

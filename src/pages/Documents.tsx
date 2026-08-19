@@ -112,6 +112,7 @@ const Documents = () => {
       type: d.category || 'Geral',
       status: 'Processado',
       filePath: d.filePath,
+      operator: d.operator ?? undefined,
     }))
 
   return (
@@ -208,6 +209,7 @@ const Documents = () => {
                 <TableRow>
                   <TableHead>Documento</TableHead>
                   <TableHead>Tipo</TableHead>
+                  <TableHead>Operador</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
@@ -219,6 +221,9 @@ const Documents = () => {
                       <File className="h-4 w-4 text-primary" /> {doc.name}
                     </TableCell>
                     <TableCell>{doc.type}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {doc.operator ? `Operador: ${doc.operator}` : '—'}
+                    </TableCell>
                     <TableCell>
                       <Badge variant="outline">{doc.status}</Badge>
                     </TableCell>

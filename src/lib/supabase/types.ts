@@ -15,6 +15,7 @@ export type Database = {
           details: string | null
           id: string
           ip_address: string | null
+          operator: string | null
           property_id: string | null
           timestamp: string | null
           user_email: string | null
@@ -25,6 +26,7 @@ export type Database = {
           details?: string | null
           id: string
           ip_address?: string | null
+          operator?: string | null
           property_id?: string | null
           timestamp?: string | null
           user_email?: string | null
@@ -35,6 +37,7 @@ export type Database = {
           details?: string | null
           id?: string
           ip_address?: string | null
+          operator?: string | null
           property_id?: string | null
           timestamp?: string | null
           user_email?: string | null
@@ -339,6 +342,7 @@ export type Database = {
           form_data: Json | null
           full_name: string
           id: string
+          operator: string | null
           pending_notes: string | null
           phone: string | null
           sp_list_id: string | null
@@ -357,6 +361,7 @@ export type Database = {
           form_data?: Json | null
           full_name: string
           id?: string
+          operator?: string | null
           pending_notes?: string | null
           phone?: string | null
           sp_list_id?: string | null
@@ -375,6 +380,7 @@ export type Database = {
           form_data?: Json | null
           full_name?: string
           id?: string
+          operator?: string | null
           pending_notes?: string | null
           phone?: string | null
           sp_list_id?: string | null
@@ -477,6 +483,7 @@ export type Database = {
           file_path: string | null
           id: string
           name: string
+          operator: string | null
           property_id: string
           review_notes: string | null
           status: string
@@ -490,6 +497,7 @@ export type Database = {
           file_path?: string | null
           id?: string
           name: string
+          operator?: string | null
           property_id: string
           review_notes?: string | null
           status?: string
@@ -503,6 +511,7 @@ export type Database = {
           file_path?: string | null
           id?: string
           name?: string
+          operator?: string | null
           property_id?: string
           review_notes?: string | null
           status?: string

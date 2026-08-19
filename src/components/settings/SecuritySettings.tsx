@@ -37,7 +37,8 @@ export default function SecuritySettings() {
         return (
           (log.userEmail || '').toLowerCase().includes(term) ||
           log.action.toLowerCase().includes(term) ||
-          log.user.toLowerCase().includes(term)
+          log.user.toLowerCase().includes(term) ||
+          (log.operator || '').toLowerCase().includes(term)
         )
       })
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
@@ -138,6 +139,7 @@ export default function SecuritySettings() {
                   <TableHead>Data/Hora</TableHead>
                   <TableHead>Usuário</TableHead>
                   <TableHead>Ação Realizada</TableHead>
+                  <TableHead>Operador</TableHead>
                   <TableHead>Endereço IP</TableHead>
                 </TableRow>
               </TableHeader>
@@ -148,14 +150,23 @@ export default function SecuritySettings() {
                       {new Date(log.timestamp).toLocaleString()}
                     </TableCell>
                     <TableCell>
-                      <div className="flex flex-col">
-                        <span className="font-medium">{log.user}</span>
-                        <span className="text-xs text-muted-foreground">
+                      <span className="font-medium">{log.user}</span>
+                      {log.userEmail && (
+                        <span className="block text-xs text-muted-foreground mt-0.5">
                           {log.userEmail || '-'}
                         </span>
-                      </div>
+                      )}
                     </TableCell>
                     <TableCell>{log.action}</TableCell>
+                    <TableCell className="text-sm">
+                      {log.operator ? (
+                        <span className="inline-flex items-center rounded-full bg-primary/5 px-2 py-0.5 text-xs font-medium text-primary">
+                          {log.operator}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-muted-foreground font-mono text-sm">
                       {log.ipAddress || 'Desconhecido'}
                     </TableCell>
@@ -163,12 +174,12 @@ export default function SecuritySettings() {
                 ))}
                 {filteredLogs.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                       Nenhum log de auditoria encontrado.
                     </TableCell>
                   </TableRow>
                 )}
-              </TableBody>
+              </TableBody>{' '}
             </Table>
           </div>
         </CardContent>

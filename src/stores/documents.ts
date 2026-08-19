@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react'
 import { supabase } from '@/lib/supabase/client'
+import { resolveOperatorForPersistence } from '@/lib/operator'
 
 export type DocumentStatus = 'Regular' | 'Vencendo em breve' | 'Expirado' | 'Sem Vencimento'
 
@@ -15,6 +16,7 @@ export type PropertyDocument = {
   uploadDate: string
   expirationDate?: string
   reviewNotes?: string
+  operator?: string | null
 }
 
 type State = {
@@ -42,6 +44,7 @@ export const initDocumentsStore = async () => {
       createdAt: d.created_at,
       uploadDate: d.created_at,
       reviewNotes: d.review_notes || undefined,
+      operator: d.operator ?? undefined,
     }))
   }
   emit()
@@ -82,6 +85,9 @@ export const documentsStore = {
         entity_code: doc.entityCode,
         entity_name: doc.entityName,
         file_path: doc.filePath,
+        // Rastreia o operador atual (se houver) — contas sem operadores
+        // gravam NULL, mantendo o comportamento anterior.
+        operator: resolveOperatorForPersistence(),
       })
       .select('*')
       .single()
@@ -103,6 +109,7 @@ export const documentsStore = {
         createdAt: data.created_at,
         uploadDate: data.created_at,
         reviewNotes: data.review_notes || undefined,
+        operator: data.operator ?? undefined,
       }
       state = { ...state, documents: [newDoc, ...state.documents] }
       emit()

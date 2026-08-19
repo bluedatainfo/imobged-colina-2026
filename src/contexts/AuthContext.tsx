@@ -11,6 +11,8 @@ import { initDocumentsStore } from '@/stores/documents'
 import { Role, getFirstAllowedPath } from '@/lib/permissions'
 import { toast } from '@/hooks/use-toast'
 import { supabase } from '@/lib/supabase/client'
+import { OperatorSelectionModal } from '@/components/OperatorSelectionModal'
+import { clearCurrentOperator } from '@/lib/operator'
 
 /**
  * Garante que o mainStore tenha uma configuração de RBAC utilizável ANTES de
@@ -37,6 +39,16 @@ type AuthContextType = {
   switchUser: (id: string) => void
   isExchanging: boolean
 }
+
+/**
+ * Indica se o modal de seleção de operador deve ser exibido. É ligado quando o
+ * usuário recém-autenticado (e com sessão válida) possui operadores
+ * cadastrados e ainda não escolheu um operador nesta sessão. O próprio modal
+ * decide (consultando app_settings + sessionStorage) se realmente mostra os
+ * botões ou se pode seguir o fluxo normal; este flag serve apenas para
+ * (re)acioná-lo após login e após troca de conta.
+ */
+type OperatorPrompt = { open: boolean; email: string | undefined }
 
 const AuthContext = createContext<AuthContextType | null>(null)
 
@@ -66,6 +78,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.getItem('app_user_id'),
   )
   const [isExchanging, setIsExchanging] = useState(false)
+  const [operatorPrompt, setOperatorPrompt] = useState<OperatorPrompt>({
+    open: false,
+    email: undefined,
+  })
   const navigate = useNavigate()
 
   const { users } = useUsersStore()
@@ -253,6 +269,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const redirectPath = getFirstAllowedPath(matched.role)
           navigate(redirectPath, { replace: true })
 
+          // Após login M365 bem-sucedido, dispara a verificação do seletor
+          // de operador: se a conta tiver operadores cadastrados e não houver
+          // operador escolhido nesta sessão, o modal (vinculado abaixo) abre.
+          // Contas sem operadores seguem o fluxo normal sem qualquer mudança.
+          setOperatorPrompt({ open: true, email: matched.email })
+
           toast({
             title: 'Autenticado com sucesso',
             description: `Bem-vindo(a), ${profileData.displayName || matched.name}`,
@@ -385,6 +407,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     // para garantir a rota correta antes do próximo render.
                     const redirectPath = getFirstAllowedPath(foundUser.role)
                     navigate(redirectPath, { replace: true })
+
+                    // Pós-login: dispara a verificação do seletor de operador
+                    // (apenas contas com operadores cadastrados exibirão o
+                    // modal). Contas sem operadores seguem o fluxo normal.
+                    setOperatorPrompt({ open: true, email: foundUser.email })
+
                     resolve()
                   })
                 })
@@ -401,11 +429,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const logout = async () => {
+    // Limpa a seleção de operador ao encerrar a sessão, para que o próximo
+    // login comece sem operador (ou reforce a seleção, se a conta tiver
+    // operadores cadastrados).
+    clearCurrentOperator()
     localStorage.removeItem('m365_token')
     localStorage.removeItem('m365_refresh_token')
     localStorage.removeItem('pkce_code_verifier')
     localStorage.removeItem('app_user_id')
     setCurrentUserId(null)
+    setOperatorPrompt({ open: false, email: undefined })
     await supabase.auth.signOut()
   }
 
@@ -433,6 +466,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider value={{ user, loginM365, logout, switchUser, isExchanging }}>
       {children}
+      {operatorPrompt.open && (
+        <OperatorSelectionModal
+          email={operatorPrompt.email}
+          onResolved={() => setOperatorPrompt({ open: false, email: undefined })}
+        />
+      )}
     </AuthContext.Provider>
   )
 }

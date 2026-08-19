@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase/client'
+import { resolveOperatorForPersistence } from '@/lib/operator'
 import {
   Table,
   TableBody,
@@ -80,9 +81,13 @@ export default function AnalysisPending() {
   const handleMarkResolved = async (item: any) => {
     setProcessingId(item.id)
     try {
+      // Ao resolver uma pendência, grava o operador atual (contas sem
+      // operador gravam NULL). O cadastro da pendência em si (status
+      // 'Pendência') é feito em /candidates via candidatesService — que já
+      // passa o operador em updateStatus.
       const { error } = await supabase
         .from('pre_registrations')
-        .update({ status: 'Pendência Resolvida' })
+        .update({ status: 'Pendência Resolvida', operator: resolveOperatorForPersistence() })
         .eq('id', item.id)
 
       if (error) throw error
@@ -160,6 +165,7 @@ export default function AnalysisPending() {
                         <TableHead>Documento</TableHead>
                         <TableHead>Pendência Apontada</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead>Operador</TableHead>
                         <TableHead>Data</TableHead>
                         <TableHead className="text-right">Ação</TableHead>
                       </TableRow>
@@ -186,6 +192,9 @@ export default function AnalysisPending() {
                             >
                               {item.status}
                             </Badge>
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap text-sm">
+                            {item.operator || '—'}
                           </TableCell>
                           <TableCell className="text-sm whitespace-nowrap">
                             {new Date(item.updated_at || item.created_at).toLocaleString('pt-BR', {
@@ -245,6 +254,7 @@ export default function AnalysisPending() {
                         <TableHead>Documento</TableHead>
                         <TableHead>Pendência</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead>Operador</TableHead>
                         <TableHead>Resolvido em</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -267,6 +277,9 @@ export default function AnalysisPending() {
                             >
                               {item.status}
                             </Badge>
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap text-sm">
+                            {item.operator || '—'}
                           </TableCell>
                           <TableCell className="text-sm whitespace-nowrap">
                             {new Date(item.updated_at || item.created_at).toLocaleString('pt-BR', {

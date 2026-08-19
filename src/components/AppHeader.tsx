@@ -19,10 +19,21 @@ import {
   DropdownMenuSubContent,
 } from '@/components/ui/dropdown-menu'
 import { Badge } from '@/components/ui/badge'
+import { OperatorBadge } from '@/components/OperatorBadge'
+import { clearCurrentOperator } from '@/lib/operator'
 
 export function AppHeader() {
   const { user, logout, switchUser } = useAuth()
   const { users } = useUsersStore()
+
+  const handleLogout = async () => {
+    clearCurrentOperator()
+    await logout()
+  }
+  const handleSwitchUser = async (id: string) => {
+    clearCurrentOperator()
+    await switchUser(id)
+  }
 
   return (
     <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60 md:px-6">
@@ -51,6 +62,7 @@ export function AppHeader() {
           <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-destructive border-2 border-background"></span>
         </Button>
         <div className="flex items-center gap-2 border-l pl-2 sm:pl-4">
+          <OperatorBadge />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -101,7 +113,7 @@ export function AppHeader() {
                     {users.map((u) => (
                       <DropdownMenuItem
                         key={u.id}
-                        onClick={() => switchUser(u.id)}
+                        onClick={() => handleSwitchUser(u.id)}
                         className={`justify-between cursor-pointer py-2 ${user?.id === u.id ? 'bg-accent' : ''}`}
                       >
                         <div className="flex flex-col">
@@ -119,7 +131,7 @@ export function AppHeader() {
 
               <DropdownMenuSeparator />
               <DropdownMenuItem
-                onClick={logout}
+                onClick={handleLogout}
                 className="text-destructive cursor-pointer py-2 hover:bg-destructive hover:text-destructive-foreground"
               >
                 <LogOut className="mr-2 h-4 w-4" />

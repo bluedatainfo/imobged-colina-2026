@@ -370,12 +370,13 @@ export default function Candidates() {
                       {activeTab === 'PJ' ? 'Endereço' : 'Contato'}
                     </TableHead>
                     <TableHead className="w-[130px] min-w-[120px]">Status</TableHead>
+                    <TableHead className="min-w-[120px]">Operador</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {sortedCandidates.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                         Nenhum registro encontrado nesta categoria.
                       </TableCell>
                     </TableRow>
@@ -426,6 +427,9 @@ export default function Candidates() {
                           <Badge className={STATUS_COLORS[candidate.status]}>
                             {candidate.status}
                           </Badge>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap text-sm text-slate-700">
+                          {candidate.operator || '—'}
                         </TableCell>
                       </TableRow>
                     ))
@@ -667,6 +671,12 @@ export default function Candidates() {
                     <h3 className="font-semibold text-lg flex items-center justify-between text-slate-800">
                       Controle e Andamento
                     </h3>
+                    <p className="text-sm text-muted-foreground">
+                      Operador:{' '}
+                      <span className="font-medium text-slate-700">
+                        {selectedCandidate.operator || '—'}
+                      </span>
+                    </p>
                     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                       <div className="flex-1 w-full max-w-xs">
                         <Select

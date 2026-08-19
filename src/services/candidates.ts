@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase/client'
 import { m365Service } from '@/lib/m365'
+import { resolveOperatorForPersistence } from '@/lib/operator'
 
 export type PreRegistrationStatus =
   | 'Novo'
@@ -25,6 +26,7 @@ export interface PreRegistration {
   status: PreRegistrationStatus
   documents_link: string | null
   form_data: any
+  operator: string | null
   created_at: string
   updated_at: string
 }
@@ -41,9 +43,12 @@ export const candidatesService = {
   },
 
   async updateStatus(id: string, status: PreRegistrationStatus) {
+    // Ao analisar/mudar o status de um interessado, grava o operador atual
+    // (quando a conta usa seleção de operador). Contas sem operadores gravam
+    // NULL e seguem o fluxo normal.
     const { data, error } = await supabase
       .from('pre_registrations')
-      .update({ status })
+      .update({ status, operator: resolveOperatorForPersistence() })
       .eq('id', id)
       .select()
       .single()
@@ -93,6 +98,9 @@ export const candidatesService = {
             sp_list_id,
             status: 'Novo',
             form_data: fields,
+            // Rastreia o operador atual no cadastro sincronizado a partir do
+            // SharePoint. Contas sem operadores gravam NULL.
+            operator: resolveOperatorForPersistence(),
           }
 
           // Try to insert directly, if sp_list_id already exists it will fail with unique violation constraint which we safely ignore.

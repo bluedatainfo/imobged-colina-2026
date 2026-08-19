@@ -406,6 +406,7 @@ export default function ManagerApproval() {
                         <TableHead>Contato</TableHead>
                         <TableHead>Data</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead>Operador</TableHead>
                         <TableHead className="text-right">Ações</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -448,6 +449,9 @@ export default function ManagerApproval() {
                                   {c.status}
                                 </Badge>
                               )}
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap text-sm">
+                              {c.operator || '—'}
                             </TableCell>
                             <TableCell className="text-right">
                               <Button
@@ -496,6 +500,7 @@ export default function ManagerApproval() {
                         <TableHead>Contato</TableHead>
                         <TableHead>Data</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead>Operador</TableHead>
                         <TableHead className="text-right">Ações</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -518,6 +523,9 @@ export default function ManagerApproval() {
                             >
                               {c.status}
                             </Badge>
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap text-sm">
+                            {c.operator || '—'}
                           </TableCell>
                           <TableCell className="text-right">
                             <Button variant="ghost" size="sm" onClick={() => handleOpenDetails(c)}>
@@ -563,6 +571,7 @@ export default function ManagerApproval() {
                         <TableHead>Contato</TableHead>
                         <TableHead>Data</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead>Operador</TableHead>
                         <TableHead className="text-right">Ações</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -585,6 +594,9 @@ export default function ManagerApproval() {
                             >
                               {c.status}
                             </Badge>
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap text-sm">
+                            {c.operator || '—'}
                           </TableCell>
                           <TableCell className="text-right">
                             <Button variant="ghost" size="sm" onClick={() => handleOpenDetails(c)}>
@@ -670,6 +682,10 @@ export default function ManagerApproval() {
                   <div>
                     <Label className="text-muted-foreground text-xs">Telefone</Label>
                     <div className="font-medium">{selectedCandidate?.phone || '-'}</div>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground text-xs">Operador</Label>
+                    <div className="font-medium">{selectedCandidate?.operator || '—'}</div>
                   </div>
                 </div>
 

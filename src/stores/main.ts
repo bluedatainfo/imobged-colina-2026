@@ -54,6 +54,7 @@ export type AuditLog = {
   timestamp: string
   details?: string
   ipAddress?: string
+  operator?: string | null
 }
 
 export type InspectionData = {
@@ -383,6 +384,7 @@ export const initMainStore = async () => {
       timestamp: a.timestamp || new Date().toISOString(),
       details: a.details || undefined,
       ipAddress: a.ip_address || undefined,
+      operator: a.operator ?? undefined,
     }))
   }
 
@@ -617,21 +619,28 @@ export const mainStore = {
       id: `LOG-${Math.random().toString(36).substring(2, 9)}`,
       timestamp: new Date().toISOString(),
     }
-    state = { ...state, auditLogs: [newLog, ...state.auditLogs] }
-    emit()
-    supabase
-      .from('app_audit_logs')
-      .insert({
-        id: newLog.id,
-        property_id: newLog.propertyId,
-        action: newLog.action,
-        user_name: newLog.user,
-        user_email: newLog.userEmail,
-        timestamp: newLog.timestamp,
-        details: newLog.details,
-        ip_address: newLog.ipAddress,
-      })
-      .then()
+    // Importa de forma dinâmica para evitar dependência circular com
+    // mainStore (que pode ser referenciado por componentes do AuthContext).
+    // Contas sem operadores gravam NULL; contas com operador gravam o nome.
+    import('@/lib/operator').then(({ resolveOperatorForPersistence }) => {
+      const newLogWithOperator = { ...newLog, operator: resolveOperatorForPersistence() }
+      state = { ...state, auditLogs: [newLogWithOperator, ...state.auditLogs] }
+      emit()
+      supabase
+        .from('app_audit_logs')
+        .insert({
+          id: newLogWithOperator.id,
+          property_id: newLogWithOperator.propertyId,
+          action: newLogWithOperator.action,
+          user_name: newLogWithOperator.user,
+          user_email: newLogWithOperator.userEmail,
+          timestamp: newLogWithOperator.timestamp,
+          details: newLogWithOperator.details,
+          ip_address: newLogWithOperator.ipAddress,
+          operator: newLogWithOperator.operator,
+        })
+        .then()
+    })
   },
   saveInspection: (data: InspectionData) => {
     const isNew = !state.inspectionsData[data.propertyId]
