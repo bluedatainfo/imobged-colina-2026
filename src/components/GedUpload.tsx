@@ -489,7 +489,7 @@ export function GedUpload({
 
   const localServerGuarantors = useMemo(() => {
     const spFiadores = dbCandidates
-      .filter((c) => c.category === 'Fiador')
+      .filter((c) => c.category === 'Fiador' || c.category === 'PJ')
       .map((c) => ({
         id: c.id,
         code: c.code || c.id,
