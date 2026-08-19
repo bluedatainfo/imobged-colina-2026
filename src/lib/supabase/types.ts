@@ -339,6 +339,7 @@ export type Database = {
           form_data: Json | null
           full_name: string
           id: string
+          pending_notes: string | null
           phone: string | null
           sp_list_id: string | null
           status: string
@@ -356,6 +357,7 @@ export type Database = {
           form_data?: Json | null
           full_name: string
           id?: string
+          pending_notes?: string | null
           phone?: string | null
           sp_list_id?: string | null
           status?: string
@@ -373,6 +375,7 @@ export type Database = {
           form_data?: Json | null
           full_name?: string
           id?: string
+          pending_notes?: string | null
           phone?: string | null
           sp_list_id?: string | null
           status?: string
