@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import useMainStore, { mainStore } from '@/stores/main'
+import { getFirstAllowedPath } from '@/lib/permissions'
 import { supabase } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -18,7 +19,10 @@ export default function Login() {
 
   useEffect(() => {
     if (user) {
-      navigate('/', { replace: true })
+      // Redireciona para a primeira rota permitida pelo RBAC do perfil, em
+      // vez de sempre ir para "/". Perfis sem Dashboard no RBAC (ex.: "Caixa")
+      // caem direto na sua primeira rota permitida (ex.: "/caixa").
+      navigate(getFirstAllowedPath(user.role), { replace: true })
     }
   }, [user, navigate])
 
@@ -178,7 +182,6 @@ export default function Login() {
         title: 'Sessão Iniciada',
         description: 'Identidade verificada com sucesso.',
       })
-      navigate('/')
     } catch (err: any) {
       toast({
         variant: 'destructive',

@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, ReactNode, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import useUsersStore, { SystemUser, usersStore } from '@/stores/users'
 import { initMainStore, mainStore } from '@/stores/main'
 import { initContractsStore } from '@/stores/contracts'
@@ -7,7 +8,7 @@ import { initUsersStore } from '@/stores/users'
 import { initEntitiesStore } from '@/stores/entities'
 import { initTemplatesStore } from '@/stores/templates'
 import { initDocumentsStore } from '@/stores/documents'
-import { Role } from '@/lib/permissions'
+import { Role, getFirstAllowedPath } from '@/lib/permissions'
 import { toast } from '@/hooks/use-toast'
 import { supabase } from '@/lib/supabase/client'
 
@@ -65,6 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.getItem('app_user_id'),
   )
   const [isExchanging, setIsExchanging] = useState(false)
+  const navigate = useNavigate()
 
   const { users } = useUsersStore()
   const user = currentUserId ? users.find((u) => u.id === currentUserId) || null : null
@@ -243,6 +245,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             initDocumentsStore(),
           ])
 
+          // Redireciona para a primeira rota permitida pelo RBAC do perfil
+          // (ex.: "Caixa" → "/caixa", "Gestor de Contrato" → "/ongoing-contracts")
+          // em vez de sempre ir para "/", evitando o bloqueio do `checkAccess`
+          // para perfis sem Dashboard no RBAC. Perfis com "all" ou com "/" no
+          // RBAC continuam caindo no Dashboard normalmente.
+          const redirectPath = getFirstAllowedPath(matched.role)
+          navigate(redirectPath, { replace: true })
+
           toast({
             title: 'Autenticado com sucesso',
             description: `Bem-vindo(a), ${profileData.displayName || matched.name}`,
@@ -368,7 +378,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     initEntitiesStore(),
                     initTemplatesStore(),
                     initDocumentsStore(),
-                  ]).then(() => resolve())
+                  ]).then(() => {
+                    // Redireciona para a primeira rota permitida pelo RBAC do
+                    // perfil, em vez de sempre ir para "/". A página de Login
+                    // também escuta `user` e faz o navigate, mas chamamos aqui
+                    // para garantir a rota correta antes do próximo render.
+                    const redirectPath = getFirstAllowedPath(foundUser.role)
+                    navigate(redirectPath, { replace: true })
+                    resolve()
+                  })
                 })
               })
               .catch((e) => {

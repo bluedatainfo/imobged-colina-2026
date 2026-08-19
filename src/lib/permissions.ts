@@ -44,3 +44,34 @@ export const checkAccess = (path: string, role?: Role) => {
   // Em vez de negar tudo, permite as áreas comuns (página inicial, perfil).
   return COMMON_PATHS.includes(path)
 }
+
+/**
+ * Retorna a primeira rota permitida para o perfil informado, de acordo com o
+ * RBAC configurado (em `app_settings.role_settings.rbac` ou o padrão do store).
+ *
+ * Comportamento:
+ *  - Se o perfil tiver `"all"` na lista (ex.: Admin, Diretor), retorna `"/"`
+ *    (Dashboard).
+ *  - Caso contrário, retorna a primeira rota da lista do perfil
+ *    (ex.: `["/caixa", "/sent-documents"]` → `"/caixa"`).
+ *  - Se não houver RBAC definido para o perfil ou a lista estiver vazia,
+ *    retorna `"/"` como fallback.
+ *
+ * Usada no redirecionamento pós-login para que perfis sem acesso ao Dashboard
+ * (ex.: "Gestor de Contrato" com `["/ongoing-contracts", ...]` ou "Caixa" com
+ * `["/caixa", ...]`) caiam direto na sua primeira rota permitida, em vez de
+ * sempre ir para `/` e bater no `checkAccess('/')`.
+ */
+export function getFirstAllowedPath(role: string): string {
+  const state = mainStore.getState()
+  const rbac = state.settings?.rbac
+
+  if (rbac && rbac[role] && Array.isArray(rbac[role]) && rbac[role].length > 0) {
+    const allowedPaths = rbac[role]
+    if (allowedPaths.includes('all')) return '/'
+    return allowedPaths[0]
+  }
+
+  // Fallback: sem RBAC ou lista vazia para o perfil.
+  return '/'
+}
