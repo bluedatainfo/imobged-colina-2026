@@ -173,7 +173,7 @@ export function GedUpload({
       .from('pre_registrations')
       .select('id, code, full_name, category')
       .then(({ data }) => setDbCandidates(data || []))
-  }, [tenantOpen])
+  }, [tenantOpen, ownerOpen, guarantorOpen])
 
   const [uploading, setUploading] = useState(false)
   const [scanningStatus, setScanningStatus] = useState('')
@@ -433,7 +433,7 @@ export function GedUpload({
       title: c.full_name,
       source: 'Candidato',
     }))
-    const combined = [...(owners || []), ...candidates]
+    const combined = [...candidates, ...(owners || [])]
 
     const normalizeStr = (str: any) =>
       str
@@ -464,7 +464,7 @@ export function GedUpload({
       fullName: c.full_name + ' (Interessado)',
       title: c.full_name,
     }))
-    const combined = [...(tenants || []), ...candidates]
+    const combined = [...candidates, ...(tenants || [])]
 
     const normalizeStr = (str: any) =>
       str
