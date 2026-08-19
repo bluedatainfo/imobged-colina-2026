@@ -24,6 +24,8 @@ import {
   ClipboardList,
   FileCheck,
 } from 'lucide-react'
+import { supabase } from '@/lib/supabase/client'
+import { useEffect, useState } from 'react'
 import {
   Sidebar,
   SidebarContent,
@@ -44,6 +46,7 @@ const navigation = [
   { title: 'Painel', url: '/', icon: LayoutDashboard },
   { title: 'Gestão de Interessados', url: '/candidates', icon: UserPlus },
   { title: 'Documentos GED', url: '/documents', icon: FolderOpen },
+  { title: 'Pendências de Análise', url: '/analysis-pending', icon: ClipboardCheck },
   { title: 'Documentos Adicionais', url: '/additional-documents', icon: FilePlus },
   { title: 'Documentos Enviados ao SharePoint', url: '/sent-documents', icon: FileUp },
   { title: 'Cadastros (Prop. / Loc.)', url: '/entities', icon: UsersRound },
@@ -70,6 +73,44 @@ export function AppSidebar() {
   const { agencyProfile } = useMainStore()
   const { user } = useAuth()
   const { modules } = useModulesStore()
+  const [pendingCount, setPendingCount] = useState(0)
+
+  useEffect(() => {
+    const fetchPendingCount = async () => {
+      try {
+        const { count, error } = await supabase
+          .from('pre_registrations')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'Pendência')
+        if (!error && count !== null) {
+          setPendingCount(count)
+        }
+      } catch (e) {
+        // ignore — badge just stays at 0
+      }
+    }
+
+    fetchPendingCount()
+
+    // Atualiza em tempo real quando uma pendência é criada/resolvida em outra tela
+    const channel = supabase
+      .channel('pre_registrations_pending_count')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'pre_registrations',
+          filter: 'status=eq.Pendência',
+        },
+        () => fetchPendingCount(),
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [location.pathname])
 
   const moduleMapping: Record<string, keyof typeof modules> = {
     '/entities': 'entities',
@@ -77,6 +118,7 @@ export function AppSidebar() {
     '/templates': 'templates',
     '/contracts': 'contracts',
     '/manager-approval': 'manager_approval',
+    '/analysis-pending': 'manager_approval',
     '/documents': 'documents',
     '/additional-documents': 'documents',
     '/sent-documents': 'documents',
@@ -127,16 +169,25 @@ export function AppSidebar() {
           <SidebarGroupLabel>Menu Principal</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {visibleNavigation.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild isActive={location.pathname === item.url}>
-                    <Link to={item.url}>
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {visibleNavigation.map((item) => {
+                const isPendingItem = item.url === '/analysis-pending'
+                const showBadge = isPendingItem && pendingCount > 0
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild isActive={location.pathname === item.url}>
+                      <Link to={item.url} className="relative">
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.title}</span>
+                        {showBadge && (
+                          <span className="absolute right-2 top-1/2 -translate-y-1/2 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-600 px-1.5 text-[11px] font-bold text-white animate-pulse-badge shadow-md">
+                            {pendingCount}
+                          </span>
+                        )}
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

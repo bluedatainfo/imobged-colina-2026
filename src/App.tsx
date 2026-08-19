@@ -27,6 +27,7 @@ const PropertyDossier = lazy(() => import('./pages/PropertyDossier'))
 const Inspections = lazy(() => import('./pages/Inspections'))
 const LegalReview = lazy(() => import('./pages/LegalReview'))
 const ManagerApproval = lazy(() => import('./pages/ManagerApproval'))
+const AnalysisPending = lazy(() => import('./pages/AnalysisPending'))
 const OngoingContracts = lazy(() => import('./pages/OngoingContracts'))
 const Contracts = lazy(() => import('./pages/Contracts'))
 const Settings = lazy(() => import('./pages/Settings'))
@@ -91,6 +92,7 @@ const AppRoutes = () => (
         <Route path="/" element={<Index />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/manager-approval" element={<ManagerApproval />} />
+        <Route path="/analysis-pending" element={<AnalysisPending />} />
         <Route path="/ongoing-contracts" element={<OngoingContracts />} />
         <Route path="/contracts" element={<Contracts />} />
         <Route path="/documents" element={<Documents />} />

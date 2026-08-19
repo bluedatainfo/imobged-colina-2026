@@ -123,6 +123,7 @@ const defaultRbac: Record<string, string[]> = {
     '/document-alerts',
     '/sync-monitor',
     '/manager-approval',
+    '/analysis-pending',
     '/inspections',
     '/keys',
     '/contracts',
@@ -136,7 +137,15 @@ const defaultRbac: Record<string, string[]> = {
     '/templates',
     '/ongoing-contracts',
   ],
-  Vistoriador: ['/', '/properties', '/inspections', '/keys', '/profile', '/ongoing-contracts'],
+  Vistoriador: [
+    '/',
+    '/properties',
+    '/inspections',
+    '/keys',
+    '/profile',
+    '/ongoing-contracts',
+    '/analysis-pending',
+  ],
   Jurídico: [
     '/',
     '/documents',
@@ -148,6 +157,7 @@ const defaultRbac: Record<string, string[]> = {
     '/profile',
     '/templates',
     '/ongoing-contracts',
+    '/analysis-pending',
   ],
   Financeiro: [
     '/',
@@ -161,10 +171,12 @@ const defaultRbac: Record<string, string[]> = {
     '/financial',
     '/profile',
     '/ongoing-contracts',
+    '/analysis-pending',
   ],
   'Gestor de Contrato': [
     '/',
     '/manager-approval',
+    '/analysis-pending',
     '/contracts',
     '/documents',
     '/additional-documents',
@@ -177,7 +189,7 @@ const defaultRbac: Record<string, string[]> = {
     '/profile',
     '/ongoing-contracts',
   ],
-  Corretor: ['/', '/properties', '/sales', '/profile', '/ongoing-contracts'],
+  Corretor: ['/', '/properties', '/sales', '/profile', '/ongoing-contracts', '/analysis-pending'],
 }
 
 const defaultState: State = {
@@ -292,6 +304,15 @@ export const initMainStore = async () => {
     patchRole('Financeiro', ['/ongoing-contracts'])
     patchRole('Gestor de Contrato', ['/ongoing-contracts', '/additional-documents'])
     patchRole('Corretor', ['/ongoing-contracts'])
+    // Pendências de Análise: mesma permissão de Análise da Gerência
+    patchRole('Gerente', ['/analysis-pending'])
+    patchRole('Gestor de Contrato', ['/analysis-pending'])
+    patchRole('Diretor', ['/analysis-pending'])
+    patchRole('Vistoriador', ['/analysis-pending'])
+    patchRole('Jurídico', ['/analysis-pending'])
+    patchRole('Financeiro', ['/analysis-pending'])
+    patchRole('Corretor', ['/analysis-pending'])
+    patchRole('Caixa', ['/analysis-pending'])
 
     state.settings = {
       ...defaultState.settings,

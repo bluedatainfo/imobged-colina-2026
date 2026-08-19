@@ -27,6 +27,8 @@ import {
   FolderOpen,
   User,
   RotateCcw,
+  AlertTriangle,
+  ClipboardList,
 } from 'lucide-react'
 import {
   Sheet,
@@ -93,6 +95,9 @@ export default function ManagerApproval() {
   const [rejectReason, setRejectReason] = useState('')
   const [processing, setProcessing] = useState(false)
 
+  const [pendingDialogOpen, setPendingDialogOpen] = useState(false)
+  const [pendingReason, setPendingReason] = useState('')
+
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [loadingPreviewId, setLoadingPreviewId] = useState<string | null>(null)
 
@@ -103,7 +108,7 @@ export default function ManagerApproval() {
         supabase
           .from('pre_registrations')
           .select('*')
-          .eq('status', 'Em Análise da Gerência')
+          .in('status', ['Em Análise da Gerência', 'Pendência Resolvida'])
           .order('created_at', { ascending: false }),
         supabase
           .from('pre_registrations')
@@ -229,6 +234,40 @@ export default function ManagerApproval() {
       fetchCandidates()
     } catch (err: any) {
       toast({ title: 'Erro ao rejeitar', description: err.message, variant: 'destructive' })
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  const handlePending = async () => {
+    if (!selectedCandidate || !pendingReason.trim()) return
+    setProcessing(true)
+    try {
+      const { error } = await supabase
+        .from('pre_registrations')
+        .update({
+          status: 'Pendência',
+          pending_notes: pendingReason.trim(),
+        })
+        .eq('id', selectedCandidate.id)
+
+      if (error) throw error
+
+      toast({
+        title: 'Pendência Registrada',
+        description:
+          'O dossiê foi marcado como pendência e fica disponível em Pendências de Análise.',
+      })
+      setPendingDialogOpen(false)
+      setPendingReason('')
+      setSelectedCandidate(null)
+      fetchCandidates()
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao registrar pendência',
+        description: err.message,
+        variant: 'destructive',
+      })
     } finally {
       setProcessing(false)
     }
@@ -371,33 +410,58 @@ export default function ManagerApproval() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {pendingCandidates.map((c) => (
-                        <TableRow key={c.id}>
-                          <TableCell className="font-medium">{c.full_name}</TableCell>
-                          <TableCell>{formatCpfCnpj(c.cpf || c.cnpj)}</TableCell>
-                          <TableCell>
-                            <div className="text-sm">{c.email || '-'}</div>
-                            <div className="text-xs text-muted-foreground">{c.phone || '-'}</div>
-                          </TableCell>
-                          <TableCell className="text-sm">
-                            {new Date(c.created_at).toLocaleDateString('pt-BR')}
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant="outline"
-                              className="bg-amber-50 text-amber-600 border-amber-200"
-                            >
-                              {c.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button variant="ghost" size="sm" onClick={() => handleOpenDetails(c)}>
-                              <Eye className="w-4 h-4 mr-2" />
-                              Ficha Detalhada
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {pendingCandidates.map((c) => {
+                        const isPendingResolved = c.status === 'Pendência Resolvida'
+                        return (
+                          <TableRow
+                            key={c.id}
+                            className={isPendingResolved ? 'bg-amber-50/40' : undefined}
+                          >
+                            <TableCell className="font-medium flex items-center gap-2">
+                              {isPendingResolved && (
+                                <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+                              )}
+                              {c.full_name}
+                            </TableCell>
+                            <TableCell>{formatCpfCnpj(c.cpf || c.cnpj)}</TableCell>
+                            <TableCell>
+                              <div className="text-sm">{c.email || '-'}</div>
+                              <div className="text-xs text-muted-foreground">{c.phone || '-'}</div>
+                            </TableCell>
+                            <TableCell className="text-sm">
+                              {new Date(c.created_at).toLocaleDateString('pt-BR')}
+                            </TableCell>
+                            <TableCell>
+                              {isPendingResolved ? (
+                                <Badge
+                                  variant="outline"
+                                  className="bg-amber-100 text-amber-700 border-amber-300 animate-pulse"
+                                >
+                                  <AlertTriangle className="w-3 h-3 mr-1" />
+                                  {c.status}
+                                </Badge>
+                              ) : (
+                                <Badge
+                                  variant="outline"
+                                  className="bg-amber-50 text-amber-600 border-amber-200"
+                                >
+                                  {c.status}
+                                </Badge>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleOpenDetails(c)}
+                              >
+                                <Eye className="w-4 h-4 mr-2" />
+                                Ficha Detalhada
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })}
                     </TableBody>
                   </Table>
                 </div>
@@ -553,7 +617,9 @@ export default function ManagerApproval() {
                   className={
                     selectedCandidate?.status === 'Aprovado'
                       ? 'bg-green-50 text-green-600 border-green-200'
-                      : 'bg-amber-50 text-amber-600 border-amber-200'
+                      : selectedCandidate?.status === 'Pendência Resolvida'
+                        ? 'bg-amber-100 text-amber-700 border-amber-300'
+                        : 'bg-amber-50 text-amber-600 border-amber-200'
                   }
                 >
                   {selectedCandidate?.status}
@@ -561,6 +627,22 @@ export default function ManagerApproval() {
               </div>
             </SheetHeader>
           </div>
+
+          {selectedCandidate?.status === 'Pendência Resolvida' && (
+            <div className="mx-6 mt-4 p-3 rounded-md border border-amber-300 bg-amber-50 flex items-start gap-2">
+              <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              <div className="text-sm">
+                <p className="font-semibold text-amber-800">
+                  Dossiê retornado após correção de pendência
+                </p>
+                {selectedCandidate?.pending_notes && (
+                  <p className="text-amber-700 mt-0.5">
+                    Pendência anterior: {selectedCandidate.pending_notes}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
 
           <ScrollArea className="flex-1 p-6">
             <div className="space-y-8">
@@ -780,27 +862,37 @@ export default function ManagerApproval() {
             </div>
           </ScrollArea>
 
-          {selectedCandidate?.status === 'Em Análise da Gerência' && (
-            <div className="p-6 border-t bg-background flex gap-3 justify-end">
+          {(selectedCandidate?.status === 'Em Análise da Gerência' ||
+            selectedCandidate?.status === 'Pendência Resolvida') && (
+            <div className="p-6 border-t bg-background space-y-3">
               <Button
                 variant="outline"
-                className="flex-1 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-                onClick={() => setRejectDialogOpen(true)}
+                className="w-full border-amber-300 text-amber-700 hover:bg-amber-50 hover:text-amber-800"
+                onClick={() => setPendingDialogOpen(true)}
               >
-                <XCircle className="w-4 h-4 mr-2" /> Rejeitar
+                <ClipboardList className="w-4 h-4 mr-2" /> PENDÊNCIAS
               </Button>
-              <Button
-                className="flex-1 bg-green-600 hover:bg-green-700"
-                onClick={handleApprove}
-                disabled={processing}
-              >
-                {processing ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <CheckCircle className="w-4 h-4 mr-2" />
-                )}
-                Aprovar Dossiê
-              </Button>
+              <div className="flex gap-3 justify-end">
+                <Button
+                  variant="outline"
+                  className="flex-1 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                  onClick={() => setRejectDialogOpen(true)}
+                >
+                  <XCircle className="w-4 h-4 mr-2" /> Rejeitar
+                </Button>
+                <Button
+                  className="flex-1 bg-green-600 hover:bg-green-700"
+                  onClick={handleApprove}
+                  disabled={processing}
+                >
+                  {processing ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                  )}
+                  Aprovar Dossiê
+                </Button>
+              </div>
             </div>
           )}
 
@@ -848,6 +940,46 @@ export default function ManagerApproval() {
               <ExternalLink className="w-4 h-4 mr-2" /> Abrir em Nova Guia
             </Button>
             <Button onClick={() => setPreviewUrl(null)}>Fechar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={pendingDialogOpen} onOpenChange={setPendingDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Registrar Pendência</DialogTitle>
+            <DialogDescription>
+              Descreva o que está faltando no dossiê (ex.: RG ilegível, falta comprovante de
+              residência). O dossiê será movido para &quot;Pendência&quot; até correção.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <Label>Descrição da Pendência</Label>
+              <Textarea
+                placeholder="Ex: RG ilegível, falta comprovante de residência..."
+                value={pendingReason}
+                onChange={(e) => setPendingReason(e.target.value)}
+                rows={4}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setPendingDialogOpen(false)}
+              disabled={processing}
+            >
+              Cancelar
+            </Button>
+            <Button
+              className="bg-amber-600 hover:bg-amber-700"
+              onClick={handlePending}
+              disabled={processing || !pendingReason.trim()}
+            >
+              {processing && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Registrar Pendência
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

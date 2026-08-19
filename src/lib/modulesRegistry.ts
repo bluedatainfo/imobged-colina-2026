@@ -28,6 +28,7 @@ export const ALL_MODULES: ModuleEntry[] = [
   { path: '/document-alerts', label: 'Alertas GED' },
   { path: '/sync-monitor', label: 'Monitor Sinc.' },
   { path: '/manager-approval', label: 'Análise Ger.' },
+  { path: '/analysis-pending', label: 'Pendências de Análise' },
   { path: '/inspections', label: 'Vistorias' },
   { path: '/keys', label: 'Chaves' },
   { path: '/contracts', label: 'Contratos' },
