@@ -225,7 +225,7 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
           if (candidate) {
             const fd = candidate.form_data || {}
 
-            // Pre-fill owner and address
+            // Pre-fill owner, gestaoRealCode and address
             const ownerName =
               fd.Proprietario ||
               fd.NomeProprietario ||
@@ -237,12 +237,17 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
               fd.Endereco_x0020_do_x0020_Imovel ||
               fd.endereco_imovel ||
               fd.Endereco ||
+              fd.endereco ||
+              candidate.address ||
               ''
+
+            const erpCode = candidate.code || fd.codigo_erp || fd.codigo_erp_original || ''
 
             setNewPropData((prev) => ({
               ...prev,
               ownerName: ownerName,
               address: address,
+              gestaoRealCode: erpCode ? String(erpCode).slice(0, 8) : prev.gestaoRealCode,
             }))
 
             if (ownerName || address) {

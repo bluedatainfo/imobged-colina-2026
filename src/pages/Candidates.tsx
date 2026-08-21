@@ -49,6 +49,7 @@ import { format } from 'date-fns'
 import { Input } from '@/components/ui/input'
 import { ptBR } from 'date-fns/locale'
 import { StartLeaseProcessDialog } from '@/components/StartLeaseProcessDialog'
+import { IncludeErpTenantDialog } from '@/components/IncludeErpTenantDialog'
 
 const STATUS_COLORS: Record<PreRegistrationStatus, string> = {
   Novo: 'bg-blue-100 text-blue-800 hover:bg-blue-100',
@@ -84,6 +85,7 @@ export default function Candidates() {
   const [nameFilter, setNameFilter] = useState('')
   const [docFilter, setDocFilter] = useState('')
   const [sortDirection, setSortDirection] = useState<SortDirection>(null)
+  const [includeErpDialogOpen, setIncludeErpDialogOpen] = useState(false)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
   const fetchCandidates = useCallback(async (silent = false) => {
@@ -296,6 +298,12 @@ export default function Candidates() {
               <RefreshCw className="mr-2 h-4 w-4" />
             )}
             Sincronizar
+          </Button>
+          <Button
+            onClick={() => setIncludeErpDialogOpen(true)}
+            className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white font-medium shadow-sm transition-colors"
+          >
+            INCLUIR LOCATÁRIO ERP Local
           </Button>
         </div>
       </div>
@@ -801,6 +809,19 @@ export default function Candidates() {
         onSuccess={() => {
           setExistingProcessDialogOpen(false)
           fetchCandidates(true)
+        }}
+      />
+
+      <IncludeErpTenantDialog
+        open={includeErpDialogOpen}
+        onClose={() => setIncludeErpDialogOpen(false)}
+        onTenantIncluded={async (newCandidate) => {
+          if (newCandidate.category) {
+            setActiveTab(newCandidate.category)
+          }
+          await fetchCandidates(true)
+          setSelectedCandidate(newCandidate)
+          setIsDrawerOpen(true)
         }}
       />
     </div>
