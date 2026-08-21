@@ -177,7 +177,6 @@ export function GedUpload({
 
   const [uploading, setUploading] = useState(false)
   const [scanningStatus, setScanningStatus] = useState('')
-  const [sendToManager, setSendToManager] = useState(false)
   const [leaseNumber, setLeaseNumber] = useState('')
   const [folderNumber, setFolderNumber] = useState('')
 
@@ -863,88 +862,83 @@ export function GedUpload({
           filePath: path,
         })
 
-        if (sendToManager) {
-          mainStore.updateProperty(propId, { status: 'Análise Gerencial' })
+        mainStore.updateProperty(propId, { status: 'Análise Gerencial' })
 
-          // Se a entidade for do ERP Local, criar o registro em pre_registrations para entrar no fluxo de ManagerApproval
-          let erpEntityToCreate: { name: string; code: string; category: string } | null = null
+        // Se a entidade for do ERP Local, criar o registro em pre_registrations para entrar no fluxo de ManagerApproval
+        let erpEntityToCreate: { name: string; code: string; category: string } | null = null
 
-          if (
-            docType === 'OWNER_DOCUMENT' &&
-            selectedOwner &&
-            selectedOwner.source?.toUpperCase() === 'ERP'
-          ) {
-            erpEntityToCreate = {
-              name:
-                selectedOwner.name ||
-                selectedOwner.fullName ||
-                selectedOwner.title ||
-                finalEntityName,
-              code: selectedOwner.code || selectedOwner.id || finalEntityCode,
-              category: 'PF',
-            }
-          } else if (
-            docType === 'TENANT_DOCUMENT' &&
-            selectedTenant &&
-            selectedTenant.source?.toUpperCase() === 'ERP'
-          ) {
-            erpEntityToCreate = {
-              name:
-                selectedTenant.name ||
-                selectedTenant.fullName ||
-                selectedTenant.title ||
-                finalEntityName,
-              code: selectedTenant.code || selectedTenant.id || finalEntityCode,
-              category: 'PF',
-            }
-          } else if (
-            docType === 'GUARANTEE_DOCUMENT' &&
-            selectedGuarantor &&
-            selectedGuarantor.source?.toUpperCase() === 'ERP'
-          ) {
-            erpEntityToCreate = {
-              name: selectedGuarantor.fullName || selectedGuarantor.name || finalEntityName,
-              code: selectedGuarantor.code || selectedGuarantor.id || finalEntityCode,
-              category: 'Fiador',
-            }
+        if (
+          docType === 'OWNER_DOCUMENT' &&
+          selectedOwner &&
+          selectedOwner.source?.toUpperCase() === 'ERP'
+        ) {
+          erpEntityToCreate = {
+            name:
+              selectedOwner.name ||
+              selectedOwner.fullName ||
+              selectedOwner.title ||
+              finalEntityName,
+            code: selectedOwner.code || selectedOwner.id || finalEntityCode,
+            category: 'PF',
           }
+        } else if (
+          docType === 'TENANT_DOCUMENT' &&
+          selectedTenant &&
+          selectedTenant.source?.toUpperCase() === 'ERP'
+        ) {
+          erpEntityToCreate = {
+            name:
+              selectedTenant.name ||
+              selectedTenant.fullName ||
+              selectedTenant.title ||
+              finalEntityName,
+            code: selectedTenant.code || selectedTenant.id || finalEntityCode,
+            category: 'PF',
+          }
+        } else if (
+          docType === 'GUARANTEE_DOCUMENT' &&
+          selectedGuarantor &&
+          selectedGuarantor.source?.toUpperCase() === 'ERP'
+        ) {
+          erpEntityToCreate = {
+            name: selectedGuarantor.fullName || selectedGuarantor.name || finalEntityName,
+            code: selectedGuarantor.code || selectedGuarantor.id || finalEntityCode,
+            category: 'Fiador',
+          }
+        }
 
-          if (erpEntityToCreate && erpEntityToCreate.name) {
-            try {
-              const op = resolveOperatorForPersistence()
-              const { data: insertedCandidate, error: insertCandidateErr } = await supabase
-                .from('pre_registrations')
-                .insert({
-                  full_name: erpEntityToCreate.name,
-                  code: erpEntityToCreate.code,
-                  category: erpEntityToCreate.category,
-                  status: 'Em Análise da Gerência',
-                  operator: op || user?.name || 'Sistema',
-                })
-                .select('id')
-                .single()
+        if (erpEntityToCreate && erpEntityToCreate.name) {
+          try {
+            const op = resolveOperatorForPersistence()
+            const { data: insertedCandidate, error: insertCandidateErr } = await supabase
+              .from('pre_registrations')
+              .insert({
+                full_name: erpEntityToCreate.name,
+                code: erpEntityToCreate.code,
+                category: erpEntityToCreate.category,
+                status: 'Em Análise da Gerência',
+                operator: op || user?.name || 'Sistema',
+              })
+              .select('id')
+              .single()
 
-              if (!insertCandidateErr && insertedCandidate) {
-                if (docType === 'TENANT_DOCUMENT') {
-                  await supabase
-                    .from('properties')
-                    .update({ tenant_id: insertedCandidate.id, status: 'Em Análise' })
-                    .eq('id', propId)
-                } else if (docType === 'GUARANTEE_DOCUMENT') {
-                  await supabase
-                    .from('properties')
-                    .update({ guarantor_id: insertedCandidate.id, status: 'Em Análise' })
-                    .eq('id', propId)
-                } else {
-                  await supabase
-                    .from('properties')
-                    .update({ status: 'Em Análise' })
-                    .eq('id', propId)
-                }
+            if (!insertCandidateErr && insertedCandidate) {
+              if (docType === 'TENANT_DOCUMENT') {
+                await supabase
+                  .from('properties')
+                  .update({ tenant_id: insertedCandidate.id, status: 'Em Análise' })
+                  .eq('id', propId)
+              } else if (docType === 'GUARANTEE_DOCUMENT') {
+                await supabase
+                  .from('properties')
+                  .update({ guarantor_id: insertedCandidate.id, status: 'Em Análise' })
+                  .eq('id', propId)
+              } else {
+                await supabase.from('properties').update({ status: 'Em Análise' }).eq('id', propId)
               }
-            } catch (err) {
-              console.warn('Erro ao criar pre_registration para entidade ERP:', err)
             }
+          } catch (err) {
+            console.warn('Erro ao criar pre_registration para entidade ERP:', err)
           }
         }
 
@@ -1013,7 +1007,7 @@ export function GedUpload({
           }
         }
 
-        if (sendToManager && successCount > 0) {
+        if (successCount > 0) {
           mainStore.updateProperty(propId, { status: 'Análise Gerencial' })
 
           // Se a entidade for do ERP Local, criar o registro em pre_registrations para entrar no fluxo de ManagerApproval
@@ -1746,23 +1740,6 @@ export function GedUpload({
           </div>
         </div>
       )}
-
-      <div className="flex items-center justify-between rounded-lg border p-4 shadow-sm bg-muted/30">
-        <div className="space-y-0.5">
-          <Label className="text-sm font-medium cursor-pointer" htmlFor="manager-approval-switch">
-            Análise Gerencial
-          </Label>
-          <p className="text-xs text-muted-foreground">
-            Mover imóvel para o Hub de Validação após concluir
-          </p>
-        </div>
-        <Switch
-          id="manager-approval-switch"
-          checked={sendToManager}
-          onCheckedChange={setSendToManager}
-          disabled={!hasSpAccess || !propertyId}
-        />
-      </div>
 
       <Button
         className="w-full mt-auto gap-2"
