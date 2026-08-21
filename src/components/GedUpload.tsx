@@ -309,42 +309,68 @@ export function GedUpload({
         // Combinar imóveis do Supabase (query + mainStore.properties) para ter o banco local completo
         const allDbMap = new Map<string, any>()
         ;(dbData || []).forEach((p) => {
-          allDbMap.set(String(p.id).trim().toLowerCase(), {
-            ...p,
-            code: p.id,
-            isDb: true,
-          })
-        })
-        ;(storeProperties || []).forEach((p) => {
-          const key = String(p.id).trim().toLowerCase()
-          if (!allDbMap.has(key)) {
+          const idStr = String(p.id || '').trim()
+          const codeStr = String(p.code || p.id || '').trim()
+          const key = (codeStr || idStr).toLowerCase()
+          if (key) {
             allDbMap.set(key, {
               ...p,
-              code: p.id,
+              code: p.code || p.id,
+              isDb: true,
+            })
+          }
+        })
+        ;(storeProperties || []).forEach((p) => {
+          const idStr = String(p.id || '').trim()
+          const codeStr = String(p.code || p.id || '').trim()
+          const key = (codeStr || idStr).toLowerCase()
+          if (key && !allDbMap.has(key)) {
+            allDbMap.set(key, {
+              ...p,
+              code: p.code || p.id,
               isDb: true,
             })
           }
         })
 
         const dbProperties = Array.from(allDbMap.values())
-        const dbIds = new Set(
-          dbProperties.map((p) =>
-            String(p.id || p.code)
-              .trim()
-              .toLowerCase(),
-          ),
-        )
-
-        // Deduplicação: se o imóvel do ERP já existir no banco local, exibe apenas a versão do banco
-        const combined = [...dbProperties]
-        erpProperties.forEach((p) => {
-          const erpKey = String(p.code || p.id || '')
+        const dbKeys = new Set<string>()
+        dbProperties.forEach((p) => {
+          const idKey = String(p.id || '')
             .trim()
             .toLowerCase()
-          if (erpKey && !dbIds.has(erpKey)) {
+          const codeKey = String(p.code || '')
+            .trim()
+            .toLowerCase()
+          if (idKey) dbKeys.add(idKey)
+          if (codeKey) dbKeys.add(codeKey)
+        })
+
+        // Deduplicação robusta: se o imóvel do ERP já existir no banco local, exibe apenas a versão do banco
+        const combined = [...dbProperties]
+        const seenCombinedKeys = new Set<string>(dbKeys)
+
+        erpProperties.forEach((p) => {
+          const idKey = String(p.id || '')
+            .trim()
+            .toLowerCase()
+          const codeKey = String(p.code || p.codigo || '')
+            .trim()
+            .toLowerCase()
+          const erpKey = codeKey || idKey
+
+          const alreadyExists =
+            (idKey && seenCombinedKeys.has(idKey)) ||
+            (codeKey && seenCombinedKeys.has(codeKey)) ||
+            (erpKey && seenCombinedKeys.has(erpKey))
+
+          if (!alreadyExists && erpKey) {
+            if (idKey) seenCombinedKeys.add(idKey)
+            if (codeKey) seenCombinedKeys.add(codeKey)
+            seenCombinedKeys.add(erpKey)
             combined.push({
               ...p,
-              code: p.code || p.id,
+              code: p.code || p.codigo || p.id,
               isDb: false,
             })
           }
@@ -369,21 +395,50 @@ export function GedUpload({
   }, [searchQuery, propertyOpen])
 
   const localServerProperties = useMemo(() => {
-    if (!searchQuery) return serverProperties.slice(0, 50)
+    // Garantir deduplicação adicional e robusta no useMemo
+    const seen = new Set<string>()
+    const uniqueProps: any[] = []
 
-    const lowerQuery = searchQuery.toLowerCase()
-    return serverProperties
+    for (const p of serverProperties) {
+      const idKey = String(p.id || '')
+        .trim()
+        .toLowerCase()
+      const codeKey = String(p.code || p.codigo || '')
+        .trim()
+        .toLowerCase()
+      const primaryKey = codeKey || idKey
+
+      if (primaryKey && seen.has(primaryKey)) {
+        continue
+      }
+      if (idKey && seen.has(idKey)) {
+        continue
+      }
+      if (codeKey && seen.has(codeKey)) {
+        continue
+      }
+
+      if (primaryKey) seen.add(primaryKey)
+      if (idKey) seen.add(idKey)
+      if (codeKey) seen.add(codeKey)
+      uniqueProps.push(p)
+    }
+
+    if (!searchQuery.trim()) return uniqueProps.slice(0, 50)
+
+    const normalizeStr = (str: any) =>
+      str
+        ? String(str)
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+        : ''
+
+    const normalizedQuery = normalizeStr(searchQuery)
+
+    return uniqueProps
       .filter((p: any) => {
         const idStr = String(p.code || p.id || '').toLowerCase()
-        const normalizeStr = (str: any) =>
-          str
-            ? String(str)
-                .normalize('NFD')
-                .replace(/[\u0300-\u036f]/g, '')
-                .toLowerCase()
-            : ''
-
-        const normalizedQuery = normalizeStr(searchQuery)
         const nameStr = normalizeStr(getOwnerName(p))
         const addressStr = normalizeStr(getAddress(p))
         return (
@@ -587,10 +642,6 @@ export function GedUpload({
   useEffect(() => {
     const typeObj = DOCUMENT_TYPES.find((t) => t.id === docType)
     if (typeObj && typeObj.label.startsWith('Imovel - ') && selectedProperty) {
-      if (docType === 'OWNER_DOCUMENT' && isEntityFromCandidate) {
-        finalEntityCode = formatOwnerCodeForCandidate(finalEntityCode)
-      }
-
       const propId = selectedProperty.code || selectedProperty.id
       if (propId) {
         if (['CONTRACT_ACTIVE', 'CONTRACT_TERMINATED'].includes(docType)) {
@@ -814,6 +865,87 @@ export function GedUpload({
 
         if (sendToManager) {
           mainStore.updateProperty(propId, { status: 'Análise Gerencial' })
+
+          // Se a entidade for do ERP Local, criar o registro em pre_registrations para entrar no fluxo de ManagerApproval
+          let erpEntityToCreate: { name: string; code: string; category: string } | null = null
+
+          if (
+            docType === 'OWNER_DOCUMENT' &&
+            selectedOwner &&
+            selectedOwner.source?.toUpperCase() === 'ERP'
+          ) {
+            erpEntityToCreate = {
+              name:
+                selectedOwner.name ||
+                selectedOwner.fullName ||
+                selectedOwner.title ||
+                finalEntityName,
+              code: selectedOwner.code || selectedOwner.id || finalEntityCode,
+              category: 'PF',
+            }
+          } else if (
+            docType === 'TENANT_DOCUMENT' &&
+            selectedTenant &&
+            selectedTenant.source?.toUpperCase() === 'ERP'
+          ) {
+            erpEntityToCreate = {
+              name:
+                selectedTenant.name ||
+                selectedTenant.fullName ||
+                selectedTenant.title ||
+                finalEntityName,
+              code: selectedTenant.code || selectedTenant.id || finalEntityCode,
+              category: 'PF',
+            }
+          } else if (
+            docType === 'GUARANTEE_DOCUMENT' &&
+            selectedGuarantor &&
+            selectedGuarantor.source?.toUpperCase() === 'ERP'
+          ) {
+            erpEntityToCreate = {
+              name: selectedGuarantor.fullName || selectedGuarantor.name || finalEntityName,
+              code: selectedGuarantor.code || selectedGuarantor.id || finalEntityCode,
+              category: 'Fiador',
+            }
+          }
+
+          if (erpEntityToCreate && erpEntityToCreate.name) {
+            try {
+              const op = resolveOperatorForPersistence()
+              const { data: insertedCandidate, error: insertCandidateErr } = await supabase
+                .from('pre_registrations')
+                .insert({
+                  full_name: erpEntityToCreate.name,
+                  code: erpEntityToCreate.code,
+                  category: erpEntityToCreate.category,
+                  status: 'Em Análise da Gerência',
+                  operator: op || user?.name || 'Sistema',
+                })
+                .select('id')
+                .single()
+
+              if (!insertCandidateErr && insertedCandidate) {
+                if (docType === 'TENANT_DOCUMENT') {
+                  await supabase
+                    .from('properties')
+                    .update({ tenant_id: insertedCandidate.id, status: 'Em Análise' })
+                    .eq('id', propId)
+                } else if (docType === 'GUARANTEE_DOCUMENT') {
+                  await supabase
+                    .from('properties')
+                    .update({ guarantor_id: insertedCandidate.id, status: 'Em Análise' })
+                    .eq('id', propId)
+                } else {
+                  await supabase
+                    .from('properties')
+                    .update({ status: 'Em Análise' })
+                    .eq('id', propId)
+                }
+              }
+            } catch (err) {
+              console.warn('Erro ao criar pre_registration para entidade ERP:', err)
+            }
+          }
         }
 
         toast({
@@ -883,6 +1015,87 @@ export function GedUpload({
 
         if (sendToManager && successCount > 0) {
           mainStore.updateProperty(propId, { status: 'Análise Gerencial' })
+
+          // Se a entidade for do ERP Local, criar o registro em pre_registrations para entrar no fluxo de ManagerApproval
+          let erpEntityToCreate: { name: string; code: string; category: string } | null = null
+
+          if (
+            docType === 'OWNER_DOCUMENT' &&
+            selectedOwner &&
+            selectedOwner.source?.toUpperCase() === 'ERP'
+          ) {
+            erpEntityToCreate = {
+              name:
+                selectedOwner.name ||
+                selectedOwner.fullName ||
+                selectedOwner.title ||
+                finalEntityName,
+              code: selectedOwner.code || selectedOwner.id || finalEntityCode,
+              category: 'PF',
+            }
+          } else if (
+            docType === 'TENANT_DOCUMENT' &&
+            selectedTenant &&
+            selectedTenant.source?.toUpperCase() === 'ERP'
+          ) {
+            erpEntityToCreate = {
+              name:
+                selectedTenant.name ||
+                selectedTenant.fullName ||
+                selectedTenant.title ||
+                finalEntityName,
+              code: selectedTenant.code || selectedTenant.id || finalEntityCode,
+              category: 'PF',
+            }
+          } else if (
+            docType === 'GUARANTEE_DOCUMENT' &&
+            selectedGuarantor &&
+            selectedGuarantor.source?.toUpperCase() === 'ERP'
+          ) {
+            erpEntityToCreate = {
+              name: selectedGuarantor.fullName || selectedGuarantor.name || finalEntityName,
+              code: selectedGuarantor.code || selectedGuarantor.id || finalEntityCode,
+              category: 'Fiador',
+            }
+          }
+
+          if (erpEntityToCreate && erpEntityToCreate.name) {
+            try {
+              const op = resolveOperatorForPersistence()
+              const { data: insertedCandidate, error: insertCandidateErr } = await supabase
+                .from('pre_registrations')
+                .insert({
+                  full_name: erpEntityToCreate.name,
+                  code: erpEntityToCreate.code,
+                  category: erpEntityToCreate.category,
+                  status: 'Em Análise da Gerência',
+                  operator: op || user?.name || 'Sistema',
+                })
+                .select('id')
+                .single()
+
+              if (!insertCandidateErr && insertedCandidate) {
+                if (docType === 'TENANT_DOCUMENT') {
+                  await supabase
+                    .from('properties')
+                    .update({ tenant_id: insertedCandidate.id, status: 'Em Análise' })
+                    .eq('id', propId)
+                } else if (docType === 'GUARANTEE_DOCUMENT') {
+                  await supabase
+                    .from('properties')
+                    .update({ guarantor_id: insertedCandidate.id, status: 'Em Análise' })
+                    .eq('id', propId)
+                } else {
+                  await supabase
+                    .from('properties')
+                    .update({ status: 'Em Análise' })
+                    .eq('id', propId)
+                }
+              }
+            } catch (err) {
+              console.warn('Erro ao criar pre_registration para entidade ERP:', err)
+            }
+          }
         }
 
         if (failCount === 0) {
@@ -1006,9 +1219,19 @@ export function GedUpload({
                             {!isUuid(p.code || p.id) && <>{p.code || p.id} - </>}
                             {getOwnerName(p)}
                           </span>
-                          {p.isDb && (
-                            <span className="bg-primary/10 text-primary text-[10px] px-1.5 py-0.5 rounded uppercase font-semibold tracking-wider">
-                              Novo
+                          {p.isDb ? (
+                            isUuid(p.id) && isUuid(p.code || p.id) ? (
+                              <span className="bg-primary/10 text-primary text-[10px] px-1.5 py-0.5 rounded uppercase font-semibold tracking-wider">
+                                Novo
+                              </span>
+                            ) : (
+                              <span className="bg-muted text-muted-foreground text-[10px] px-1.5 py-0.5 rounded uppercase font-semibold tracking-wider">
+                                ERP
+                              </span>
+                            )
+                          ) : (
+                            <span className="bg-muted text-muted-foreground text-[10px] px-1.5 py-0.5 rounded uppercase font-semibold tracking-wider">
+                              ERP
                             </span>
                           )}
                         </span>
@@ -1071,15 +1294,15 @@ export function GedUpload({
                         {selectedOwner.name || selectedOwner.fullName || selectedOwner.title}
                       </span>
                     </span>
-                    {selectedOwner.source === 'candidato' ? (
+                    {selectedOwner.source?.toLowerCase() === 'candidato' ? (
                       <span className="bg-primary/10 text-primary text-[10px] px-1.5 py-0.5 rounded uppercase font-semibold tracking-wider shrink-0">
                         Candidato
                       </span>
-                    ) : selectedOwner.source === 'erp' ? (
+                    ) : (
                       <span className="bg-muted text-muted-foreground text-[10px] px-1.5 py-0.5 rounded uppercase font-semibold tracking-wider shrink-0">
                         ERP
                       </span>
-                    ) : null}
+                    )}
                   </div>
                 ) : (
                   <span className="text-muted-foreground">
@@ -1131,7 +1354,7 @@ export function GedUpload({
                             <span>{o.name || o.fullName || o.title}</span>
                           </span>
                         </div>
-                        {o.source === 'candidato' ? (
+                        {o.source?.toLowerCase() === 'candidato' ? (
                           <span className="bg-primary/10 text-primary text-[10px] px-1.5 py-0.5 rounded uppercase font-semibold tracking-wider ml-2 shrink-0">
                             Candidato
                           </span>
@@ -1163,17 +1386,30 @@ export function GedUpload({
                 className="w-full justify-between font-normal"
               >
                 {selectedTenant ? (
-                  <span className="truncate">
-                    {!isUuid(selectedTenant.code || selectedTenant.id) && (
-                      <>
-                        <strong className="mr-1">{selectedTenant.code || selectedTenant.id}</strong>
-                        <span> - </span>
-                      </>
-                    )}
-                    <span>
-                      {selectedTenant.name || selectedTenant.fullName || selectedTenant.title}
+                  <div className="flex items-center gap-2 truncate">
+                    <span className="truncate">
+                      {!isUuid(selectedTenant.code || selectedTenant.id) && (
+                        <>
+                          <strong className="mr-1">
+                            {selectedTenant.code || selectedTenant.id}
+                          </strong>
+                          <span> - </span>
+                        </>
+                      )}
+                      <span>
+                        {selectedTenant.name || selectedTenant.fullName || selectedTenant.title}
+                      </span>
                     </span>
-                  </span>
+                    {selectedTenant.source?.toLowerCase() === 'candidato' ? (
+                      <span className="bg-primary/10 text-primary text-[10px] px-1.5 py-0.5 rounded uppercase font-semibold tracking-wider shrink-0">
+                        Candidato
+                      </span>
+                    ) : (
+                      <span className="bg-muted text-muted-foreground text-[10px] px-1.5 py-0.5 rounded uppercase font-semibold tracking-wider shrink-0">
+                        ERP
+                      </span>
+                    )}
+                  </div>
                 ) : (
                   <span className="text-muted-foreground">Buscar locatário no servidor...</span>
                 )}
@@ -1199,24 +1435,36 @@ export function GedUpload({
                           setEntityCode(t.code || t.id)
                           setTenantOpen(false)
                         }}
+                        className="flex items-center justify-between"
                       >
-                        <Check
-                          className={cn(
-                            'mr-2 h-4 w-4',
-                            selectedTenant?.id === t.id || selectedTenant?.code === t.code
-                              ? 'opacity-100'
-                              : 'opacity-0',
-                          )}
-                        />
-                        <span className="truncate">
-                          {!isUuid(t.code || t.id) && (
-                            <>
-                              <strong className="mr-1">{t.code || t.id}</strong>
-                              <span> - </span>
-                            </>
-                          )}
-                          <span>{t.name || t.fullName || t.title}</span>
-                        </span>
+                        <div className="flex items-center truncate">
+                          <Check
+                            className={cn(
+                              'mr-2 h-4 w-4 shrink-0',
+                              selectedTenant?.id === t.id || selectedTenant?.code === t.code
+                                ? 'opacity-100'
+                                : 'opacity-0',
+                            )}
+                          />
+                          <span className="truncate">
+                            {!isUuid(t.code || t.id) && (
+                              <>
+                                <strong className="mr-1">{t.code || t.id}</strong>
+                                <span> - </span>
+                              </>
+                            )}
+                            <span>{t.name || t.fullName || t.title}</span>
+                          </span>
+                        </div>
+                        {t.source?.toLowerCase() === 'candidato' ? (
+                          <span className="bg-primary/10 text-primary text-[10px] px-1.5 py-0.5 rounded uppercase font-semibold tracking-wider ml-2 shrink-0">
+                            Candidato
+                          </span>
+                        ) : (
+                          <span className="bg-muted text-muted-foreground text-[10px] px-1.5 py-0.5 rounded uppercase font-semibold tracking-wider ml-2 shrink-0">
+                            ERP
+                          </span>
+                        )}
                       </CommandItem>
                     ))}
                   </CommandGroup>
@@ -1252,19 +1500,20 @@ export function GedUpload({
                       )}
                       <span>{selectedGuarantor.fullName}</span>
                     </span>
-                    {selectedGuarantor.source === 'SharePoint' ? (
+                    {selectedGuarantor.source?.toUpperCase() === 'SHAREPOINT' ||
+                    selectedGuarantor.source?.toLowerCase() === 'candidato' ? (
                       <span className="bg-primary/10 text-primary text-[10px] px-1.5 py-0.5 rounded uppercase font-semibold tracking-wider shrink-0">
-                        SharePoint
+                        Candidato
                       </span>
-                    ) : selectedGuarantor.source === 'ERP' ? (
+                    ) : (
                       <span className="bg-muted text-muted-foreground text-[10px] px-1.5 py-0.5 rounded uppercase font-semibold tracking-wider shrink-0">
-                        ERP Local
+                        ERP
                       </span>
-                    ) : null}
+                    )}
                   </div>
                 ) : (
                   <span className="text-muted-foreground">
-                    Buscar fiador (SharePoint + ERP Local)...
+                    Buscar fiador no servidor ou candidatos...
                   </span>
                 )}
                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -1281,7 +1530,7 @@ export function GedUpload({
                   {guaranteesError && (
                     <div className="px-3 py-2 text-xs text-amber-600 flex items-center gap-1.5 border-b border-border/40">
                       <AlertCircle className="h-3 w-3 shrink-0" />
-                      <span>ERP Local indisponível — exibindo apenas fiadores do SharePoint.</span>
+                      <span>ERP Local indisponível — exibindo apenas fiadores cadastrados.</span>
                     </div>
                   )}
                   <CommandEmpty>Nenhum fiador encontrado.</CommandEmpty>
@@ -1314,13 +1563,14 @@ export function GedUpload({
                             <span>{g.fullName}</span>
                           </span>
                         </div>
-                        {g.source === 'SharePoint' ? (
+                        {g.source?.toUpperCase() === 'SHAREPOINT' ||
+                        g.source?.toLowerCase() === 'candidato' ? (
                           <span className="bg-primary/10 text-primary text-[10px] px-1.5 py-0.5 rounded uppercase font-semibold tracking-wider ml-2 shrink-0">
-                            SharePoint
+                            Candidato
                           </span>
                         ) : (
                           <span className="bg-muted text-muted-foreground text-[10px] px-1.5 py-0.5 rounded uppercase font-semibold tracking-wider ml-2 shrink-0">
-                            ERP Local
+                            ERP
                           </span>
                         )}
                       </CommandItem>
