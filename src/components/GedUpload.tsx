@@ -32,6 +32,7 @@ import {
 } from '@/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { m365Service } from '@/lib/m365'
+import { resolveOperatorForPersistence } from '@/lib/operator'
 import useMainStore, { mainStore } from '@/stores/main'
 import useEntitiesStore from '@/stores/entities'
 import { documentsStore } from '@/stores/documents'
@@ -345,10 +346,13 @@ export function GedUpload({
           if (codeKey) dbKeys.add(codeKey)
         })
 
-        // Deduplicação robusta: se o imóvel do ERP já existir no banco local, exibe apenas a versão do banco
-        const combined = [...dbProperties]
-        const seenCombinedKeys = new Set<string>(dbKeys)
+        // Deduplicação robusta com prioridade ERP:
+        // Se um imóvel do ERP for encontrado, ele deve ser a base da exibição.
+        // Se já existir no banco local (ou for espelhado), prioriza o ERP mantendo badge ERP.
+        const combined: any[] = []
+        const seenKeys = new Set<string>()
 
+        // 1. Inserir primeiro os imóveis do ERP (prioridade máxima)
         erpProperties.forEach((p) => {
           const idKey = String(p.id || '')
             .trim()
@@ -356,21 +360,51 @@ export function GedUpload({
           const codeKey = String(p.code || p.codigo || '')
             .trim()
             .toLowerCase()
-          const erpKey = codeKey || idKey
+          const primaryKey = codeKey || idKey
 
-          const alreadyExists =
-            (idKey && seenCombinedKeys.has(idKey)) ||
-            (codeKey && seenCombinedKeys.has(codeKey)) ||
-            (erpKey && seenCombinedKeys.has(erpKey))
+          if (
+            primaryKey &&
+            !seenKeys.has(primaryKey) &&
+            (!idKey || !seenKeys.has(idKey)) &&
+            (!codeKey || !seenKeys.has(codeKey))
+          ) {
+            if (idKey) seenKeys.add(idKey)
+            if (codeKey) seenKeys.add(codeKey)
+            seenKeys.add(primaryKey)
 
-          if (!alreadyExists && erpKey) {
-            if (idKey) seenCombinedKeys.add(idKey)
-            if (codeKey) seenCombinedKeys.add(codeKey)
-            seenCombinedKeys.add(erpKey)
             combined.push({
               ...p,
               code: p.code || p.codigo || p.id,
               isDb: false,
+              source: 'ERP',
+            })
+          }
+        })
+
+        // 2. Inserir imóveis do banco de dados que não estejam no ERP
+        dbProperties.forEach((p) => {
+          const idKey = String(p.id || '')
+            .trim()
+            .toLowerCase()
+          const codeKey = String(p.code || '')
+            .trim()
+            .toLowerCase()
+          const primaryKey = codeKey || idKey
+
+          const alreadyInErp =
+            (idKey && seenKeys.has(idKey)) ||
+            (codeKey && seenKeys.has(codeKey)) ||
+            (primaryKey && seenKeys.has(primaryKey))
+
+          if (!alreadyInErp && primaryKey) {
+            if (idKey) seenKeys.add(idKey)
+            if (codeKey) seenKeys.add(codeKey)
+            seenKeys.add(primaryKey)
+
+            combined.push({
+              ...p,
+              code: p.code || p.id,
+              isDb: true,
             })
           }
         })
@@ -508,21 +542,72 @@ export function GedUpload({
   }, [selectedProperty, owners, selectedOwner])
 
   const localServerOwners = useMemo(() => {
-    const candidates = dbCandidates.map((c) => ({
-      ...c,
-      id: c.id,
-      code: c.code || c.id,
-      fullName: c.full_name,
-      title: c.full_name,
-      isDbCandidate: true,
-      source: 'Candidato',
-    }))
-    const erpOwners = (owners || []).map((o: any) => ({
-      ...o,
-      isDbCandidate: false,
-      source: o.source || 'ERP',
-    }))
-    const combined = [...candidates, ...erpOwners]
+    // Deduplicação com prioridade para ERP
+    const seen = new Set<string>()
+    const combined: any[] = []
+
+    // 1. Inserir registros do ERP primeiro
+    ;(owners || []).forEach((o: any) => {
+      const codeStr = String(o.code || o.id || '')
+        .trim()
+        .toLowerCase()
+      const idStr = String(o.id || '')
+        .trim()
+        .toLowerCase()
+      const primaryKey = codeStr || idStr
+
+      if (
+        primaryKey &&
+        !seen.has(primaryKey) &&
+        (!idStr || !seen.has(idStr)) &&
+        (!codeStr || !seen.has(codeStr))
+      ) {
+        if (codeStr) seen.add(codeStr)
+        if (idStr) seen.add(idStr)
+        seen.add(primaryKey)
+
+        combined.push({
+          ...o,
+          isDbCandidate: false,
+          source: isUuid(o.code || o.id) ? 'Candidato' : 'ERP',
+        })
+      }
+    })
+
+    // 2. Inserir registros do banco de dados (pre_registrations) apenas se não existirem no ERP
+    ;(dbCandidates || []).forEach((c) => {
+      const codeStr = String(c.code || c.id || '')
+        .trim()
+        .toLowerCase()
+      const idStr = String(c.id || '')
+        .trim()
+        .toLowerCase()
+      const primaryKey = codeStr || idStr
+
+      const alreadyExists =
+        (primaryKey && seen.has(primaryKey)) ||
+        (codeStr && seen.has(codeStr)) ||
+        (idStr && seen.has(idStr))
+
+      if (!alreadyExists && primaryKey) {
+        if (codeStr) seen.add(codeStr)
+        if (idStr) seen.add(idStr)
+        seen.add(primaryKey)
+
+        const identifier = c.code || c.id
+        const isCandidate = isUuid(identifier)
+
+        combined.push({
+          ...c,
+          id: c.id,
+          code: identifier,
+          fullName: c.full_name,
+          title: c.full_name,
+          isDbCandidate: true,
+          source: isCandidate ? 'Candidato' : 'ERP',
+        })
+      }
+    })
 
     const normalizeStr = (str: any) =>
       str
@@ -547,21 +632,72 @@ export function GedUpload({
   }, [owners, dbCandidates, ownerSearchQuery])
 
   const localServerTenants = useMemo(() => {
-    const candidates = dbCandidates.map((c) => ({
-      ...c,
-      id: c.id,
-      code: c.code || c.id,
-      fullName: c.full_name + ' (Interessado)',
-      title: c.full_name,
-      isDbCandidate: true,
-      source: 'Candidato',
-    }))
-    const erpTenants = (tenants || []).map((t: any) => ({
-      ...t,
-      isDbCandidate: false,
-      source: t.source || 'ERP',
-    }))
-    const combined = [...candidates, ...erpTenants]
+    // Deduplicação com prioridade para ERP
+    const seen = new Set<string>()
+    const combined: any[] = []
+
+    // 1. Inserir registros do ERP primeiro
+    ;(tenants || []).forEach((t: any) => {
+      const codeStr = String(t.code || t.id || '')
+        .trim()
+        .toLowerCase()
+      const idStr = String(t.id || '')
+        .trim()
+        .toLowerCase()
+      const primaryKey = codeStr || idStr
+
+      if (
+        primaryKey &&
+        !seen.has(primaryKey) &&
+        (!idStr || !seen.has(idStr)) &&
+        (!codeStr || !seen.has(codeStr))
+      ) {
+        if (codeStr) seen.add(codeStr)
+        if (idStr) seen.add(idStr)
+        seen.add(primaryKey)
+
+        combined.push({
+          ...t,
+          isDbCandidate: false,
+          source: isUuid(t.code || t.id) ? 'Candidato' : 'ERP',
+        })
+      }
+    })
+
+    // 2. Inserir registros do banco de dados (pre_registrations) apenas se não existirem no ERP
+    ;(dbCandidates || []).forEach((c) => {
+      const codeStr = String(c.code || c.id || '')
+        .trim()
+        .toLowerCase()
+      const idStr = String(c.id || '')
+        .trim()
+        .toLowerCase()
+      const primaryKey = codeStr || idStr
+
+      const alreadyExists =
+        (primaryKey && seen.has(primaryKey)) ||
+        (codeStr && seen.has(codeStr)) ||
+        (idStr && seen.has(idStr))
+
+      if (!alreadyExists && primaryKey) {
+        if (codeStr) seen.add(codeStr)
+        if (idStr) seen.add(idStr)
+        seen.add(primaryKey)
+
+        const identifier = c.code || c.id
+        const isCandidate = isUuid(identifier)
+
+        combined.push({
+          ...c,
+          id: c.id,
+          code: identifier,
+          fullName: c.full_name + (isCandidate ? ' (Interessado)' : ''),
+          title: c.full_name,
+          isDbCandidate: true,
+          source: isCandidate ? 'Candidato' : 'ERP',
+        })
+      }
+    })
 
     const normalizeStr = (str: any) =>
       str
@@ -585,36 +721,79 @@ export function GedUpload({
   }, [tenants, dbCandidates, tenantSearchQuery])
 
   const localServerGuarantors = useMemo(() => {
-    const spFiadores = dbCandidates
-      .filter((c) => c.category === 'Fiador' || c.category === 'PJ')
-      .map((c) => ({
-        ...c,
-        id: c.id,
-        code: c.code || c.id,
-        fullName: c.full_name,
-        title: c.full_name,
-        isDbCandidate: true,
-        source: 'SharePoint' as const,
-      }))
+    // Deduplicação com prioridade para ERP
+    const seen = new Set<string>()
+    const combined: any[] = []
 
-    const erpGuarantees = (guarantees || []).map((g: any) => ({
-      ...g,
-      id: g.id,
-      code: g.id,
-      fullName: g.nome || g.name || 'Sem Nome',
-      title: g.nome || g.name || 'Sem Nome',
-      isDbCandidate: false,
-      source: 'ERP' as const,
-    }))
+    // 1. Inserir registros do ERP primeiro
+    ;(guarantees || []).forEach((g: any) => {
+      const codeStr = String(g.code || g.id || '')
+        .trim()
+        .toLowerCase()
+      const idStr = String(g.id || '')
+        .trim()
+        .toLowerCase()
+      const primaryKey = codeStr || idStr
 
-    const combined = [...spFiadores, ...erpGuarantees]
+      if (
+        primaryKey &&
+        !seen.has(primaryKey) &&
+        (!idStr || !seen.has(idStr)) &&
+        (!codeStr || !seen.has(codeStr))
+      ) {
+        if (codeStr) seen.add(codeStr)
+        if (idStr) seen.add(idStr)
+        seen.add(primaryKey)
 
-    const seenIds = new Set<string>()
-    const deduped = combined.filter((item) => {
-      const key = String(item.id).toLowerCase()
-      if (seenIds.has(key)) return false
-      seenIds.add(key)
-      return true
+        combined.push({
+          ...g,
+          id: g.id,
+          code: g.code || g.id,
+          fullName: g.nome || g.name || 'Sem Nome',
+          title: g.nome || g.name || 'Sem Nome',
+          isDbCandidate: false,
+          source: isUuid(g.code || g.id) ? 'Candidato' : 'ERP',
+        })
+      }
+    })
+
+    // 2. Inserir fiadores do banco de dados (pre_registrations)
+    const spFiadores = (dbCandidates || []).filter(
+      (c) => c.category === 'Fiador' || c.category === 'PJ',
+    )
+
+    spFiadores.forEach((c) => {
+      const codeStr = String(c.code || c.id || '')
+        .trim()
+        .toLowerCase()
+      const idStr = String(c.id || '')
+        .trim()
+        .toLowerCase()
+      const primaryKey = codeStr || idStr
+
+      const alreadyExists =
+        (primaryKey && seen.has(primaryKey)) ||
+        (codeStr && seen.has(codeStr)) ||
+        (idStr && seen.has(idStr))
+
+      if (!alreadyExists && primaryKey) {
+        if (codeStr) seen.add(codeStr)
+        if (idStr) seen.add(idStr)
+        seen.add(primaryKey)
+
+        const identifier = c.code || c.id
+        const isCandidate = isUuid(identifier)
+
+        combined.push({
+          ...c,
+          id: c.id,
+          code: identifier,
+          fullName: c.full_name,
+          title: c.full_name,
+          isDbCandidate: true,
+          source: isCandidate ? 'Candidato' : 'ERP',
+        })
+      }
     })
 
     const normalizeStr = (str: any) =>
@@ -627,7 +806,7 @@ export function GedUpload({
 
     const normalizedQuery = normalizeStr(guarantorSearchQuery)
 
-    return deduped
+    return combined
       .filter((x) => !normalizedQuery || normalizeStr(x.fullName).includes(normalizedQuery))
       .slice(0, 50)
   }, [dbCandidates, guarantorSearchQuery, guarantees])
@@ -1152,17 +1331,28 @@ export function GedUpload({
               className="w-full justify-between font-normal h-auto min-h-10 py-2"
             >
               {selectedProperty ? (
-                <span className="truncate flex items-center text-left">
-                  {!isUuid(selectedProperty.code || selectedProperty.id) && (
-                    <>
-                      <strong className="mr-1">
-                        {selectedProperty.code || selectedProperty.id}
-                      </strong>
-                      <span className="mr-1">-</span>
-                    </>
+                <div className="flex items-center gap-2 truncate text-left">
+                  <span className="truncate">
+                    {!isUuid(selectedProperty.code || selectedProperty.id) && (
+                      <>
+                        <strong className="mr-1">
+                          {selectedProperty.code || selectedProperty.id}
+                        </strong>
+                        <span className="mr-1">-</span>
+                      </>
+                    )}
+                    <span>{getOwnerName(selectedProperty)}</span>
+                  </span>
+                  {isUuid(selectedProperty.code || selectedProperty.id) ? (
+                    <span className="bg-primary/10 text-primary text-[10px] px-1.5 py-0.5 rounded uppercase font-semibold tracking-wider shrink-0">
+                      Novo
+                    </span>
+                  ) : (
+                    <span className="bg-muted text-muted-foreground text-[10px] px-1.5 py-0.5 rounded uppercase font-semibold tracking-wider shrink-0">
+                      ERP
+                    </span>
                   )}
-                  <span>{getOwnerName(selectedProperty)}</span>
-                </span>
+                </div>
               ) : (
                 <span className="text-muted-foreground">
                   Selecione ou busque o imóvel (ERP/Novos)...
@@ -1213,16 +1403,10 @@ export function GedUpload({
                             {!isUuid(p.code || p.id) && <>{p.code || p.id} - </>}
                             {getOwnerName(p)}
                           </span>
-                          {p.isDb ? (
-                            isUuid(p.id) && isUuid(p.code || p.id) ? (
-                              <span className="bg-primary/10 text-primary text-[10px] px-1.5 py-0.5 rounded uppercase font-semibold tracking-wider">
-                                Novo
-                              </span>
-                            ) : (
-                              <span className="bg-muted text-muted-foreground text-[10px] px-1.5 py-0.5 rounded uppercase font-semibold tracking-wider">
-                                ERP
-                              </span>
-                            )
+                          {isUuid(p.code || p.id) ? (
+                            <span className="bg-primary/10 text-primary text-[10px] px-1.5 py-0.5 rounded uppercase font-semibold tracking-wider">
+                              Novo
+                            </span>
                           ) : (
                             <span className="bg-muted text-muted-foreground text-[10px] px-1.5 py-0.5 rounded uppercase font-semibold tracking-wider">
                               ERP
@@ -1288,7 +1472,7 @@ export function GedUpload({
                         {selectedOwner.name || selectedOwner.fullName || selectedOwner.title}
                       </span>
                     </span>
-                    {selectedOwner.source?.toLowerCase() === 'candidato' ? (
+                    {isUuid(selectedOwner.code || selectedOwner.id) ? (
                       <span className="bg-primary/10 text-primary text-[10px] px-1.5 py-0.5 rounded uppercase font-semibold tracking-wider shrink-0">
                         Candidato
                       </span>
@@ -1348,7 +1532,7 @@ export function GedUpload({
                             <span>{o.name || o.fullName || o.title}</span>
                           </span>
                         </div>
-                        {o.source?.toLowerCase() === 'candidato' ? (
+                        {isUuid(o.code || o.id) ? (
                           <span className="bg-primary/10 text-primary text-[10px] px-1.5 py-0.5 rounded uppercase font-semibold tracking-wider ml-2 shrink-0">
                             Candidato
                           </span>
@@ -1394,7 +1578,7 @@ export function GedUpload({
                         {selectedTenant.name || selectedTenant.fullName || selectedTenant.title}
                       </span>
                     </span>
-                    {selectedTenant.source?.toLowerCase() === 'candidato' ? (
+                    {isUuid(selectedTenant.code || selectedTenant.id) ? (
                       <span className="bg-primary/10 text-primary text-[10px] px-1.5 py-0.5 rounded uppercase font-semibold tracking-wider shrink-0">
                         Candidato
                       </span>
@@ -1450,7 +1634,7 @@ export function GedUpload({
                             <span>{t.name || t.fullName || t.title}</span>
                           </span>
                         </div>
-                        {t.source?.toLowerCase() === 'candidato' ? (
+                        {isUuid(t.code || t.id) ? (
                           <span className="bg-primary/10 text-primary text-[10px] px-1.5 py-0.5 rounded uppercase font-semibold tracking-wider ml-2 shrink-0">
                             Candidato
                           </span>
@@ -1494,8 +1678,7 @@ export function GedUpload({
                       )}
                       <span>{selectedGuarantor.fullName}</span>
                     </span>
-                    {selectedGuarantor.source?.toUpperCase() === 'SHAREPOINT' ||
-                    selectedGuarantor.source?.toLowerCase() === 'candidato' ? (
+                    {isUuid(selectedGuarantor.code || selectedGuarantor.id) ? (
                       <span className="bg-primary/10 text-primary text-[10px] px-1.5 py-0.5 rounded uppercase font-semibold tracking-wider shrink-0">
                         Candidato
                       </span>
@@ -1557,8 +1740,7 @@ export function GedUpload({
                             <span>{g.fullName}</span>
                           </span>
                         </div>
-                        {g.source?.toUpperCase() === 'SHAREPOINT' ||
-                        g.source?.toLowerCase() === 'candidato' ? (
+                        {isUuid(g.code || g.id) ? (
                           <span className="bg-primary/10 text-primary text-[10px] px-1.5 py-0.5 rounded uppercase font-semibold tracking-wider ml-2 shrink-0">
                             Candidato
                           </span>
