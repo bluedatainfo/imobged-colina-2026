@@ -17,8 +17,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Loader2, Search, UserCheck, AlertCircle, Building2 } from 'lucide-react'
+import { Loader2, Search, UserCheck, AlertCircle, Building2, Info } from 'lucide-react'
 import useEntitiesStore, { initEntitiesStore } from '@/stores/entities'
+import { useDebounce } from '@/hooks/use-debounce'
 import { supabase } from '@/lib/supabase/client'
 import { resolveOperatorForPersistence } from '@/lib/operator'
 import { PreRegistration, PreRegistrationCategory } from '@/services/candidates'
@@ -34,8 +35,11 @@ interface ErpUnifiedTenant {
   id: string
   code: string
   fullName: string
+  fullNameLower: string
+  codeLower: string
   cpf: string
   cnpj?: string
+  docDigits: string
   rg?: string
   fullAddress: string
   email?: string
@@ -43,6 +47,8 @@ interface ErpUnifiedTenant {
   category: PreRegistrationCategory
   sourceType: 'Locatário' | 'Garantia'
 }
+
+const MAX_DISPLAY_RESULTS = 100
 
 function cleanDoc(val: string | null | undefined): string {
   return (val || '').replace(/\D/g, '')
@@ -93,15 +99,19 @@ export function IncludeErpTenantDialog({
       const docDigits = cleanDoc(t.cpf)
       const isCnpj = docDigits.length > 11
       const category: PreRegistrationCategory = isCnpj ? 'PJ' : 'PF'
-      const key = `t-${t.code || t.id}-${docDigits}`
+      const codeStr = t.code || t.id || ''
+      const key = `t-${codeStr}-${docDigits}`
       if (!seen.has(key)) {
         seen.add(key)
         list.push({
           id: t.id,
-          code: t.code || t.id || '',
-          fullName: t.fullName,
-          cpf: isCnpj ? '' : t.cpf,
-          cnpj: isCnpj ? t.cpf : '',
+          code: codeStr,
+          fullName: t.fullName || '',
+          fullNameLower: (t.fullName || '').toLowerCase(),
+          codeLower: codeStr.toLowerCase(),
+          cpf: isCnpj ? '' : t.cpf || '',
+          cnpj: isCnpj ? t.cpf || '' : '',
+          docDigits,
           rg: t.rg,
           fullAddress: t.fullAddress || '',
           email: '',
@@ -117,15 +127,19 @@ export function IncludeErpTenantDialog({
       const docDigits = cleanDoc(g.cpf)
       const isCnpj = g.pessoa?.toUpperCase() === 'J' || docDigits.length > 11
       const category: PreRegistrationCategory = isCnpj ? 'PJ' : 'PF'
-      const key = `g-${g.id}-${docDigits}`
+      const codeStr = g.id || ''
+      const key = `g-${codeStr}-${docDigits}`
       if (!seen.has(key)) {
         seen.add(key)
         list.push({
           id: g.id,
-          code: g.id || '',
-          fullName: g.nome,
-          cpf: isCnpj ? '' : g.cpf,
-          cnpj: isCnpj ? g.cpf : '',
+          code: codeStr,
+          fullName: g.nome || '',
+          fullNameLower: (g.nome || '').toLowerCase(),
+          codeLower: codeStr.toLowerCase(),
+          cpf: isCnpj ? '' : g.cpf || '',
+          cnpj: isCnpj ? g.cpf || '' : '',
+          docDigits,
           rg: '',
           fullAddress: g.endereco || '',
           email: g.email || '',
@@ -139,24 +153,42 @@ export function IncludeErpTenantDialog({
     return list
   }, [tenants, guarantees])
 
+  // Debounce search term by 300ms
+  const debouncedSearchTerm = useDebounce(searchTerm, 300)
+  const isDebouncing = searchTerm !== debouncedSearchTerm
+
   // Filter list by Name, Code or Document
   const filteredList = useMemo(() => {
-    if (!searchTerm.trim()) return unifiedErpTenants
-    const term = searchTerm.toLowerCase().trim()
-    const cleanTerm = term.replace(/\D/g, '')
+    const trimmed = debouncedSearchTerm.trim()
+    if (!trimmed) return unifiedErpTenants
+
+    const term = trimmed.toLowerCase()
+    const cleanTerm = trimmed.replace(/\D/g, '')
 
     return unifiedErpTenants.filter((item) => {
-      const nameMatch = item.fullName.toLowerCase().includes(term)
-      const codeMatch = item.code.toLowerCase().includes(term)
-      const docDigits = cleanDoc(item.cpf || item.cnpj)
-      const docMatch =
-        (cleanTerm && docDigits.includes(cleanTerm)) ||
-        (item.cpf && item.cpf.toLowerCase().includes(term)) ||
-        (item.cnpj && item.cnpj.toLowerCase().includes(term))
+      const nameMatch = item.fullNameLower.includes(term)
+      if (nameMatch) return true
 
-      return nameMatch || codeMatch || docMatch
+      const codeMatch = item.codeLower.includes(term)
+      if (codeMatch) return true
+
+      const docMatch =
+        (cleanTerm.length > 0 && item.docDigits.includes(cleanTerm)) ||
+        (item.cpf && item.cpf.includes(term)) ||
+        (item.cnpj && item.cnpj.includes(term))
+
+      return Boolean(docMatch)
     })
-  }, [unifiedErpTenants, searchTerm])
+  }, [unifiedErpTenants, debouncedSearchTerm])
+
+  // Limit displayed results to first 100
+  const displayedList = useMemo(() => {
+    return filteredList.slice(0, MAX_DISPLAY_RESULTS)
+  }, [filteredList])
+
+  const totalMatches = filteredList.length
+  const totalAvailable = unifiedErpTenants.length
+  const isTruncated = totalMatches > MAX_DISPLAY_RESULTS
 
   const handleSelectTenant = async (item: ErpUnifiedTenant) => {
     try {
@@ -308,14 +340,17 @@ export function IncludeErpTenantDialog({
 
         <div className="space-y-4 flex-1 flex flex-col min-h-0">
           <div className="relative">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Buscar por Nome, Código ou CPF/CNPJ..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 h-11 text-base"
+              className="pl-9 pr-9 h-11 text-base"
               autoFocus
             />
+            {isDebouncing && (
+              <Loader2 className="absolute right-3 top-3.5 h-4 w-4 text-muted-foreground animate-spin" />
+            )}
           </div>
 
           {guaranteesError && (
@@ -324,6 +359,17 @@ export function IncludeErpTenantDialog({
               <span>
                 Aviso: A sincronização direta com o ERP Local pode estar limitada ou offline no
                 momento. Exibindo registros em cache.
+              </span>
+            </div>
+          )}
+
+          {isTruncated && (
+            <div className="flex items-center gap-2 text-xs text-blue-800 bg-blue-50/80 p-2 rounded-md border border-blue-200">
+              <Info className="h-4 w-4 shrink-0 text-blue-600" />
+              <span>
+                Exibindo os primeiros <strong>100</strong> resultados de{' '}
+                {totalMatches.toLocaleString('pt-BR')}. Refine sua busca digitando mais caracteres
+                para encontrar registros específicos.
               </span>
             </div>
           )}
@@ -350,16 +396,16 @@ export function IncludeErpTenantDialog({
                         </div>
                       </TableCell>
                     </TableRow>
-                  ) : filteredList.length === 0 ? (
+                  ) : displayedList.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
-                        {searchTerm.trim()
+                        {debouncedSearchTerm.trim()
                           ? 'Nenhum locatário ou garantia encontrado no ERP com este termo.'
                           : 'Nenhum registro encontrado no ERP Local.'}
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredList.map((item) => {
+                    displayedList.map((item) => {
                       const isSubmitting = submittingId === item.id
                       const docDisplay = formatCpfOrCnpj(item.cpf || item.cnpj)
 
@@ -422,8 +468,11 @@ export function IncludeErpTenantDialog({
 
           <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
             <span>
-              Mostrando {filteredList.length} de {unifiedErpTenants.length} registros disponíveis no
-              ERP
+              {totalMatches === 0
+                ? 'Nenhum registro encontrado'
+                : isTruncated
+                  ? `Mostrando ${displayedList.length} de ${totalMatches} registros encontrados (${totalAvailable} disponíveis no ERP)`
+                  : `Mostrando ${displayedList.length} de ${totalAvailable} registros disponíveis no ERP`}
             </span>
             <Button variant="ghost" size="sm" onClick={onClose} className="h-8">
               Cancelar
