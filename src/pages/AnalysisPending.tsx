@@ -34,9 +34,18 @@ const formatCpfCnpj = (v: string | null | undefined) => {
     .slice(0, 18)
 }
 
+interface PropertyInfo {
+  id: string
+  title: string | null
+  address: string | null
+  tenant_id: string | null
+  guarantor_id: string | null
+}
+
 export default function AnalysisPending() {
   const [pendingItems, setPendingItems] = useState<any[]>([])
   const [resolvedItems, setResolvedItems] = useState<any[]>([])
+  const [propertyMap, setPropertyMap] = useState<Map<string, PropertyInfo>>(new Map())
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('pendentes')
   const [processingId, setProcessingId] = useState<string | null>(null)
@@ -61,8 +70,41 @@ export default function AnalysisPending() {
       if (pendingRes.error) throw pendingRes.error
       if (resolvedRes.error) throw resolvedRes.error
 
-      setPendingItems(pendingRes.data || [])
-      setResolvedItems(resolvedRes.data || [])
+      const pendingList = pendingRes.data || []
+      const resolvedList = resolvedRes.data || []
+
+      const allIds = Array.from(
+        new Set(
+          [...pendingList.map((i) => i.id), ...resolvedList.map((i) => i.id)].filter(Boolean),
+        ),
+      )
+
+      const newPropertyMap = new Map<string, PropertyInfo>()
+
+      if (allIds.length > 0) {
+        const idListStr = `(${allIds.join(',')})`
+        const { data: propertiesData, error: propError } = await supabase
+          .from('properties')
+          .select('id, title, address, tenant_id, guarantor_id')
+          .or(`tenant_id.in.${idListStr},guarantor_id.in.${idListStr}`)
+
+        if (propError) {
+          console.error('Erro ao buscar imóveis:', propError)
+        } else if (propertiesData) {
+          for (const prop of propertiesData as PropertyInfo[]) {
+            if (prop.tenant_id && !newPropertyMap.has(prop.tenant_id)) {
+              newPropertyMap.set(prop.tenant_id, prop)
+            }
+            if (prop.guarantor_id && !newPropertyMap.has(prop.guarantor_id)) {
+              newPropertyMap.set(prop.guarantor_id, prop)
+            }
+          }
+        }
+      }
+
+      setPropertyMap(newPropertyMap)
+      setPendingItems(pendingList)
+      setResolvedItems(resolvedList)
     } catch (err: any) {
       toast({
         title: 'Erro ao buscar pendências',
@@ -163,6 +205,7 @@ export default function AnalysisPending() {
                       <TableRow>
                         <TableHead>Interessado / Locatário</TableHead>
                         <TableHead>Documento</TableHead>
+                        <TableHead>Imóvel</TableHead>
                         <TableHead>Pendência Apontada</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Operador</TableHead>
@@ -171,58 +214,72 @@ export default function AnalysisPending() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {pendingItems.map((item) => (
-                        <TableRow key={item.id} className="bg-red-50/30">
-                          <TableCell className="font-medium">{item.full_name}</TableCell>
-                          <TableCell className="text-sm">
-                            {formatCpfCnpj(item.cpf || item.cnpj)}
-                          </TableCell>
-                          <TableCell className="max-w-md">
-                            <div className="flex items-start gap-2">
-                              <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
-                              <span className="text-sm text-red-800">
-                                {item.pending_notes || '—'}
-                              </span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant="outline"
-                              className="bg-red-50 text-red-600 border-red-200"
+                      {pendingItems.map((item) => {
+                        const prop = propertyMap.get(item.id)
+                        const propertyLabel = prop ? prop.title || prop.address || '—' : '—'
+
+                        return (
+                          <TableRow key={item.id} className="bg-red-50/30">
+                            <TableCell className="font-medium">{item.full_name}</TableCell>
+                            <TableCell className="text-sm">
+                              {formatCpfCnpj(item.cpf || item.cnpj)}
+                            </TableCell>
+                            <TableCell
+                              className="text-sm max-w-[200px] truncate"
+                              title={propertyLabel}
                             >
-                              {item.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="whitespace-nowrap text-sm">
-                            {item.operator || '—'}
-                          </TableCell>
-                          <TableCell className="text-sm whitespace-nowrap">
-                            {new Date(item.updated_at || item.created_at).toLocaleString('pt-BR', {
-                              day: '2-digit',
-                              month: '2-digit',
-                              year: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              size="sm"
-                              className="bg-green-600 hover:bg-green-700"
-                              onClick={() => handleMarkResolved(item)}
-                              disabled={processingId === item.id}
-                            >
-                              {processingId === item.id ? (
-                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              ) : (
-                                <CheckCircle2 className="w-4 h-4 mr-2" />
+                              {propertyLabel}
+                            </TableCell>
+                            <TableCell className="max-w-md">
+                              <div className="flex items-start gap-2">
+                                <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                                <span className="text-sm text-red-800">
+                                  {item.pending_notes || '—'}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant="outline"
+                                className="bg-red-50 text-red-600 border-red-200"
+                              >
+                                {item.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap text-sm">
+                              {item.operator || '—'}
+                            </TableCell>
+                            <TableCell className="text-sm whitespace-nowrap">
+                              {new Date(item.updated_at || item.created_at).toLocaleString(
+                                'pt-BR',
+                                {
+                                  day: '2-digit',
+                                  month: '2-digit',
+                                  year: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                },
                               )}
-                              Marcar como Resolvido
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                size="sm"
+                                className="bg-green-600 hover:bg-green-700"
+                                onClick={() => handleMarkResolved(item)}
+                                disabled={processingId === item.id}
+                              >
+                                {processingId === item.id ? (
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                ) : (
+                                  <CheckCircle2 className="w-4 h-4 mr-2" />
+                                )}
+                                Marcar como Resolvido
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })}
+                    </TableBody>{' '}
                   </Table>
                 </div>
               )}
@@ -252,6 +309,7 @@ export default function AnalysisPending() {
                       <TableRow>
                         <TableHead>Interessado / Locatário</TableHead>
                         <TableHead>Documento</TableHead>
+                        <TableHead>Imóvel</TableHead>
                         <TableHead>Pendência</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Operador</TableHead>
@@ -259,39 +317,53 @@ export default function AnalysisPending() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {resolvedItems.map((item) => (
-                        <TableRow key={item.id}>
-                          <TableCell className="font-medium">{item.full_name}</TableCell>
-                          <TableCell className="text-sm">
-                            {formatCpfCnpj(item.cpf || item.cnpj)}
-                          </TableCell>
-                          <TableCell className="max-w-md">
-                            <span className="text-sm text-muted-foreground">
-                              {item.pending_notes || '—'}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant="outline"
-                              className="bg-emerald-50 text-emerald-700 border-emerald-200"
+                      {resolvedItems.map((item) => {
+                        const prop = propertyMap.get(item.id)
+                        const propertyLabel = prop ? prop.title || prop.address || '—' : '—'
+
+                        return (
+                          <TableRow key={item.id}>
+                            <TableCell className="font-medium">{item.full_name}</TableCell>
+                            <TableCell className="text-sm">
+                              {formatCpfCnpj(item.cpf || item.cnpj)}
+                            </TableCell>
+                            <TableCell
+                              className="text-sm max-w-[200px] truncate"
+                              title={propertyLabel}
                             >
-                              {item.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="whitespace-nowrap text-sm">
-                            {item.operator || '—'}
-                          </TableCell>
-                          <TableCell className="text-sm whitespace-nowrap">
-                            {new Date(item.updated_at || item.created_at).toLocaleString('pt-BR', {
-                              day: '2-digit',
-                              month: '2-digit',
-                              year: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                              {propertyLabel}
+                            </TableCell>
+                            <TableCell className="max-w-md">
+                              <span className="text-sm text-muted-foreground">
+                                {item.pending_notes || '—'}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant="outline"
+                                className="bg-emerald-50 text-emerald-700 border-emerald-200"
+                              >
+                                {item.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap text-sm">
+                              {item.operator || '—'}
+                            </TableCell>
+                            <TableCell className="text-sm whitespace-nowrap">
+                              {new Date(item.updated_at || item.created_at).toLocaleString(
+                                'pt-BR',
+                                {
+                                  day: '2-digit',
+                                  month: '2-digit',
+                                  year: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                },
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })}
                     </TableBody>
                   </Table>
                 </div>
