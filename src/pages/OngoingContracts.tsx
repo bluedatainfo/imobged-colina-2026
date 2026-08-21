@@ -104,7 +104,7 @@ export default function OngoingContracts() {
         const { data, error } = await supabase
           .from('pre_registrations')
           .select('*')
-          .eq('status', 'Aprovado')
+          .in('status', ['Aprovado', 'Em Análise da Gerência', 'Pendência Resolvida'])
           .order('updated_at', { ascending: false })
         if (error) throw error
         setCandidates(data || [])
@@ -261,9 +261,18 @@ export default function OngoingContracts() {
 
   const isFinalized = (candidateId: string) => propertyStatuses[candidateId] === FINALIZED_STATUS
 
-  const displayedCandidates = candidates.filter((c) =>
-    activeTab === 'active' ? !isFinalized(c.id) : isFinalized(c.id),
-  )
+  const displayedCandidates = candidates.filter((c) => {
+    if (activeTab === 'active') {
+      return c.status === 'Aprovado' && !isFinalized(c.id)
+    }
+    if (activeTab === 'finished') {
+      return c.status === 'Aprovado' && isFinalized(c.id)
+    }
+    if (activeTab === 'in_analysis') {
+      return c.status === 'Em Análise da Gerência' || c.status === 'Pendência Resolvida'
+    }
+    return false
+  })
 
   const renderTable = () => {
     if (loading) {
@@ -280,8 +289,10 @@ export default function OngoingContracts() {
           <CheckCircle className="w-12 h-12 mx-auto mb-3 opacity-20" />
           <p>
             {activeTab === 'active'
-              ? 'Nenhum dossiê em andamento encontrado.'
-              : 'Nenhum dossiê finalizado encontrado.'}
+              ? 'Nenhum dossiê aprovado encontrado.'
+              : activeTab === 'finished'
+                ? 'Nenhum dossiê finalizado encontrado.'
+                : 'Nenhum dossiê em análise encontrado.'}
           </p>
         </div>
       )
@@ -293,7 +304,7 @@ export default function OngoingContracts() {
           <TableHeader>
             <TableRow>
               <TableHead>Nome</TableHead>
-              <TableHead>Documento</TableHead>
+              <TableHead>CPF/CNPJ</TableHead>
               <TableHead>Contato</TableHead>
               <TableHead>Data</TableHead>
               <TableHead>Status</TableHead>
@@ -301,54 +312,75 @@ export default function OngoingContracts() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {displayedCandidates.map((c) => (
-              <TableRow key={c.id}>
-                <TableCell className="font-medium">{c.full_name}</TableCell>
-                <TableCell>{formatCpfCnpj(c.cpf || c.cnpj)}</TableCell>
-                <TableCell>
-                  <div className="text-sm">{c.email || '-'}</div>
-                  <div className="text-xs text-muted-foreground">{c.phone || '-'}</div>
-                </TableCell>
-                <TableCell className="text-sm">
-                  {new Date(c.updated_at || c.created_at).toLocaleDateString('pt-BR')}
-                </TableCell>
-                <TableCell>
-                  <Badge
-                    variant="outline"
-                    className={
-                      isFinalized(c.id)
-                        ? 'bg-blue-50 text-blue-600 border-blue-200'
-                        : 'bg-green-50 text-green-600 border-green-200'
-                    }
-                  >
-                    {isFinalized(c.id) ? FINALIZED_STATUS : c.status}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex flex-col items-end gap-1">
-                    <Button variant="ghost" size="sm" onClick={() => handleOpenDetails(c)}>
-                      <Eye className="w-4 h-4 mr-2" />
-                      Ficha Detalhada
-                    </Button>
-                    {activeTab === 'active' && (
-                      <Button
+            {displayedCandidates.map((c) => {
+              const isPendingResolved = c.status === 'Pendência Resolvida'
+              return (
+                <TableRow key={c.id}>
+                  <TableCell className="font-medium">{c.full_name}</TableCell>
+                  <TableCell>{formatCpfCnpj(c.cpf || c.cnpj)}</TableCell>
+                  <TableCell>
+                    <div className="text-sm">{c.email || '-'}</div>
+                    <div className="text-xs text-muted-foreground">{c.phone || '-'}</div>
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    {new Date(c.updated_at || c.created_at).toLocaleDateString('pt-BR')}
+                  </TableCell>
+                  <TableCell>
+                    {activeTab === 'in_analysis' ? (
+                      isPendingResolved ? (
+                        <Badge
+                          variant="outline"
+                          className="bg-amber-100 text-amber-700 border-amber-300"
+                        >
+                          {c.status}
+                        </Badge>
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className="bg-amber-50 text-amber-600 border-amber-200"
+                        >
+                          {c.status}
+                        </Badge>
+                      )
+                    ) : (
+                      <Badge
                         variant="outline"
-                        size="sm"
-                        onClick={() => setConfirmCandidate(c)}
-                        disabled={finalizingId === c.id}
+                        className={
+                          isFinalized(c.id)
+                            ? 'bg-blue-50 text-blue-600 border-blue-200'
+                            : 'bg-green-50 text-green-600 border-green-200'
+                        }
                       >
-                        {finalizingId === c.id ? (
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        ) : (
-                          <CheckCheck className="w-4 h-4 mr-2" />
-                        )}
-                        Finalizar
-                      </Button>
+                        {isFinalized(c.id) ? FINALIZED_STATUS : c.status}
+                      </Badge>
                     )}
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex flex-col items-end gap-1">
+                      <Button variant="ghost" size="sm" onClick={() => handleOpenDetails(c)}>
+                        <Eye className="w-4 h-4 mr-2" />
+                        Ficha Detalhada
+                      </Button>
+                      {activeTab === 'active' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setConfirmCandidate(c)}
+                          disabled={finalizingId === c.id}
+                        >
+                          {finalizingId === c.id ? (
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          ) : (
+                            <CheckCheck className="w-4 h-4 mr-2" />
+                          )}
+                          Finalizar
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              )
+            })}
           </TableBody>
         </Table>
       </div>
@@ -363,25 +395,32 @@ export default function OngoingContracts() {
           Contratos em Andamento
         </h1>
         <p className="text-muted-foreground">
-          Visualize os dossiês aprovados e contratos em andamento.
+          Visualize os dossiês aprovados, finalizados e em análise.
         </p>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
-          <TabsTrigger value="active">Em Andamento</TabsTrigger>
+          <TabsTrigger value="active">Aprovados</TabsTrigger>
           <TabsTrigger value="finished">Finalizados</TabsTrigger>
+          <TabsTrigger value="in_analysis">Em Análise</TabsTrigger>
         </TabsList>
 
         <Card className="mt-4">
           <CardHeader>
             <CardTitle>
-              {activeTab === 'active' ? 'Dossiês em Andamento' : 'Dossiês Finalizados'}
+              {activeTab === 'active'
+                ? 'Dossiês Aprovados'
+                : activeTab === 'finished'
+                  ? 'Dossiês Finalizados'
+                  : 'Dossiês Em Análise'}
             </CardTitle>
             <CardDescription>
               {activeTab === 'active'
                 ? 'Lista de interessados com dossiê aprovado e contrato ativo'
-                : 'Lista de contratos que foram finalizados'}
+                : activeTab === 'finished'
+                  ? 'Lista de contratos que foram finalizados'
+                  : 'Lista de interessados com dossiê em análise ou pendência resolvida'}
             </CardDescription>
           </CardHeader>
           <CardContent>{renderTable()}</CardContent>
@@ -402,12 +441,18 @@ export default function OngoingContracts() {
                 <Badge
                   variant="outline"
                   className={
-                    selectedCandidate && isFinalized(selectedCandidate.id)
-                      ? 'bg-blue-50 text-blue-600 border-blue-200'
-                      : 'bg-green-50 text-green-600 border-green-200'
+                    selectedCandidate && selectedCandidate.status === 'Aprovado'
+                      ? isFinalized(selectedCandidate.id)
+                        ? 'bg-blue-50 text-blue-600 border-blue-200'
+                        : 'bg-green-50 text-green-600 border-green-200'
+                      : selectedCandidate?.status === 'Pendência Resolvida'
+                        ? 'bg-amber-100 text-amber-700 border-amber-300'
+                        : 'bg-amber-50 text-amber-600 border-amber-200'
                   }
                 >
-                  {selectedCandidate && isFinalized(selectedCandidate.id)
+                  {selectedCandidate &&
+                  selectedCandidate.status === 'Aprovado' &&
+                  isFinalized(selectedCandidate.id)
                     ? FINALIZED_STATUS
                     : selectedCandidate?.status}
                 </Badge>
