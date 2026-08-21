@@ -26,6 +26,8 @@ import {
   Home,
   ExternalLink,
   CheckCheck,
+  Pencil,
+  Trash2,
 } from 'lucide-react'
 import {
   Sheet,
@@ -96,6 +98,8 @@ export default function OngoingContracts() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [loadingPreviewId, setLoadingPreviewId] = useState<string | null>(null)
   const [confirmCandidate, setConfirmCandidate] = useState<any>(null)
+  const [deleteConfirmDoc, setDeleteConfirmDoc] = useState<any>(null)
+  const [deletingDocId, setDeletingDocId] = useState<string | null>(null)
   const { toast } = useToast()
 
   useEffect(() => {
@@ -223,7 +227,65 @@ export default function OngoingContracts() {
     }
   }
 
-  const renderDocGroup = (title: string, docs: any[]) => {
+  const handleDeleteDoc = (doc: any) => {
+    setDeleteConfirmDoc(doc)
+  }
+
+  const handleConfirmDeleteDoc = async () => {
+    if (!deleteConfirmDoc) return
+    setDeletingDocId(deleteConfirmDoc.id)
+    try {
+      await m365Service.deleteFromSharePoint(deleteConfirmDoc.file_path, deleteConfirmDoc.category)
+      const { error: dbError } = await supabase
+        .from('property_documents')
+        .delete()
+        .eq('id', deleteConfirmDoc.id)
+
+      if (dbError) throw dbError
+
+      setPropertyDocs((prev) => prev.filter((d) => d.id !== deleteConfirmDoc.id))
+      toast({
+        title: 'Documento Excluído',
+        description: 'Documento excluído com sucesso do SharePoint e do sistema.',
+      })
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao excluir documento',
+        description: err.message || 'Falha na exclusão do documento.',
+        variant: 'destructive',
+      })
+    } finally {
+      setDeletingDocId(null)
+      setDeleteConfirmDoc(null)
+    }
+  }
+
+  const handleEditDoc = async (doc: any) => {
+    try {
+      const url = await m365Service.getOfficeEditUrl(doc.file_path, doc.category)
+      if (url) {
+        window.open(url, '_blank')
+      }
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao abrir documento para edição',
+        description: err.message || 'Falha ao gerar link de edição do Office.',
+        variant: 'destructive',
+      })
+    }
+  }
+
+  const isOfficeEditable = (fileName: string) => {
+    const lower = (fileName || '').toLowerCase()
+    return (
+      lower.endsWith('.docx') ||
+      lower.endsWith('.doc') ||
+      lower.endsWith('.xlsx') ||
+      lower.endsWith('.xls')
+    )
+  }
+
+  const renderDocGroup = (title: string, docs: any[], isAnalysisMode: boolean = false) => {
     if (docs.length === 0) return null
     return (
       <div className="space-y-2 mt-4">
@@ -240,18 +302,43 @@ export default function OngoingContracts() {
                   {doc.name}
                 </span>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="w-7 h-7 shrink-0"
-                onClick={() => handlePreviewDoc(doc)}
-              >
-                {loadingPreviewId === doc.id ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <ExternalLink className="w-4 h-4" />
+              <div className="flex items-center gap-1 shrink-0">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="w-7 h-7"
+                  title="Visualizar"
+                  onClick={() => handlePreviewDoc(doc)}
+                >
+                  {loadingPreviewId === doc.id ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <ExternalLink className="w-4 h-4" />
+                  )}
+                </Button>
+                {isAnalysisMode && isOfficeEditable(doc.name) && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="w-7 h-7"
+                    title="Editar no Office Online"
+                    onClick={() => handleEditDoc(doc)}
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </Button>
                 )}
-              </Button>
+                {isAnalysisMode && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="w-7 h-7 text-destructive hover:text-destructive/80"
+                    title="Excluir"
+                    onClick={() => handleDeleteDoc(doc)}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
             </div>
           ))}
         </div>
@@ -628,7 +715,7 @@ export default function OngoingContracts() {
               {property && (
                 <div className="space-y-4 bg-muted/20 p-5 rounded-lg border">
                   <h3 className="text-lg font-semibold flex items-center gap-2 border-b pb-2 border-border/50">
-                    <FolderOpen className="w-5 h-5 text-primary" /> Documentos do Imóvel
+                    <FolderOpen className="w-5 h-5 text-primary" /> Documentos
                   </h3>
                   {propertyDocs.length === 0 ? (
                     <div className="text-center py-6 text-muted-foreground bg-background rounded-md border border-dashed">
@@ -640,23 +727,27 @@ export default function OngoingContracts() {
                       {renderDocGroup(
                         'Proprietário',
                         propertyDocs.filter((d) => d.category === 'OWNER_DOCUMENT'),
+                        activeTab === 'in_analysis',
                       )}
                       {renderDocGroup(
                         'Interessado/Locatário',
                         propertyDocs.filter((d) => d.category === 'TENANT_DOCUMENT'),
+                        activeTab === 'in_analysis',
                       )}
                       {renderDocGroup(
                         'Fiador',
                         propertyDocs.filter((d) => d.category === 'GUARANTEE_DOCUMENT'),
+                        activeTab === 'in_analysis',
                       )}
                       {renderDocGroup(
-                        'Documentos do Imóvel',
+                        'Documentos',
                         propertyDocs.filter(
                           (d) =>
                             !['OWNER_DOCUMENT', 'TENANT_DOCUMENT', 'GUARANTEE_DOCUMENT'].includes(
                               d.category,
                             ),
                         ),
+                        activeTab === 'in_analysis',
                       )}
                     </div>
                   )}
@@ -713,6 +804,32 @@ export default function OngoingContracts() {
               onClick={() => confirmCandidate && handleFinalizeContract(confirmCandidate)}
             >
               Confirmar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={!!deleteConfirmDoc}
+        onOpenChange={(val) => !val && setDeleteConfirmDoc(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Documento</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir &quot;{deleteConfirmDoc?.name}&quot;? Ele será removido
+              do SharePoint e do sistema permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={!!deletingDocId}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDeleteDoc}
+              disabled={!!deletingDocId}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {deletingDocId ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+              Excluir
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

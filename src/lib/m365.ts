@@ -463,6 +463,167 @@ export const m365Service = {
     return itemData.webUrl || fullExpectedUrl
   },
 
+  getOfficeEditUrl: async (filePath: string, documentType: string) => {
+    const { data: config } = await supabase
+      .from('sharepoint_configs')
+      .select('*')
+      .eq('document_type', documentType)
+      .maybeSingle()
+
+    if (!config) throw new Error('Mapeamento GED não encontrado para esta categoria de documento.')
+
+    const token = getGraphToken()
+    let { sharepointDomain } = mainStore.getState().sharepoint
+
+    if (!token) throw new Error('Sessão do Microsoft 365 ausente ou expirada.')
+
+    const siteId = await resolveSiteId(sharepointDomain, config.site_name)
+    if (!siteId) {
+      throw new Error(`Site M365 "${config.site_name}" não encontrado. Verifique o mapeamento GED.`)
+    }
+
+    const drivesRes = await fetchWithAuth(`https://graph.microsoft.com/v1.0/sites/${siteId}/drives`)
+    if (!drivesRes.ok)
+      throw new Error(`Não foi possível listar as bibliotecas do site "${config.site_name}".`)
+
+    const drivesData = await drivesRes.json()
+    const drive = drivesData.value.find(
+      (d: any) =>
+        d.name === config.library_name ||
+        (d.name &&
+          config.library_name &&
+          d.name.toLowerCase() === config.library_name.toLowerCase()),
+    )
+
+    if (!drive)
+      throw new Error(
+        `Biblioteca "${config.library_name}" não encontrada no site "${config.site_name}".`,
+      )
+    const driveId = drive.id
+
+    let safePath = filePath
+    if (safePath.startsWith('/')) safePath = safePath.substring(1)
+
+    let itemData: any = null
+
+    // Attempt 1: Get directly by path
+    const itemUrl = `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/root:/${safePath}`
+    const itemRes = await fetchWithAuth(itemUrl)
+    if (itemRes.ok) {
+      itemData = await itemRes.json()
+    }
+
+    // Attempt 2: Fallback to search
+    if (!itemData) {
+      const fileName = safePath.split('/').pop() || safePath
+      const searchUrl = `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/root/search(q='${encodeURIComponent(fileName)}')`
+      const searchRes = await fetchWithAuth(searchUrl)
+      if (searchRes.ok) {
+        const searchData = await searchRes.json()
+        itemData = searchData.value?.find((v: any) => v.name === fileName)
+      }
+    }
+
+    let spPath = config.site_name.trim().replace(/\/+$/g, '').replace(/^\/+/g, '')
+    if (spPath.startsWith('http')) {
+      try {
+        spPath = new URL(spPath).pathname.replace(/\/+$/g, '').replace(/^\/+/g, '')
+      } catch (e) {
+        console.warn('URL parsing error', e)
+      }
+    }
+    if (!spPath.startsWith('sites/') && !spPath.startsWith('teams/')) {
+      spPath = `sites/${spPath}`
+    }
+    spPath = `/${spPath}`
+
+    const libPath = config.library_name.trim().replace(/^\/+|\/+$/g, '')
+    const fullExpectedUrl = `https://${sharepointDomain}${spPath}/${libPath}/${safePath}`
+
+    if (!itemData) {
+      throw new Error('Arquivo não encontrado no SharePoint para edição.')
+    }
+
+    return `https://view.officeapps.live.com/op/edit.aspx?src=${encodeURIComponent(itemData.webUrl || fullExpectedUrl)}`
+  },
+
+  deleteFromSharePoint: async (filePath: string, documentType: string) => {
+    const { data: config } = await supabase
+      .from('sharepoint_configs')
+      .select('*')
+      .eq('document_type', documentType)
+      .maybeSingle()
+
+    if (!config) throw new Error('Mapeamento GED não encontrado para esta categoria de documento.')
+
+    const token = getGraphToken()
+    let { sharepointDomain } = mainStore.getState().sharepoint
+
+    if (!token) throw new Error('Sessão do Microsoft 365 ausente ou expirada.')
+
+    const siteId = await resolveSiteId(sharepointDomain, config.site_name)
+    if (!siteId) {
+      throw new Error(`Site M365 "${config.site_name}" não encontrado. Verifique o mapeamento GED.`)
+    }
+
+    const drivesRes = await fetchWithAuth(`https://graph.microsoft.com/v1.0/sites/${siteId}/drives`)
+    if (!drivesRes.ok)
+      throw new Error(`Não foi possível listar as bibliotecas do site "${config.site_name}".`)
+
+    const drivesData = await drivesRes.json()
+    const drive = drivesData.value.find(
+      (d: any) =>
+        d.name === config.library_name ||
+        (d.name &&
+          config.library_name &&
+          d.name.toLowerCase() === config.library_name.toLowerCase()),
+    )
+
+    if (!drive)
+      throw new Error(
+        `Biblioteca "${config.library_name}" não encontrada no site "${config.site_name}".`,
+      )
+    const driveId = drive.id
+
+    let safePath = filePath
+    if (safePath.startsWith('/')) safePath = safePath.substring(1)
+
+    let itemData: any = null
+
+    // Attempt 1: Get directly by path
+    const itemUrl = `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/root:/${safePath}`
+    const itemRes = await fetchWithAuth(itemUrl)
+    if (itemRes.ok) {
+      itemData = await itemRes.json()
+    }
+
+    // Attempt 2: Fallback to search
+    if (!itemData) {
+      const fileName = safePath.split('/').pop() || safePath
+      const searchUrl = `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/root/search(q='${encodeURIComponent(fileName)}')`
+      const searchRes = await fetchWithAuth(searchUrl)
+      if (searchRes.ok) {
+        const searchData = await searchRes.json()
+        itemData = searchData.value?.find((v: any) => v.name === fileName)
+      }
+    }
+
+    if (!itemData || !itemData.id) {
+      throw new Error('Arquivo não encontrado no SharePoint para exclusão.')
+    }
+
+    const deleteUrl = `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${itemData.id}`
+    const deleteRes = await fetchWithAuth(deleteUrl, { method: 'DELETE' })
+
+    if (!deleteRes.ok && deleteRes.status !== 204) {
+      throw new Error(
+        `Falha ao excluir arquivo do SharePoint (${deleteRes.status} ${deleteRes.statusText})`,
+      )
+    }
+
+    return true
+  },
+
   saveToLibrary: async (
     library: string,
     fileName: string,
