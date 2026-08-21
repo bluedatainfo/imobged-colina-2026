@@ -135,7 +135,7 @@ export function GedUpload({
   mode = 'file',
   template,
 }: GedUploadProps) {
-  const { settings } = useMainStore()
+  const { settings, properties: storeProperties } = useMainStore()
   const { owners, tenants, guarantees, guaranteesError } = useEntitiesStore()
   const { user } = useAuth()
   const { toast } = useToast()
@@ -171,7 +171,7 @@ export function GedUpload({
   useEffect(() => {
     supabase
       .from('pre_registrations')
-      .select('id, code, full_name, category')
+      .select('id, code, full_name, category, cpf, email, phone, address')
       .then(({ data }) => setDbCandidates(data || []))
   }, [tenantOpen, ownerOpen, guarantorOpen])
 
@@ -306,19 +306,47 @@ export function GedUpload({
         }
         const { data: dbData } = await query.limit(50)
 
-        const dbProperties = (dbData || []).map((p) => ({
-          ...p,
-          code: p.id,
-          isDb: true,
-        }))
+        // Combinar imóveis do Supabase (query + mainStore.properties) para ter o banco local completo
+        const allDbMap = new Map<string, any>()
+        ;(dbData || []).forEach((p) => {
+          allDbMap.set(String(p.id).trim().toLowerCase(), {
+            ...p,
+            code: p.id,
+            isDb: true,
+          })
+        })
+        ;(storeProperties || []).forEach((p) => {
+          const key = String(p.id).trim().toLowerCase()
+          if (!allDbMap.has(key)) {
+            allDbMap.set(key, {
+              ...p,
+              code: p.id,
+              isDb: true,
+            })
+          }
+        })
 
-        // Ensure unique combinations
+        const dbProperties = Array.from(allDbMap.values())
+        const dbIds = new Set(
+          dbProperties.map((p) =>
+            String(p.id || p.code)
+              .trim()
+              .toLowerCase(),
+          ),
+        )
+
+        // Deduplicação: se o imóvel do ERP já existir no banco local, exibe apenas a versão do banco
         const combined = [...dbProperties]
-        const dbIds = new Set(dbProperties.map((p) => String(p.id).toLowerCase()))
-
         erpProperties.forEach((p) => {
-          if (!dbIds.has(String(p.code || p.id).toLowerCase())) {
-            combined.push(p)
+          const erpKey = String(p.code || p.id || '')
+            .trim()
+            .toLowerCase()
+          if (erpKey && !dbIds.has(erpKey)) {
+            combined.push({
+              ...p,
+              code: p.code || p.id,
+              isDb: false,
+            })
           }
         })
 
@@ -427,13 +455,20 @@ export function GedUpload({
 
   const localServerOwners = useMemo(() => {
     const candidates = dbCandidates.map((c) => ({
+      ...c,
       id: c.id,
       code: c.code || c.id,
       fullName: c.full_name,
       title: c.full_name,
+      isDbCandidate: true,
       source: 'Candidato',
     }))
-    const combined = [...candidates, ...(owners || [])]
+    const erpOwners = (owners || []).map((o: any) => ({
+      ...o,
+      isDbCandidate: false,
+      source: o.source || 'ERP',
+    }))
+    const combined = [...candidates, ...erpOwners]
 
     const normalizeStr = (str: any) =>
       str
@@ -459,12 +494,20 @@ export function GedUpload({
 
   const localServerTenants = useMemo(() => {
     const candidates = dbCandidates.map((c) => ({
+      ...c,
       id: c.id,
       code: c.code || c.id,
       fullName: c.full_name + ' (Interessado)',
       title: c.full_name,
+      isDbCandidate: true,
+      source: 'Candidato',
     }))
-    const combined = [...candidates, ...(tenants || [])]
+    const erpTenants = (tenants || []).map((t: any) => ({
+      ...t,
+      isDbCandidate: false,
+      source: t.source || 'ERP',
+    }))
+    const combined = [...candidates, ...erpTenants]
 
     const normalizeStr = (str: any) =>
       str
@@ -491,18 +534,22 @@ export function GedUpload({
     const spFiadores = dbCandidates
       .filter((c) => c.category === 'Fiador' || c.category === 'PJ')
       .map((c) => ({
+        ...c,
         id: c.id,
         code: c.code || c.id,
         fullName: c.full_name,
         title: c.full_name,
+        isDbCandidate: true,
         source: 'SharePoint' as const,
       }))
 
     const erpGuarantees = (guarantees || []).map((g: any) => ({
+      ...g,
       id: g.id,
       code: g.id,
-      fullName: g.nome || 'Sem Nome',
-      title: g.nome || 'Sem Nome',
+      fullName: g.nome || g.name || 'Sem Nome',
+      title: g.nome || g.name || 'Sem Nome',
+      isDbCandidate: false,
       source: 'ERP' as const,
     }))
 
