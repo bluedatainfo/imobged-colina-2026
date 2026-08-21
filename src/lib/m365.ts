@@ -544,7 +544,9 @@ export const m365Service = {
       throw new Error('Arquivo não encontrado no SharePoint para edição.')
     }
 
-    return `https://view.officeapps.live.com/op/edit.aspx?src=${encodeURIComponent(itemData.webUrl || fullExpectedUrl)}`
+    const rawUrl = itemData.webUrl || fullExpectedUrl
+    const editUrl = rawUrl.includes('?') ? `${rawUrl}&action=edit` : `${rawUrl}?action=edit`
+    return editUrl
   },
 
   deleteFromSharePoint: async (filePath: string, documentType: string) => {
