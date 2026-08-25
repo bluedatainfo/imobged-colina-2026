@@ -91,6 +91,9 @@ export default function ManagerApproval() {
   const [loadingProperty, setLoadingProperty] = useState(false)
   const [propertyDocs, setPropertyDocs] = useState<any[]>([])
 
+  const [approvalDialogOpen, setApprovalDialogOpen] = useState(false)
+  const [approvalNotes, setApprovalNotes] = useState('')
+
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false)
   const [rejectReason, setRejectReason] = useState('')
   const [processing, setProcessing] = useState(false)
@@ -172,13 +175,16 @@ export default function ManagerApproval() {
     }
   }
 
-  const handleApprove = async () => {
+  const handleApprove = async (notes?: string) => {
     if (!selectedCandidate) return
     setProcessing(true)
     try {
       const { error } = await supabase
         .from('pre_registrations')
-        .update({ status: 'Aprovado' })
+        .update({
+          status: 'Aprovado',
+          approval_notes: notes !== undefined ? notes : approvalNotes,
+        })
         .eq('id', selectedCandidate.id)
 
       if (error) throw error
@@ -195,6 +201,8 @@ export default function ManagerApproval() {
         title: 'Dossiê Aprovado',
         description: 'O processo foi movido para Confecção de Contrato.',
       })
+      setApprovalNotes('')
+      setApprovalDialogOpen(false)
       setSelectedCandidate(null)
       fetchCandidates()
     } catch (err: any) {
@@ -703,6 +711,15 @@ export default function ManagerApproval() {
                     </Button>
                   </div>
                 )}
+
+                {selectedCandidate?.status === 'Aprovado' && selectedCandidate?.approval_notes && (
+                  <div className="p-3 rounded-md border border-green-200 bg-green-50">
+                    <p className="font-semibold text-green-800 text-sm">Observações da Aprovação</p>
+                    <p className="text-green-700 text-sm mt-1">
+                      {selectedCandidate.approval_notes}
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Property Details Section */}
@@ -898,7 +915,7 @@ export default function ManagerApproval() {
                 </Button>
                 <Button
                   className="flex-1 bg-green-600 hover:bg-green-700"
-                  onClick={handleApprove}
+                  onClick={() => setApprovalDialogOpen(true)}
                   disabled={processing}
                 >
                   {processing ? (
@@ -906,7 +923,7 @@ export default function ManagerApproval() {
                   ) : (
                     <CheckCircle className="w-4 h-4 mr-2" />
                   )}
-                  Aprovar Dossiê
+                  Aprovar
                 </Button>
               </div>
             </div>
@@ -1034,6 +1051,45 @@ export default function ManagerApproval() {
             >
               {processing && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Confirmar Rejeição
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={approvalDialogOpen} onOpenChange={setApprovalDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Observações</DialogTitle>
+            <DialogDescription>
+              Adicione observações sobre esta aprovação (opcional)
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <Label>Observações</Label>
+              <Textarea
+                placeholder="Ex: Documentação completa, sem ressalvas..."
+                value={approvalNotes}
+                onChange={(e) => setApprovalNotes(e.target.value)}
+                rows={4}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setApprovalDialogOpen(false)}
+              disabled={processing}
+            >
+              Cancelar
+            </Button>
+            <Button
+              className="bg-green-600 hover:bg-green-700"
+              onClick={() => handleApprove(approvalNotes)}
+              disabled={processing}
+            >
+              {processing && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Confirmar Aprovação
             </Button>
           </DialogFooter>
         </DialogContent>
