@@ -4,7 +4,7 @@ import { usersStore } from '@/stores/users'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { User, Upload, Trash2, Phone, Save, Loader2 } from 'lucide-react'
+import { User, Upload, Trash2, Phone, Save, Loader2, KeyRound, Eye, EyeOff } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useToast } from '@/hooks/use-toast'
@@ -14,14 +14,19 @@ export default function Profile() {
   const { toast } = useToast()
   const [photo, setPhoto] = useState<string>(user?.avatar || '')
   const [phone, setPhone] = useState<string>(user?.phone || '')
-  const [savingPhone, setSavingPhone] = useState(false)
+  const [callmebotApiKey, setCallmebotApiKey] = useState<string>(user?.callmebot_api_key || '')
+  const [showApiKey, setShowApiKey] = useState(false)
+  const [savingData, setSavingData] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (user?.phone !== undefined) {
       setPhone(user.phone || '')
     }
-  }, [user?.phone])
+    if (user?.callmebot_api_key !== undefined) {
+      setCallmebotApiKey(user.callmebot_api_key || '')
+    }
+  }, [user?.phone, user?.callmebot_api_key])
 
   if (!user) return null
 
@@ -131,49 +136,80 @@ export default function Profile() {
             <Label htmlFor="phone-input" className="text-sm font-medium text-muted-foreground">
               Nr Celular
             </Label>
-            <div className="flex flex-col sm:flex-row gap-2 max-w-md">
-              <div className="relative flex-1">
-                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="phone-input"
-                  type="text"
-                  placeholder="(XX) XXXXX-XXXX"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
-              <Button
-                type="button"
-                onClick={async () => {
-                  setSavingPhone(true)
-                  try {
-                    usersStore.updateUser(user.id, { phone: phone.trim() })
-                    toast({
-                      title: 'Telefone Atualizado',
-                      description: 'Seu número de celular foi salvo com sucesso.',
-                    })
-                  } catch (err: any) {
-                    toast({
-                      variant: 'destructive',
-                      title: 'Erro ao salvar',
-                      description: err?.message || 'Não foi possível salvar o telefone.',
-                    })
-                  } finally {
-                    setSavingPhone(false)
-                  }
-                }}
-                disabled={savingPhone}
-                className="gap-2 shrink-0"
-              >
-                {savingPhone ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Save className="h-4 w-4" />
-                )}
-                Salvar Celular
-              </Button>
+            <div className="relative max-w-md">
+              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                id="phone-input"
+                type="text"
+                placeholder="(XX) XXXXX-XXXX"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="pl-9"
+              />
             </div>
+          </div>
+          <div className="grid gap-1.5">
+            <Label
+              htmlFor="callmebot-key-input"
+              className="text-sm font-medium text-muted-foreground"
+            >
+              CallMeBot API Key
+            </Label>
+            <div className="relative max-w-md">
+              <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                id="callmebot-key-input"
+                type={showApiKey ? 'text' : 'password'}
+                placeholder="Digite sua chave da API CallMeBot"
+                value={callmebotApiKey}
+                onChange={(e) => setCallmebotApiKey(e.target.value)}
+                className="pl-9 pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowApiKey(!showApiKey)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus:outline-none"
+                tabIndex={-1}
+              >
+                {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+          <div className="pt-1">
+            <Button
+              type="button"
+              onClick={async () => {
+                setSavingData(true)
+                try {
+                  usersStore.updateUser(user.id, {
+                    phone: phone.trim(),
+                    callmebot_api_key: callmebotApiKey.trim(),
+                  })
+                  toast({
+                    title: 'Dados Salvos',
+                    description:
+                      'Suas informações de contato e integração foram salvas com sucesso.',
+                  })
+                } catch (err: any) {
+                  toast({
+                    variant: 'destructive',
+                    title: 'Erro ao salvar',
+                    description: err?.message || 'Não foi possível salvar os dados.',
+                  })
+                } finally {
+                  setSavingData(false)
+                }
+              }}
+              disabled={savingData}
+              className="gap-2"
+            >
+              {savingData ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+              Salvar
+            </Button>
           </div>
           <div className="grid gap-1.5">
             <span className="text-sm font-medium text-muted-foreground">

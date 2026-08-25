@@ -9,6 +9,7 @@ export type SystemUser = {
   role: Role
   avatar: string
   phone?: string
+  callmebot_api_key?: string
 }
 
 type State = {
@@ -29,6 +30,7 @@ export const initUsersStore = async () => {
       role: (u.role as Role) || 'Vistoriador',
       avatar: u.avatar || '',
       phone: u.phone || '',
+      callmebot_api_key: u.callmebot_api_key || '',
     }))
   }
   emit()
@@ -61,6 +63,10 @@ export const usersStore = {
           name: user.name,
           avatar: user.avatar || updatedUsers[existingIndex].avatar,
           phone: user.phone !== undefined ? user.phone : updatedUsers[existingIndex].phone,
+          callmebot_api_key:
+            user.callmebot_api_key !== undefined
+              ? user.callmebot_api_key
+              : updatedUsers[existingIndex].callmebot_api_key,
         }
         dbPayload.push({
           id: updatedUsers[existingIndex].id,
@@ -69,6 +75,7 @@ export const usersStore = {
           role: updatedUsers[existingIndex].role,
           avatar: updatedUsers[existingIndex].avatar,
           phone: updatedUsers[existingIndex].phone || null,
+          callmebot_api_key: updatedUsers[existingIndex].callmebot_api_key || null,
         })
       } else {
         updatedUsers.push(user)
@@ -79,6 +86,7 @@ export const usersStore = {
           role: user.role,
           avatar: user.avatar,
           phone: user.phone || null,
+          callmebot_api_key: user.callmebot_api_key || null,
         })
       }
     }
@@ -99,13 +107,19 @@ export const usersStore = {
     supabase.from('app_users').update({ role }).eq('id', id).then()
   },
   addUser: (
-    user: Omit<SystemUser, 'id' | 'avatar'> & { id?: string; avatar?: string; phone?: string },
+    user: Omit<SystemUser, 'id' | 'avatar'> & {
+      id?: string
+      avatar?: string
+      phone?: string
+      callmebot_api_key?: string
+    },
   ) => {
     const newUser: SystemUser = {
       ...user,
       id: user.id || `usr-${Math.random().toString(36).substring(2, 9)}`,
       avatar: user.avatar || '',
       phone: user.phone || '',
+      callmebot_api_key: user.callmebot_api_key || '',
     }
 
     const existingIndex = state.users.findIndex(
@@ -143,6 +157,7 @@ export const usersStore = {
         role: newUser.role,
         avatar: newUser.avatar,
         phone: newUser.phone || null,
+        callmebot_api_key: newUser.callmebot_api_key || null,
       })
       .then()
     return newUser

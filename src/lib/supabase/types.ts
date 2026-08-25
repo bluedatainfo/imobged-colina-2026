@@ -87,6 +87,7 @@ export type Database = {
           email: string | null
           id: string
           name: string | null
+          phone: string | null
           role: string | null
         }
         Insert: {
@@ -94,6 +95,7 @@ export type Database = {
           email?: string | null
           id: string
           name?: string | null
+          phone?: string | null
           role?: string | null
         }
         Update: {
@@ -101,6 +103,7 @@ export type Database = {
           email?: string | null
           id?: string
           name?: string | null
+          phone?: string | null
           role?: string | null
         }
         Relationships: []
@@ -346,6 +349,7 @@ export type Database = {
           operator: string | null
           pending_notes: string | null
           phone: string | null
+          rejection_notes: string | null
           sp_list_id: string | null
           status: string
           updated_at: string
@@ -366,6 +370,7 @@ export type Database = {
           operator?: string | null
           pending_notes?: string | null
           phone?: string | null
+          rejection_notes?: string | null
           sp_list_id?: string | null
           status?: string
           updated_at?: string
@@ -386,6 +391,7 @@ export type Database = {
           operator?: string | null
           pending_notes?: string | null
           phone?: string | null
+          rejection_notes?: string | null
           sp_list_id?: string | null
           status?: string
           updated_at?: string

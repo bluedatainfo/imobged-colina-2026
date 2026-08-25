@@ -1,5 +1,5 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
-import { createClient } from 'jsr:@supabase/supabase-js@2'
+import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 
 Deno.serve(async (req: Request) => {
@@ -10,44 +10,34 @@ Deno.serve(async (req: Request) => {
   try {
     const { tenantName, propertyTitle } = await req.json()
 
-    const apiKey = Deno.env.get('CALLMEBOT_API_KEY')
-    if (!apiKey) {
-      return new Response(
-        JSON.stringify({
-          error: 'CALLMEBOT_API_KEY is not configured',
-          details: 'A chave de API do CallMeBot não foi configurada nas variáveis de ambiente.',
-        }),
-        {
-          headers: { 'Content-Type': 'application/json', ...corsHeaders },
-          status: 400,
-        },
-      )
-    }
-
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
     const supabase = createClient(supabaseUrl, supabaseKey)
 
-    // Buscar gerentes com telefone preenchido
-    const { data: managers, error: dbError } = await supabase
+    // Buscar admins com telefone preenchido
+    const { data: admins, error: dbError } = await supabase
       .from('app_users')
-      .select('id, name, email, role, phone')
-      .ilike('role', '%gerente%')
+      .select('id, name, email, role, phone, callmebot_api_key')
+      .ilike('role', '%admin%')
       .not('phone', 'is', null)
 
     if (dbError) {
-      throw new Error(`Erro ao buscar gerentes no banco: ${dbError.message}`)
+      throw new Error(`Erro ao buscar administradores no banco: ${dbError.message}`)
     }
 
-    const validManagers = (managers || []).filter(
-      (m: any) => m.phone && m.phone.trim().replace(/\D/g, '').length >= 8,
+    const validAdmins = (admins || []).filter(
+      (a: any) =>
+        a.phone &&
+        a.phone.trim().replace(/\D/g, '').length >= 8 &&
+        a.callmebot_api_key &&
+        a.callmebot_api_key.trim().length > 0,
     )
 
-    if (validManagers.length === 0) {
+    if (validAdmins.length === 0) {
       return new Response(
         JSON.stringify({
           success: true,
-          message: 'Nenhum gerente com telefone válido encontrado.',
+          message: 'Nenhum administrador com telefone e API Key do CallMeBot válidos encontrado.',
           sentCount: 0,
         }),
         {
@@ -61,8 +51,8 @@ Deno.serve(async (req: Request) => {
     let sentCount = 0
     const results = []
 
-    for (const manager of validManagers) {
-      let digits = manager.phone.replace(/\D/g, '')
+    for (const admin of validAdmins) {
+      let digits = admin.phone.replace(/\D/g, '')
 
       // Se começar com 0, remove
       if (digits.startsWith('0')) {
@@ -77,7 +67,7 @@ Deno.serve(async (req: Request) => {
       const params = new URLSearchParams({
         phone: digits,
         text: messageText,
-        apikey: apiKey,
+        apikey: admin.callmebot_api_key.trim(),
       })
 
       const callMeBotUrl = `https://api.callmebot.com/whatsapp.php?${params.toString()}`
@@ -87,7 +77,7 @@ Deno.serve(async (req: Request) => {
         const responseText = await response.text()
 
         results.push({
-          managerId: manager.id,
+          adminId: admin.id,
           phone: digits,
           status: response.status,
           response: responseText,
@@ -99,7 +89,7 @@ Deno.serve(async (req: Request) => {
       } catch (sendErr: any) {
         console.error(`Falha ao enviar mensagem para ${digits}:`, sendErr)
         results.push({
-          managerId: manager.id,
+          adminId: admin.id,
           phone: digits,
           error: sendErr?.message || 'Unknown network error',
         })
@@ -110,7 +100,7 @@ Deno.serve(async (req: Request) => {
       JSON.stringify({
         success: true,
         sentCount,
-        totalManagers: validManagers.length,
+        totalAdmins: validAdmins.length,
         results,
       }),
       {
