@@ -1,0 +1,128 @@
+import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
+import { createClient } from 'jsr:@supabase/supabase-js@2'
+import { corsHeaders } from '../_shared/cors.ts'
+
+Deno.serve(async (req: Request) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
+
+  try {
+    const { tenantName, propertyTitle } = await req.json()
+
+    const apiKey = Deno.env.get('CALLMEBOT_API_KEY')
+    if (!apiKey) {
+      return new Response(
+        JSON.stringify({
+          error: 'CALLMEBOT_API_KEY is not configured',
+          details: 'A chave de API do CallMeBot não foi configurada nas variáveis de ambiente.',
+        }),
+        {
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+          status: 400,
+        },
+      )
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
+    const supabase = createClient(supabaseUrl, supabaseKey)
+
+    // Buscar gerentes com telefone preenchido
+    const { data: managers, error: dbError } = await supabase
+      .from('app_users')
+      .select('id, name, email, role, phone')
+      .ilike('role', '%gerente%')
+      .not('phone', 'is', null)
+
+    if (dbError) {
+      throw new Error(`Erro ao buscar gerentes no banco: ${dbError.message}`)
+    }
+
+    const validManagers = (managers || []).filter(
+      (m: any) => m.phone && m.phone.trim().replace(/\D/g, '').length >= 8,
+    )
+
+    if (validManagers.length === 0) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: 'Nenhum gerente com telefone válido encontrado.',
+          sentCount: 0,
+        }),
+        {
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+          status: 200,
+        },
+      )
+    }
+
+    const messageText = `⚠️ Pendência 'Interessado/Locatário' ${tenantName || 'Não informado'}, 'Imóvel' ${propertyTitle || 'Não informado'}, foi resolvida e retornou para uma nova análise.`
+    let sentCount = 0
+    const results = []
+
+    for (const manager of validManagers) {
+      let digits = manager.phone.replace(/\D/g, '')
+
+      // Se começar com 0, remove
+      if (digits.startsWith('0')) {
+        digits = digits.substring(1)
+      }
+
+      // Se não tiver o DDI 55 (números brasileiros costumam ter 10 ou 11 dígitos com DDD)
+      if (digits.length <= 11) {
+        digits = `55${digits}`
+      }
+
+      const params = new URLSearchParams({
+        phone: digits,
+        text: messageText,
+        apikey: apiKey,
+      })
+
+      const callMeBotUrl = `https://api.callmebot.com/whatsapp.php?${params.toString()}`
+
+      try {
+        const response = await fetch(callMeBotUrl)
+        const responseText = await response.text()
+
+        results.push({
+          managerId: manager.id,
+          phone: digits,
+          status: response.status,
+          response: responseText,
+        })
+
+        if (response.ok) {
+          sentCount++
+        }
+      } catch (sendErr: any) {
+        console.error(`Falha ao enviar mensagem para ${digits}:`, sendErr)
+        results.push({
+          managerId: manager.id,
+          phone: digits,
+          error: sendErr?.message || 'Unknown network error',
+        })
+      }
+    }
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        sentCount,
+        totalManagers: validManagers.length,
+        results,
+      }),
+      {
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        status: 200,
+      },
+    )
+  } catch (error: any) {
+    console.error('Error in send-whatsapp-notification:', error)
+    return new Response(JSON.stringify({ error: error.message }), {
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      status: 500,
+    })
+  }
+})

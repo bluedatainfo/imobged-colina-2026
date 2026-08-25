@@ -332,6 +332,7 @@ export type Database = {
       pre_registrations: {
         Row: {
           address: string | null
+          approval_notes: string | null
           category: string | null
           cnpj: string | null
           code: string
@@ -351,6 +352,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          approval_notes?: string | null
           category?: string | null
           cnpj?: string | null
           code: string
@@ -370,6 +372,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          approval_notes?: string | null
           category?: string | null
           cnpj?: string | null
           code?: string

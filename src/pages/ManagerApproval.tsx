@@ -218,7 +218,10 @@ export default function ManagerApproval() {
     try {
       const { error } = await supabase
         .from('pre_registrations')
-        .update({ status: 'Rejeitado' })
+        .update({
+          status: 'Rejeitado',
+          rejection_notes: rejectReason.trim(),
+        })
         .eq('id', selectedCandidate.id)
 
       if (error) throw error
@@ -720,6 +723,16 @@ export default function ManagerApproval() {
                     </p>
                   </div>
                 )}
+
+                {selectedCandidate?.status === 'Rejeitado' &&
+                  selectedCandidate?.rejection_notes && (
+                    <div className="p-3 rounded-md border border-red-200 bg-red-50">
+                      <p className="font-semibold text-red-800 text-sm">Observações da Rejeição</p>
+                      <p className="text-red-700 text-sm mt-1">
+                        {selectedCandidate.rejection_notes}
+                      </p>
+                    </div>
+                  )}
               </div>
 
               {/* Property Details Section */}

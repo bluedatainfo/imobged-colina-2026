@@ -134,6 +134,28 @@ export default function AnalysisPending() {
 
       if (error) throw error
 
+      // Notificar gerência via WhatsApp Edge Function (não bloqueante)
+      try {
+        const prop = propertyMap.get(item.id)
+        const propertyLabel = prop ? prop.title || prop.address || 'Não informado' : 'Não informado'
+        const tenantName = item.full_name || 'Não informado'
+
+        fetch('https://wnuturuqugmrmcroxyqu.supabase.co/functions/v1/send-whatsapp-notification', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            tenantName,
+            propertyTitle: propertyLabel,
+          }),
+        }).catch((err) => {
+          console.error('Erro ao chamar edge function send-whatsapp-notification:', err)
+        })
+      } catch (notifyErr) {
+        console.error('Erro ao disparar notificação de WhatsApp:', notifyErr)
+      }
+
       toast({
         title: 'Pendência Resolvida',
         description: 'O dossiê voltou para a fila de Análise da Gerência.',

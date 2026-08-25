@@ -8,6 +8,7 @@ export type SystemUser = {
   email: string
   role: Role
   avatar: string
+  phone?: string
 }
 
 type State = {
@@ -27,6 +28,7 @@ export const initUsersStore = async () => {
       email: u.email || '',
       role: (u.role as Role) || 'Vistoriador',
       avatar: u.avatar || '',
+      phone: u.phone || '',
     }))
   }
   emit()
@@ -58,6 +60,7 @@ export const usersStore = {
           ...updatedUsers[existingIndex],
           name: user.name,
           avatar: user.avatar || updatedUsers[existingIndex].avatar,
+          phone: user.phone !== undefined ? user.phone : updatedUsers[existingIndex].phone,
         }
         dbPayload.push({
           id: updatedUsers[existingIndex].id,
@@ -65,6 +68,7 @@ export const usersStore = {
           email: updatedUsers[existingIndex].email,
           role: updatedUsers[existingIndex].role,
           avatar: updatedUsers[existingIndex].avatar,
+          phone: updatedUsers[existingIndex].phone || null,
         })
       } else {
         updatedUsers.push(user)
@@ -74,6 +78,7 @@ export const usersStore = {
           email: user.email,
           role: user.role,
           avatar: user.avatar,
+          phone: user.phone || null,
         })
       }
     }
@@ -93,11 +98,14 @@ export const usersStore = {
     emit()
     supabase.from('app_users').update({ role }).eq('id', id).then()
   },
-  addUser: (user: Omit<SystemUser, 'id' | 'avatar'> & { id?: string; avatar?: string }) => {
+  addUser: (
+    user: Omit<SystemUser, 'id' | 'avatar'> & { id?: string; avatar?: string; phone?: string },
+  ) => {
     const newUser: SystemUser = {
       ...user,
       id: user.id || `usr-${Math.random().toString(36).substring(2, 9)}`,
       avatar: user.avatar || '',
+      phone: user.phone || '',
     }
 
     const existingIndex = state.users.findIndex(
@@ -134,6 +142,7 @@ export const usersStore = {
         email: newUser.email,
         role: newUser.role,
         avatar: newUser.avatar,
+        phone: newUser.phone || null,
       })
       .then()
     return newUser

@@ -1,17 +1,27 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { usersStore } from '@/stores/users'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { User, Upload, Trash2 } from 'lucide-react'
+import { User, Upload, Trash2, Phone, Save, Loader2 } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { useToast } from '@/hooks/use-toast'
 
 export default function Profile() {
   const { user } = useAuth()
   const { toast } = useToast()
   const [photo, setPhoto] = useState<string>(user?.avatar || '')
+  const [phone, setPhone] = useState<string>(user?.phone || '')
+  const [savingPhone, setSavingPhone] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (user?.phone !== undefined) {
+      setPhone(user.phone || '')
+    }
+  }, [user?.phone])
 
   if (!user) return null
 
@@ -116,6 +126,54 @@ export default function Profile() {
           <div className="grid gap-1.5">
             <span className="text-sm font-medium text-muted-foreground">E-mail Corporativo</span>
             <span className="text-base">{user.email}</span>
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="phone-input" className="text-sm font-medium text-muted-foreground">
+              Nr Celular
+            </Label>
+            <div className="flex flex-col sm:flex-row gap-2 max-w-md">
+              <div className="relative flex-1">
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="phone-input"
+                  type="text"
+                  placeholder="(XX) XXXXX-XXXX"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <Button
+                type="button"
+                onClick={async () => {
+                  setSavingPhone(true)
+                  try {
+                    usersStore.updateUser(user.id, { phone: phone.trim() })
+                    toast({
+                      title: 'Telefone Atualizado',
+                      description: 'Seu número de celular foi salvo com sucesso.',
+                    })
+                  } catch (err: any) {
+                    toast({
+                      variant: 'destructive',
+                      title: 'Erro ao salvar',
+                      description: err?.message || 'Não foi possível salvar o telefone.',
+                    })
+                  } finally {
+                    setSavingPhone(false)
+                  }
+                }}
+                disabled={savingPhone}
+                className="gap-2 shrink-0"
+              >
+                {savingPhone ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
+                Salvar Celular
+              </Button>
+            </div>
           </div>
           <div className="grid gap-1.5">
             <span className="text-sm font-medium text-muted-foreground">
