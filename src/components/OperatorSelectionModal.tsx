@@ -47,7 +47,7 @@ export function OperatorSelectionModal({ email, onResolved }: OperatorSelectionM
   }, [email])
 
   // Sem operadores → não exibe modal; avisa que pode seguir fluxo normal.
-  const shouldShow = !loading && operators.length > 0 && !getCurrentOperator()
+  const shouldShow = !loading && operators.length > 1 && !getCurrentOperator()
 
   useEffect(() => {
     if (loading) return
@@ -55,6 +55,14 @@ export function OperatorSelectionModal({ email, onResolved }: OperatorSelectionM
       onResolved()
     }
   }, [loading, shouldShow, onResolved])
+
+  useEffect(() => {
+    if (loading) return
+    if (operators.length === 1 && !getCurrentOperator()) {
+      setCurrentOperator(operators[0])
+      onResolved()
+    }
+  }, [loading, operators, onResolved])
 
   const handlePick = (name: string) => {
     setCurrentOperator(name)
