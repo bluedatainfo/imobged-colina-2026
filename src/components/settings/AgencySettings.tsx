@@ -1,5 +1,14 @@
-import { useState } from 'react'
-import { Save, Building2, Link as LinkIcon, MapPin, Palette, ExternalLink } from 'lucide-react'
+import { useState, useRef } from 'react'
+import {
+  Save,
+  Building2,
+  Link as LinkIcon,
+  MapPin,
+  Palette,
+  ExternalLink,
+  Upload,
+  Trash2,
+} from 'lucide-react'
 import {
   Card,
   CardContent,
@@ -19,9 +28,41 @@ export default function AgencySettings() {
   const { toast } = useToast()
   const store = useMainStore()
   const [formData, setFormData] = useState(store.agencyProfile)
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleChange = (field: keyof typeof formData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
+  }
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        toast({
+          variant: 'destructive',
+          title: 'Erro de Upload',
+          description: 'A imagem deve ter no máximo 2MB.',
+        })
+        return
+      }
+
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        const result = event.target?.result as string
+        setLogoFile(file)
+        setFormData((prev) => ({ ...prev, logo: result }))
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const handleLogoRemove = () => {
+    setLogoFile(null)
+    setFormData((prev) => ({ ...prev, logo: '' }))
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
   }
 
   const handleSave = () => {
@@ -68,13 +109,31 @@ export default function AgencySettings() {
               )}
             </div>
             <div className="flex-1 space-y-4 w-full">
-              <div className="grid gap-2">
-                <Label>URL da Logomarca</Label>
-                <Input
-                  placeholder="https://exemplo.com/logo.png"
-                  value={formData.logo}
-                  onChange={(e) => handleChange('logo', e.target.value)}
+              <div className="flex flex-wrap gap-2 items-center">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleLogoUpload}
+                  className="hidden"
                 />
+                <Button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="gap-2"
+                >
+                  <Upload className="h-4 w-4" /> Enviar Logomarca
+                </Button>
+                {formData.logo && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleLogoRemove}
+                    className="gap-2 text-destructive border-destructive/20 hover:bg-destructive hover:text-destructive-foreground"
+                  >
+                    <Trash2 className="h-4 w-4" /> Remover Logomarca
+                  </Button>
+                )}
               </div>
               <div className="grid gap-2">
                 <Label>Razão Social / Nome Fantasia</Label>
