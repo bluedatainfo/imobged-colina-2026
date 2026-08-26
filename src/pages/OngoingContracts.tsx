@@ -89,7 +89,7 @@ export default function OngoingContracts() {
   const [candidates, setCandidates] = useState<any[]>([])
   const [propertyStatuses, setPropertyStatuses] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('active')
+  const [activeTab, setActiveTab] = useState('in_analysis')
   const [finalizingId, setFinalizingId] = useState<string | null>(null)
   const [selectedCandidate, setSelectedCandidate] = useState<any>(null)
   const [property, setProperty] = useState<any>(null)
@@ -395,6 +395,7 @@ export default function OngoingContracts() {
               <TableHead>Contato</TableHead>
               <TableHead>Data</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Operador</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
@@ -442,6 +443,7 @@ export default function OngoingContracts() {
                       </Badge>
                     )}
                   </TableCell>
+                  <TableCell className="whitespace-nowrap text-sm">{c.operator || '—'}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex flex-col items-end gap-1">
                       <Button variant="ghost" size="sm" onClick={() => handleOpenDetails(c)}>
@@ -488,9 +490,9 @@ export default function OngoingContracts() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
+          <TabsTrigger value="in_analysis">Em Análise</TabsTrigger>
           <TabsTrigger value="active">Aprovados</TabsTrigger>
           <TabsTrigger value="finished">Finalizados</TabsTrigger>
-          <TabsTrigger value="in_analysis">Em Análise</TabsTrigger>
         </TabsList>
 
         <Card className="mt-4">
@@ -549,6 +551,15 @@ export default function OngoingContracts() {
 
           <ScrollArea className="flex-1 p-6">
             <div className="space-y-8">
+              <div className="p-3 bg-muted/50 rounded-lg border flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  OPERADOR:
+                </span>
+                <span className="text-sm font-bold text-foreground">
+                  {selectedCandidate?.operator || 'Não informado'}
+                </span>
+              </div>
+
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold flex items-center gap-2 border-b pb-2">
                   <FileText className="w-5 h-5 text-primary" /> Informações do Interessado

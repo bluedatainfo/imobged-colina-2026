@@ -669,6 +669,15 @@ export default function ManagerApproval() {
 
           <ScrollArea className="flex-1 p-6">
             <div className="space-y-8">
+              <div className="p-3 bg-muted/50 rounded-lg border flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  OPERADOR:
+                </span>
+                <span className="text-sm font-bold text-foreground">
+                  {selectedCandidate?.operator || 'Não informado'}
+                </span>
+              </div>
+
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold flex items-center gap-2 border-b pb-2">
                   <FileText className="w-5 h-5 text-primary" /> Informações do Interessado
