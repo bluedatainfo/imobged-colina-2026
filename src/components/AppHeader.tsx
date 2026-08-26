@@ -70,7 +70,11 @@ export function AppHeader() {
                 className="relative h-9 w-9 rounded-full ring-2 ring-transparent transition-all hover:ring-primary/20 data-[state=open]:ring-primary/30"
               >
                 <Avatar className="h-9 w-9 border border-border">
-                  <AvatarImage src={user?.avatar} alt={user?.name} className="object-cover" />
+                  <AvatarImage
+                    src={user?.avatar}
+                    alt={user?.name}
+                    className="object-contain bg-white"
+                  />
                   <AvatarFallback className="bg-muted text-muted-foreground">
                     <User className="h-4 w-4" />
                   </AvatarFallback>

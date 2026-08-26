@@ -109,7 +109,7 @@ export default function Profile() {
         </CardHeader>
         <CardContent className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
           <Avatar className="h-24 w-24 border-4 border-background shadow-md">
-            <AvatarImage src={photo} className="object-cover" />
+            <AvatarImage src={photo} className="object-contain bg-white" />
             <AvatarFallback className="bg-muted text-muted-foreground">
               <User className="h-12 w-12" />
             </AvatarFallback>
