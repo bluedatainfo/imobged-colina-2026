@@ -286,7 +286,6 @@ export const initMainStore = async () => {
 
     let rbac = (settingsData.role_settings as any)?.rbac || defaultState.settings.rbac
     if (!rbac['Admin']?.includes('all')) rbac['Admin'] = ['all']
-    if (!rbac['Diretor']?.includes('all')) rbac['Diretor'] = ['all']
 
     const patchRole = (role: string, paths: string[]) => {
       if (rbac[role]) {
