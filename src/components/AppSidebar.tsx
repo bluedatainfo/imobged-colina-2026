@@ -25,7 +25,7 @@ import {
   FileCheck,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Sidebar,
   SidebarContent,
@@ -70,7 +70,7 @@ const navigation = [
 
 export function AppSidebar() {
   const location = useLocation()
-  const { agencyProfile } = useMainStore()
+  const { agencyProfile, menuOrder } = useMainStore()
   const { user } = useAuth()
   const { modules } = useModulesStore()
   const [pendingCount, setPendingCount] = useState(0)
@@ -134,17 +134,39 @@ export function AppSidebar() {
     '/caixa': 'caixa',
   }
 
-  const visibleNavigation = navigation.filter((item) => {
-    // Todos os módulos (incluindo /candidates e /ongoing-contracts) são
-    // validados por checkAccess, sem exceções hardcoded. A fonte da verdade
-    // dos módulos é ALL_MODULES (src/lib/modulesRegistry.ts).
-    if (!checkAccess(item.url, user?.role)) return false
+  const visibleNavigation = useMemo(() => {
+    const filtered = navigation.filter((item) => {
+      // Todos os módulos (incluindo /candidates e /ongoing-contracts) são
+      // validados por checkAccess, sem exceções hardcoded. A fonte da verdade
+      // dos módulos é ALL_MODULES (src/lib/modulesRegistry.ts).
+      if (!checkAccess(item.url, user?.role)) return false
 
-    const moduleKey = moduleMapping[item.url]
-    if (moduleKey && modules[moduleKey] === false) return false
+      const moduleKey = moduleMapping[item.url]
+      if (moduleKey && modules[moduleKey] === false) return false
 
-    return true
-  })
+      return true
+    })
+
+    const roleOrder = user?.role ? menuOrder?.[user.role] : undefined
+    if (!roleOrder || !Array.isArray(roleOrder) || roleOrder.length === 0) {
+      return filtered
+    }
+
+    const orderMap = new Map<string, number>()
+    roleOrder.forEach((path, index) => {
+      orderMap.set(path, index)
+    })
+
+    return [...filtered].sort((a, b) => {
+      const indexA = orderMap.has(a.url) ? orderMap.get(a.url)! : Number.MAX_SAFE_INTEGER
+      const indexB = orderMap.has(b.url) ? orderMap.get(b.url)! : Number.MAX_SAFE_INTEGER
+
+      if (indexA !== indexB) {
+        return indexA - indexB
+      }
+      return 0
+    })
+  }, [user?.role, modules, menuOrder])
 
   return (
     <Sidebar variant="inset">

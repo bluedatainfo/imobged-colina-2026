@@ -101,11 +101,14 @@ export type MaintenanceTicket = {
   createdAt: string
 }
 
+export type MenuOrderSettings = Record<string, string[]>
+
 type State = {
   agencyProfile: AgencyProfile
   settings: RoleSettings
   sharepoint: SharePointSettings
   security: SecuritySettings
+  menuOrder: MenuOrderSettings
   properties: Property[]
   auditLogs: AuditLog[]
   inspectionsData: Record<string, InspectionData>
@@ -247,6 +250,7 @@ const defaultState: State = {
     allowedIps: '',
     requireManagedDevice: false,
   },
+  menuOrder: {},
   properties: [],
   auditLogs: [],
   inspectionsData: {},
@@ -320,6 +324,7 @@ export const initMainStore = async () => {
       rbac,
     }
     state.security = (settingsData.security_settings as any) || defaultState.security
+    state.menuOrder = ((settingsData as any).menu_order as MenuOrderSettings) || {}
   } else {
     const { data: sessionData } = await supabase.auth.getSession()
     if (sessionData?.session?.user) {
@@ -338,6 +343,7 @@ export const initMainStore = async () => {
         },
         role_settings: state.settings as any,
         security_settings: state.security as any,
+        menu_order: state.menuOrder as any,
       }
       const { data } = await supabase.from('app_settings').insert(payload).select('id').single()
       if (data) settingsId = data.id
@@ -453,6 +459,7 @@ const syncConfig = async () => {
     },
     role_settings: state.settings as any,
     security_settings: state.security as any,
+    menu_order: state.menuOrder as any,
     module_settings: {
       ...existingModuleSettings,
       creator_email: state.sharepoint.creatorEmail || 'administracao@imobiliariacolina.com.br',
@@ -535,6 +542,17 @@ export const mainStore = {
     state = { ...state, security: { ...state.security, ...s } }
     emit()
     syncConfig()
+  },
+  updateMenuOrder: async (role: string, paths: string[] | null) => {
+    const updated = { ...state.menuOrder }
+    if (paths === null) {
+      delete updated[role]
+    } else {
+      updated[role] = paths
+    }
+    state = { ...state, menuOrder: updated }
+    emit()
+    await syncConfig()
   },
   addProperty: (p: Omit<Property, 'id' | 'status' | 'image' | 'isResubmission'>) => {
     const prefixMap: Record<string, string> = {
