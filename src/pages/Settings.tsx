@@ -12,6 +12,7 @@ const SecuritySettings = lazy(() => import('@/components/settings/SecuritySettin
 const SharePointMapping = lazy(() => import('@/components/settings/SharePointMapping'))
 const ModulesSettings = lazy(() => import('@/components/settings/ModulesSettings'))
 const MenuOrder = lazy(() => import('@/components/settings/MenuOrder'))
+const DataCleanupSettings = lazy(() => import('@/components/settings/DataCleanupSettings'))
 
 const SettingsFallback = () => (
   <div className="flex h-32 w-full items-center justify-center">
@@ -42,6 +43,14 @@ const Settings = () => {
           <TabsTrigger value="agency">Dados da Imobiliária</TabsTrigger>
           <TabsTrigger value="general">Geral & SLA</TabsTrigger>
           {isAdmin && <TabsTrigger value="menu-order">Ordenação do Menu</TabsTrigger>}
+          {isAdmin && (
+            <TabsTrigger
+              value="data-cleanup"
+              className="text-destructive data-[state=active]:text-destructive"
+            >
+              Limpeza de Dados
+            </TabsTrigger>
+          )}
         </TabsList>
         <Suspense fallback={<SettingsFallback />}>
           {isAdmin && (
@@ -70,6 +79,11 @@ const Settings = () => {
           {isAdmin && (
             <TabsContent value="menu-order">
               <MenuOrder />
+            </TabsContent>
+          )}
+          {isAdmin && (
+            <TabsContent value="data-cleanup">
+              <DataCleanupSettings />
             </TabsContent>
           )}
         </Suspense>
