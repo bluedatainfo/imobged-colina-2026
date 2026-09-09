@@ -131,15 +131,6 @@ const valueToCurrencyInput = (val: any) => {
   return String(Math.round(num * 100))
 }
 
-const matchesSearchTerm = (property: any, term: string) => {
-  if (!term.trim()) return true
-  const lower = term.toLowerCase().trim()
-  const code = String(property.id || '').toLowerCase()
-  const owner = getOwnerName(property).toLowerCase()
-  const addr = getAddress(property).toLowerCase()
-  return code.includes(lower) || owner.includes(lower) || addr.includes(lower)
-}
-
 export function StartLeaseProcessDialog({
   open,
   onClose,
@@ -192,10 +183,7 @@ export function StartLeaseProcessDialog({
   const [existingOwnerName, setExistingOwnerName] = useState<string | null>(null)
   const debouncedCpf = useDebounce(newPropData.ownerCpf, 400)
 
-  const filteredErpOptions = useMemo(
-    () => erpOptions.filter((p) => matchesSearchTerm(p, searchERP)),
-    [erpOptions, searchERP],
-  )
+  const filteredErpOptions = erpOptions
 
   useEffect(() => {
     if (open) {
@@ -257,8 +245,10 @@ export function StartLeaseProcessDialog({
               gestaoRealCode: erpCode ? String(erpCode).slice(0, 8) : prev.gestaoRealCode,
             }))
 
-            if (ownerName || address) {
-              setSearchERP(ownerName || address)
+            if (erpCode) {
+              setSearchERP(String(erpCode).trim())
+            } else if (ownerName) {
+              setSearchERP(ownerName.trim())
             }
 
             // Pre-fill guarantor
@@ -294,19 +284,76 @@ export function StartLeaseProcessDialog({
     let isMounted = true
     const fetchOptions = async () => {
       setLoadingERP(true)
-      try {
-        const res = await fetch(
-          `http://192.168.10.225:9000/imoveis?name=${encodeURIComponent(debouncedSearchERP)}`,
-        )
-        if (!res.ok) throw new Error('Erro na comunicação com o servidor local')
-        const data = await res.json()
+      const term = debouncedSearchERP.trim()
+      const isNumeric = /^\d+$/.test(term)
 
-        if (isMounted) {
-          const dataArray = Array.isArray(data) ? data : [data]
-          setErpOptions(dataArray.filter((item) => item && item.id))
+      const normalizeErpResponse = (data: any): any[] => {
+        if (!data) return []
+        let items: any[] = []
+
+        if (Array.isArray(data)) {
+          items = data
+        } else if (typeof data === 'object') {
+          if (Array.isArray(data.data)) {
+            items = data.data
+          } else if (data.data && typeof data.data === 'object') {
+            items = [data.data]
+          } else if (data.imovel && typeof data.imovel === 'object') {
+            items = [data.imovel]
+          } else if (data.property && typeof data.property === 'object') {
+            items = [data.property]
+          } else {
+            items = [data]
+          }
+        }
+
+        return items
+          .filter(
+            (item: any) =>
+              item &&
+              typeof item === 'object' &&
+              (item.id != null || item.code != null || item.codigo != null),
+          )
+          .map((item: any) => {
+            if (item.id == null && item.code == null && item.codigo != null) {
+              return { ...item, id: item.codigo }
+            }
+            return item
+          })
+      }
+
+      try {
+        if (isNumeric) {
+          const url = `http://192.168.10.225:9000/imoveis/dados/${encodeURIComponent(term)}`
+          const res = await fetch(url)
+          if (res.ok) {
+            const data = await res.json()
+            const items = normalizeErpResponse(data)
+            if (isMounted) {
+              setErpOptions(items)
+            }
+          } else {
+            if (isMounted) {
+              setErpOptions([])
+            }
+          }
+        } else {
+          const url = `http://192.168.10.225:9000/imoveis?name=${encodeURIComponent(term)}`
+          const res = await fetch(url)
+          if (res.ok) {
+            const data = await res.json()
+            const items = normalizeErpResponse(data)
+            if (isMounted) {
+              setErpOptions(items)
+            }
+          } else {
+            if (isMounted) {
+              setErpOptions([])
+            }
+          }
         }
       } catch (err) {
-        console.error(err)
+        console.error('Erro na comunicação com o servidor local', err)
         if (isMounted) {
           setErpOptions([])
         }
