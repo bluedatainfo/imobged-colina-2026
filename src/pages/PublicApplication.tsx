@@ -9,6 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Textarea } from '@/components/ui/textarea'
 import { CheckCircle2, Building, Send, Loader2, AlertCircle } from 'lucide-react'
+import { maskDate, maskCurrency, maskCep, maskPhone } from '@/lib/masks'
 
 type FormType = 'pf' | 'pj' | 'fiador'
 
@@ -465,9 +466,11 @@ export default function PublicApplication() {
                     <Label htmlFor="pf_dt_nasc">Data de Nascimento</Label>
                     <Input
                       id="pf_dt_nasc"
-                      type="date"
+                      type="text"
+                      placeholder="DD/MM/AAAA"
+                      maxLength={10}
                       value={pf.dt_nasc}
-                      onChange={(e) => setPf({ ...pf, dt_nasc: e.target.value })}
+                      onChange={(e) => setPf({ ...pf, dt_nasc: maskDate(e.target.value) })}
                     />
                   </div>
                   <div>
@@ -552,8 +555,9 @@ export default function PublicApplication() {
                     <Input
                       id="pf_cep"
                       value={pf.cep}
-                      onChange={(e) => setPf({ ...pf, cep: e.target.value })}
-                      placeholder="00000-000"
+                      maxLength={10}
+                      onChange={(e) => setPf({ ...pf, cep: maskCep(e.target.value) })}
+                      placeholder="00.000-000"
                     />
                   </div>
 
@@ -589,7 +593,8 @@ export default function PublicApplication() {
                     <Input
                       id="pf_fone_res"
                       value={pf.fone_res}
-                      onChange={(e) => setPf({ ...pf, fone_res: e.target.value })}
+                      maxLength={15}
+                      onChange={(e) => setPf({ ...pf, fone_res: maskPhone(e.target.value) })}
                       placeholder="(00) 0000-0000"
                     />
                   </div>
@@ -598,7 +603,8 @@ export default function PublicApplication() {
                     <Input
                       id="pf_celular"
                       value={pf.celular}
-                      onChange={(e) => setPf({ ...pf, celular: e.target.value })}
+                      maxLength={15}
+                      onChange={(e) => setPf({ ...pf, celular: maskPhone(e.target.value) })}
                       placeholder="(00) 90000-0000"
                     />
                   </div>
@@ -707,7 +713,8 @@ export default function PublicApplication() {
                     <Input
                       id="pf_emp_fones"
                       value={pf.empresa_fones}
-                      onChange={(e) => setPf({ ...pf, empresa_fones: e.target.value })}
+                      maxLength={15}
+                      onChange={(e) => setPf({ ...pf, empresa_fones: maskPhone(e.target.value) })}
                       placeholder="(00) 0000-0000"
                     />
                   </div>
@@ -716,7 +723,9 @@ export default function PublicApplication() {
                     <Input
                       id="pf_emp_salario"
                       value={pf.empresa_salario}
-                      onChange={(e) => setPf({ ...pf, empresa_salario: e.target.value })}
+                      onChange={(e) =>
+                        setPf({ ...pf, empresa_salario: maskCurrency(e.target.value) })
+                      }
                       placeholder="R$ 0.000,00"
                     />
                   </div>
@@ -791,9 +800,11 @@ export default function PublicApplication() {
                     <Label htmlFor="pf_esp_dt_nasc">Data de Nascimento</Label>
                     <Input
                       id="pf_esp_dt_nasc"
-                      type="date"
+                      type="text"
+                      placeholder="DD/MM/AAAA"
+                      maxLength={10}
                       value={pf.esposo_dt_nasc}
-                      onChange={(e) => setPf({ ...pf, esposo_dt_nasc: e.target.value })}
+                      onChange={(e) => setPf({ ...pf, esposo_dt_nasc: maskDate(e.target.value) })}
                     />
                   </div>
                   <div>
@@ -868,7 +879,9 @@ export default function PublicApplication() {
                     <Input
                       id="pf_esp_cep"
                       value={pf.esposo_cep}
-                      onChange={(e) => setPf({ ...pf, esposo_cep: e.target.value })}
+                      maxLength={10}
+                      placeholder="00.000-000"
+                      onChange={(e) => setPf({ ...pf, esposo_cep: maskCep(e.target.value) })}
                     />
                   </div>
                   <div>
@@ -901,7 +914,9 @@ export default function PublicApplication() {
                     <Input
                       id="pf_esp_fone"
                       value={pf.esposo_fone_res}
-                      onChange={(e) => setPf({ ...pf, esposo_fone_res: e.target.value })}
+                      maxLength={15}
+                      placeholder="(00) 0000-0000"
+                      onChange={(e) => setPf({ ...pf, esposo_fone_res: maskPhone(e.target.value) })}
                     />
                   </div>
                   <div>
@@ -909,7 +924,9 @@ export default function PublicApplication() {
                     <Input
                       id="pf_esp_cel"
                       value={pf.esposo_celular}
-                      onChange={(e) => setPf({ ...pf, esposo_celular: e.target.value })}
+                      maxLength={15}
+                      placeholder="(00) 90000-0000"
+                      onChange={(e) => setPf({ ...pf, esposo_celular: maskPhone(e.target.value) })}
                     />
                   </div>
                   <div>
@@ -986,7 +1003,11 @@ export default function PublicApplication() {
                     <Input
                       id="pf_esp_emp_fones"
                       value={pf.esposo_empresa_fones}
-                      onChange={(e) => setPf({ ...pf, esposo_empresa_fones: e.target.value })}
+                      maxLength={15}
+                      placeholder="(00) 0000-0000"
+                      onChange={(e) =>
+                        setPf({ ...pf, esposo_empresa_fones: maskPhone(e.target.value) })
+                      }
                     />
                   </div>
                   <div>
@@ -994,7 +1015,10 @@ export default function PublicApplication() {
                     <Input
                       id="pf_esp_emp_salario"
                       value={pf.esposo_empresa_salario}
-                      onChange={(e) => setPf({ ...pf, esposo_empresa_salario: e.target.value })}
+                      placeholder="R$ 0,00"
+                      onChange={(e) =>
+                        setPf({ ...pf, esposo_empresa_salario: maskCurrency(e.target.value) })
+                      }
                     />
                   </div>
                   <div>
@@ -1090,7 +1114,8 @@ export default function PublicApplication() {
                     <Input
                       id="pf_ref_fone"
                       value={pf.referencia_fone}
-                      onChange={(e) => setPf({ ...pf, referencia_fone: e.target.value })}
+                      maxLength={15}
+                      onChange={(e) => setPf({ ...pf, referencia_fone: maskPhone(e.target.value) })}
                       placeholder="(00) 00000-0000"
                     />
                   </div>
@@ -1199,8 +1224,9 @@ export default function PublicApplication() {
                     <Input
                       id="pj_cep"
                       value={pj.cep}
-                      onChange={(e) => setPj({ ...pj, cep: e.target.value })}
-                      placeholder="00000-000"
+                      maxLength={10}
+                      onChange={(e) => setPj({ ...pj, cep: maskCep(e.target.value) })}
+                      placeholder="00.000-000"
                     />
                   </div>
                   <div>
@@ -1234,7 +1260,8 @@ export default function PublicApplication() {
                     <Input
                       id="pj_fones"
                       value={pj.fones}
-                      onChange={(e) => setPj({ ...pj, fones: e.target.value })}
+                      maxLength={15}
+                      onChange={(e) => setPj({ ...pj, fones: maskPhone(e.target.value) })}
                       placeholder="(00) 0000-0000"
                     />
                   </div>
@@ -1253,7 +1280,7 @@ export default function PublicApplication() {
                     <Input
                       id="pj_faturamento"
                       value={pj.faturamento}
-                      onChange={(e) => setPj({ ...pj, faturamento: e.target.value })}
+                      onChange={(e) => setPj({ ...pj, faturamento: maskCurrency(e.target.value) })}
                       placeholder="R$ 0,00"
                     />
                   </div>
@@ -1298,9 +1325,11 @@ export default function PublicApplication() {
                     <Label htmlFor="rep1_dt_nasc">Data Nascimento</Label>
                     <Input
                       id="rep1_dt_nasc"
-                      type="date"
+                      type="text"
+                      placeholder="DD/MM/AAAA"
+                      maxLength={10}
                       value={pj.rep1_dt_nasc}
-                      onChange={(e) => setPj({ ...pj, rep1_dt_nasc: e.target.value })}
+                      onChange={(e) => setPj({ ...pj, rep1_dt_nasc: maskDate(e.target.value) })}
                     />
                   </div>
                   <div>
@@ -1373,7 +1402,9 @@ export default function PublicApplication() {
                     <Input
                       id="rep1_cep"
                       value={pj.rep1_cep}
-                      onChange={(e) => setPj({ ...pj, rep1_cep: e.target.value })}
+                      maxLength={10}
+                      placeholder="00.000-000"
+                      onChange={(e) => setPj({ ...pj, rep1_cep: maskCep(e.target.value) })}
                     />
                   </div>
                   <div>
@@ -1406,7 +1437,9 @@ export default function PublicApplication() {
                     <Input
                       id="rep1_fone"
                       value={pj.rep1_fone_res}
-                      onChange={(e) => setPj({ ...pj, rep1_fone_res: e.target.value })}
+                      maxLength={15}
+                      placeholder="(00) 0000-0000"
+                      onChange={(e) => setPj({ ...pj, rep1_fone_res: maskPhone(e.target.value) })}
                     />
                   </div>
                   <div>
@@ -1414,7 +1447,9 @@ export default function PublicApplication() {
                     <Input
                       id="rep1_cel"
                       value={pj.rep1_celular}
-                      onChange={(e) => setPj({ ...pj, rep1_celular: e.target.value })}
+                      maxLength={15}
+                      placeholder="(00) 90000-0000"
+                      onChange={(e) => setPj({ ...pj, rep1_celular: maskPhone(e.target.value) })}
                     />
                   </div>
                   <div>
@@ -1431,7 +1466,8 @@ export default function PublicApplication() {
                     <Input
                       id="rep1_salario"
                       value={pj.rep1_salario}
-                      onChange={(e) => setPj({ ...pj, rep1_salario: e.target.value })}
+                      placeholder="R$ 0,00"
+                      onChange={(e) => setPj({ ...pj, rep1_salario: maskCurrency(e.target.value) })}
                     />
                   </div>
                   <div>
@@ -1503,9 +1539,11 @@ export default function PublicApplication() {
                     <Label htmlFor="rep2_dt_nasc">Data Nascimento</Label>
                     <Input
                       id="rep2_dt_nasc"
-                      type="date"
+                      type="text"
+                      placeholder="DD/MM/AAAA"
+                      maxLength={10}
                       value={pj.rep2_dt_nasc}
-                      onChange={(e) => setPj({ ...pj, rep2_dt_nasc: e.target.value })}
+                      onChange={(e) => setPj({ ...pj, rep2_dt_nasc: maskDate(e.target.value) })}
                     />
                   </div>
                   <div>
@@ -1578,7 +1616,9 @@ export default function PublicApplication() {
                     <Input
                       id="rep2_cep"
                       value={pj.rep2_cep}
-                      onChange={(e) => setPj({ ...pj, rep2_cep: e.target.value })}
+                      maxLength={10}
+                      placeholder="00.000-000"
+                      onChange={(e) => setPj({ ...pj, rep2_cep: maskCep(e.target.value) })}
                     />
                   </div>
                   <div>
@@ -1611,7 +1651,9 @@ export default function PublicApplication() {
                     <Input
                       id="rep2_fone"
                       value={pj.rep2_fone_res}
-                      onChange={(e) => setPj({ ...pj, rep2_fone_res: e.target.value })}
+                      maxLength={15}
+                      placeholder="(00) 0000-0000"
+                      onChange={(e) => setPj({ ...pj, rep2_fone_res: maskPhone(e.target.value) })}
                     />
                   </div>
                   <div>
@@ -1619,7 +1661,9 @@ export default function PublicApplication() {
                     <Input
                       id="rep2_cel"
                       value={pj.rep2_celular}
-                      onChange={(e) => setPj({ ...pj, rep2_celular: e.target.value })}
+                      maxLength={15}
+                      placeholder="(00) 90000-0000"
+                      onChange={(e) => setPj({ ...pj, rep2_celular: maskPhone(e.target.value) })}
                     />
                   </div>
                   <div>
@@ -1636,7 +1680,8 @@ export default function PublicApplication() {
                     <Input
                       id="rep2_salario"
                       value={pj.rep2_salario}
-                      onChange={(e) => setPj({ ...pj, rep2_salario: e.target.value })}
+                      placeholder="R$ 0,00"
+                      onChange={(e) => setPj({ ...pj, rep2_salario: maskCurrency(e.target.value) })}
                     />
                   </div>
                   <div>
@@ -1803,9 +1848,11 @@ export default function PublicApplication() {
                     <Label htmlFor="fia_dt_nasc">Data de Nascimento</Label>
                     <Input
                       id="fia_dt_nasc"
-                      type="date"
+                      type="text"
+                      placeholder="DD/MM/AAAA"
+                      maxLength={10}
                       value={fiador.dt_nasc}
-                      onChange={(e) => setFiador({ ...fiador, dt_nasc: e.target.value })}
+                      onChange={(e) => setFiador({ ...fiador, dt_nasc: maskDate(e.target.value) })}
                     />
                   </div>
                   <div>
@@ -1885,7 +1932,9 @@ export default function PublicApplication() {
                     <Input
                       id="fia_cep"
                       value={fiador.cep}
-                      onChange={(e) => setFiador({ ...fiador, cep: e.target.value })}
+                      maxLength={10}
+                      placeholder="00.000-000"
+                      onChange={(e) => setFiador({ ...fiador, cep: maskCep(e.target.value) })}
                     />
                   </div>
                   <div>
@@ -1918,7 +1967,11 @@ export default function PublicApplication() {
                     <Input
                       id="fia_fone"
                       value={fiador.fone_res}
-                      onChange={(e) => setFiador({ ...fiador, fone_res: e.target.value })}
+                      maxLength={15}
+                      placeholder="(00) 0000-0000"
+                      onChange={(e) =>
+                        setFiador({ ...fiador, fone_res: maskPhone(e.target.value) })
+                      }
                     />
                   </div>
                   <div>
@@ -1926,7 +1979,9 @@ export default function PublicApplication() {
                     <Input
                       id="fia_cel"
                       value={fiador.celular}
-                      onChange={(e) => setFiador({ ...fiador, celular: e.target.value })}
+                      maxLength={15}
+                      placeholder="(00) 90000-0000"
+                      onChange={(e) => setFiador({ ...fiador, celular: maskPhone(e.target.value) })}
                     />
                   </div>
                   <div>
@@ -2035,7 +2090,11 @@ export default function PublicApplication() {
                     <Input
                       id="fia_emp_fones"
                       value={fiador.empresa_fones}
-                      onChange={(e) => setFiador({ ...fiador, empresa_fones: e.target.value })}
+                      maxLength={15}
+                      placeholder="(00) 0000-0000"
+                      onChange={(e) =>
+                        setFiador({ ...fiador, empresa_fones: maskPhone(e.target.value) })
+                      }
                     />
                   </div>
                   <div>
@@ -2043,7 +2102,10 @@ export default function PublicApplication() {
                     <Input
                       id="fia_emp_salario"
                       value={fiador.empresa_salario}
-                      onChange={(e) => setFiador({ ...fiador, empresa_salario: e.target.value })}
+                      placeholder="R$ 0,00"
+                      onChange={(e) =>
+                        setFiador({ ...fiador, empresa_salario: maskCurrency(e.target.value) })
+                      }
                     />
                   </div>
                   <div>
@@ -2119,9 +2181,13 @@ export default function PublicApplication() {
                     <Label htmlFor="fia_esp_dt_nasc">Data Nascimento</Label>
                     <Input
                       id="fia_esp_dt_nasc"
-                      type="date"
+                      type="text"
+                      placeholder="DD/MM/AAAA"
+                      maxLength={10}
                       value={fiador.esposo_dt_nasc}
-                      onChange={(e) => setFiador({ ...fiador, esposo_dt_nasc: e.target.value })}
+                      onChange={(e) =>
+                        setFiador({ ...fiador, esposo_dt_nasc: maskDate(e.target.value) })
+                      }
                     />
                   </div>
                   <div>
@@ -2200,7 +2266,11 @@ export default function PublicApplication() {
                     <Input
                       id="fia_esp_cep"
                       value={fiador.esposo_cep}
-                      onChange={(e) => setFiador({ ...fiador, esposo_cep: e.target.value })}
+                      maxLength={10}
+                      placeholder="00.000-000"
+                      onChange={(e) =>
+                        setFiador({ ...fiador, esposo_cep: maskCep(e.target.value) })
+                      }
                     />
                   </div>
                   <div>
@@ -2235,7 +2305,11 @@ export default function PublicApplication() {
                     <Input
                       id="fia_esp_fone"
                       value={fiador.esposo_fone_res}
-                      onChange={(e) => setFiador({ ...fiador, esposo_fone_res: e.target.value })}
+                      maxLength={15}
+                      placeholder="(00) 0000-0000"
+                      onChange={(e) =>
+                        setFiador({ ...fiador, esposo_fone_res: maskPhone(e.target.value) })
+                      }
                     />
                   </div>
                   <div>
@@ -2243,7 +2317,11 @@ export default function PublicApplication() {
                     <Input
                       id="fia_esp_cel"
                       value={fiador.esposo_celular}
-                      onChange={(e) => setFiador({ ...fiador, esposo_celular: e.target.value })}
+                      maxLength={15}
+                      placeholder="(00) 90000-0000"
+                      onChange={(e) =>
+                        setFiador({ ...fiador, esposo_celular: maskPhone(e.target.value) })
+                      }
                     />
                   </div>
                   <div>
@@ -2328,8 +2406,10 @@ export default function PublicApplication() {
                     <Input
                       id="fia_esp_emp_fones"
                       value={fiador.esposo_empresa_fones}
+                      maxLength={15}
+                      placeholder="(00) 0000-0000"
                       onChange={(e) =>
-                        setFiador({ ...fiador, esposo_empresa_fones: e.target.value })
+                        setFiador({ ...fiador, esposo_empresa_fones: maskPhone(e.target.value) })
                       }
                     />
                   </div>
@@ -2338,8 +2418,12 @@ export default function PublicApplication() {
                     <Input
                       id="fia_esp_emp_salario"
                       value={fiador.esposo_empresa_salario}
+                      placeholder="R$ 0,00"
                       onChange={(e) =>
-                        setFiador({ ...fiador, esposo_empresa_salario: e.target.value })
+                        setFiador({
+                          ...fiador,
+                          esposo_empresa_salario: maskCurrency(e.target.value),
+                        })
                       }
                     />
                   </div>
@@ -2387,7 +2471,11 @@ export default function PublicApplication() {
                     <Input
                       id="fia_ref_fone"
                       value={fiador.referencia_fone}
-                      onChange={(e) => setFiador({ ...fiador, referencia_fone: e.target.value })}
+                      maxLength={15}
+                      placeholder="(00) 00000-0000"
+                      onChange={(e) =>
+                        setFiador({ ...fiador, referencia_fone: maskPhone(e.target.value) })
+                      }
                     />
                   </div>
                   <div className="sm:col-span-2">

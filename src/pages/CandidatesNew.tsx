@@ -62,6 +62,7 @@ import {
   PreRegistrationCategory,
 } from '@/services/candidates'
 import { CandidateDetailView } from '@/components/CandidateDetailView'
+import { formatPhoneForWhatsApp } from '@/lib/boletoParser'
 import { buildWhatsAppLink } from '@/lib/whatsappAndExcel'
 
 export function CandidatesNew() {
@@ -188,18 +189,41 @@ export function CandidatesNew() {
       return
     }
 
+    const cleanPhone = formatPhoneForWhatsApp(whatsAppTarget.phone)
+    if (!cleanPhone) {
+      toast({
+        title: 'Telefone inválido',
+        description: 'Por favor, informe um número de celular válido com DDD.',
+        variant: 'destructive',
+      })
+      return
+    }
+
     const link = getPublicLink(whatsAppTarget.type)
     const typeLabel =
       whatsAppTarget.type === 'PJ'
-        ? 'Pessoa Jurídica'
+        ? 'Pessoa Juridica'
         : whatsAppTarget.type === 'Fiador'
           ? 'Fiador'
-          : 'Pessoa Física'
+          : 'Pessoa Fisica'
 
-    const greeting = whatsAppTarget.name ? `Olá, ${whatsAppTarget.name}!` : 'Olá!'
-    const message = `${greeting}\n\nPara darmos andamento ao seu processo de locação, por favor preencha nossa ficha cadastral digital no link abaixo:\n\n${link}\n\nFicha: ${typeLabel}\nQualquer dúvida, estamos à disposição!`
+    const candidateName = whatsAppTarget.name ? whatsAppTarget.name.trim() : ''
+    const greetingLine = candidateName ? `Olá, ${candidateName} !` : 'Olá!'
 
-    const waLink = buildWhatsAppLink(whatsAppTarget.phone, message)
+    const message = `${greetingLine}
+
+Para darmos andamento ao seu processo de análise da locação, por favor preencha nossa ficha cadastral digital no link abaixo:
+
+${link}
+
+Ficha: ${typeLabel}
+
+Qualquer dúvida, estamos à disposição!!
+
+IMOBILIÁRIA COLINA 
+RECEPÇÃO DE DOCUMENTOS`
+
+    const waLink = buildWhatsAppLink(cleanPhone, message)
     window.open(waLink, '_blank', 'noopener,noreferrer')
     setIsWhatsAppModalOpen(false)
   }
