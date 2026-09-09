@@ -36,7 +36,6 @@ export function maskCurrency(value: string | null | undefined): string {
   // Parse digits as integer (cents)
   const cents = parseInt(digits, 10)
   if (isNaN(cents)) return ''
-
   const decimal = (cents / 100).toFixed(2)
   const [intPart, decPart] = decimal.split('.')
   const formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
