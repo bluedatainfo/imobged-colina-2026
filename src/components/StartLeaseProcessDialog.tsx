@@ -40,7 +40,8 @@ import { useAuth } from '@/contexts/AuthContext'
 
 interface Props {
   open: boolean
-  onClose: () => void
+  onClose?: () => void
+  onOpenChange?: (open: boolean) => void
   candidate: PreRegistration | null
   onSuccess: () => void
 }
@@ -139,7 +140,13 @@ const matchesSearchTerm = (property: any, term: string) => {
   return code.includes(lower) || owner.includes(lower) || addr.includes(lower)
 }
 
-export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }: Props) {
+export function StartLeaseProcessDialog({
+  open,
+  onClose,
+  onOpenChange,
+  candidate,
+  onSuccess,
+}: Props) {
   const { toast } = useToast()
   const navigate = useNavigate()
   const { owners } = useEntitiesStore()
@@ -529,7 +536,8 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
         description: 'O dossiê foi enviado para o Hub de Validação Gerencial.',
       })
       onSuccess()
-      onClose()
+      onClose?.()
+      onOpenChange?.(false)
       setTimeout(() => {
         navigate('/manager-approval')
         window.location.reload()
@@ -544,7 +552,15 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
   if (!candidate) return null
 
   return (
-    <Dialog open={open} onOpenChange={(val) => !val && !submitting && onClose()}>
+    <Dialog
+      open={open}
+      onOpenChange={(val) => {
+        if (!val && !submitting) {
+          onClose?.()
+          onOpenChange?.(false)
+        }
+      }}
+    >
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -960,7 +976,14 @@ export function StartLeaseProcessDialog({ open, onClose, candidate, onSuccess }:
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={submitting}>
+          <Button
+            variant="outline"
+            onClick={() => {
+              onClose?.()
+              onOpenChange?.(false)
+            }}
+            disabled={submitting}
+          >
             Cancelar
           </Button>
           <Button

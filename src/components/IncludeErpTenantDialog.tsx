@@ -27,8 +27,10 @@ import { toast } from 'sonner'
 
 interface IncludeErpTenantDialogProps {
   open: boolean
-  onClose: () => void
-  onTenantIncluded: (candidate: PreRegistration) => void
+  onClose?: () => void
+  onOpenChange?: (open: boolean) => void
+  onTenantIncluded?: (candidate: PreRegistration) => void
+  onSuccess?: (candidate?: PreRegistration) => void
 }
 
 interface ErpUnifiedTenant {
@@ -69,7 +71,9 @@ function formatCpfOrCnpj(val: string | null | undefined): string {
 export function IncludeErpTenantDialog({
   open,
   onClose,
+  onOpenChange,
   onTenantIncluded,
+  onSuccess,
 }: IncludeErpTenantDialogProps) {
   const { tenants, guarantees, guaranteesError } = useEntitiesStore()
   const [searchTerm, setSearchTerm] = useState('')
@@ -190,6 +194,11 @@ export function IncludeErpTenantDialog({
   const totalAvailable = unifiedErpTenants.length
   const isTruncated = totalMatches > MAX_DISPLAY_RESULTS
 
+  const handleClose = () => {
+    onClose?.()
+    onOpenChange?.(false)
+  }
+
   const handleSelectTenant = async (item: ErpUnifiedTenant) => {
     try {
       setSubmittingId(item.id)
@@ -247,8 +256,9 @@ export function IncludeErpTenantDialog({
         toast.info(
           `Locatário já cadastrado em Interessados (Código: ${matchedRecord.code || matchedRecord.id.slice(0, 8)}). Abrindo ficha...`,
         )
-        onTenantIncluded(matchedRecord)
-        onClose()
+        onTenantIncluded?.(matchedRecord)
+        onSuccess?.(matchedRecord)
+        handleClose()
         return
       }
 
@@ -306,16 +316,18 @@ export function IncludeErpTenantDialog({
           if (fallbackError) throw fallbackError
 
           toast.success(`Locatário "${item.fullName}" incluído com sucesso no sistema!`)
-          onTenantIncluded(fallbackInserted as PreRegistration)
-          onClose()
+          onTenantIncluded?.(fallbackInserted as PreRegistration)
+          onSuccess?.(fallbackInserted as PreRegistration)
+          handleClose()
           return
         }
         throw insertError
       }
 
       toast.success(`Locatário "${item.fullName}" incluído com sucesso no sistema!`)
-      onTenantIncluded(inserted as PreRegistration)
-      onClose()
+      onTenantIncluded?.(inserted as PreRegistration)
+      onSuccess?.(inserted as PreRegistration)
+      handleClose()
     } catch (err: any) {
       console.error('Erro ao incluir locatário do ERP:', err)
       toast.error(err.message || 'Erro ao incluir locatário do ERP local.')
@@ -325,7 +337,12 @@ export function IncludeErpTenantDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(val) => !val && onClose()}>
+    <Dialog
+      open={open}
+      onOpenChange={(val) => {
+        if (!val) handleClose()
+      }}
+    >
       <DialogContent className="sm:max-w-3xl max-h-[90vh] flex flex-col p-6">
         <DialogHeader className="pb-2">
           <DialogTitle className="flex items-center gap-2 text-xl font-bold text-slate-800">
@@ -474,7 +491,7 @@ export function IncludeErpTenantDialog({
                   ? `Mostrando ${displayedList.length} de ${totalMatches} registros encontrados (${totalAvailable} disponíveis no ERP)`
                   : `Mostrando ${displayedList.length} de ${totalAvailable} registros disponíveis no ERP`}
             </span>
-            <Button variant="ghost" size="sm" onClick={onClose} className="h-8">
+            <Button variant="ghost" size="sm" onClick={handleClose} className="h-8">
               Cancelar
             </Button>
           </div>
