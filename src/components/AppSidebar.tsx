@@ -45,6 +45,7 @@ import { useModulesStore } from '@/stores/modules'
 const navigation = [
   { title: 'Painel', url: '/', icon: LayoutDashboard },
   { title: 'Gestão de Interessados', url: '/candidates', icon: UserPlus },
+  { title: 'Gestão de Interessados (Nova)', url: '/candidates-new', icon: UserPlus },
   { title: 'Documentos GED', url: '/documents', icon: FolderOpen },
   { title: 'Pendências de Análise', url: '/analysis-pending', icon: ClipboardCheck },
   { title: 'Documentos Adicionais', url: '/additional-documents', icon: FilePlus },
@@ -113,6 +114,8 @@ export function AppSidebar() {
   }, [location.pathname])
 
   const moduleMapping: Record<string, keyof typeof modules> = {
+    '/candidates': 'candidates',
+    '/candidates-new': 'candidates_new',
     '/entities': 'entities',
     '/properties': 'properties',
     '/templates': 'templates',

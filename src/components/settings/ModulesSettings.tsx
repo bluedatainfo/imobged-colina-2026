@@ -15,6 +15,8 @@ import { useToast } from '@/hooks/use-toast'
 import { useModulesStore, defaultModules } from '@/stores/modules'
 
 const moduleLabels: Record<keyof typeof defaultModules, string> = {
+  candidates: 'Gestão de Interessados (Legado)',
+  candidates_new: 'Gestão de Interessados (Nova)',
   entities: 'Entidades (Prop. / Loc.)',
   properties: 'Imóveis',
   templates: 'Gestão de Modelos',
@@ -30,6 +32,7 @@ const moduleLabels: Record<keyof typeof defaultModules, string> = {
   legal: 'Jurídico',
   sales: 'Vendas',
   financial: 'Financeiro',
+  caixa: 'Caixa (Boletos)',
 }
 
 export default function ModulesSettings() {

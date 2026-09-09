@@ -40,6 +40,8 @@ const KeysControl = lazy(() => import('./pages/KeysControl'))
 const Maintenance = lazy(() => import('./pages/Maintenance'))
 const Entities = lazy(() => import('./pages/Entities'))
 const Candidates = lazy(() => import('./pages/Candidates'))
+const CandidatesNew = lazy(() => import('./pages/CandidatesNew'))
+const PublicApplication = lazy(() => import('./pages/PublicApplication'))
 
 const SyncMonitor = lazy(() => import('./pages/SyncMonitor'))
 const AccessDenied = lazy(() => import('./pages/AccessDenied'))
@@ -80,6 +82,8 @@ const AppRoutes = () => (
       {/* Public Routes */}
       <Route path="/login" element={<Login />} />
       <Route path="/portal" element={<Portal />} />
+      <Route path="/public/application/:type" element={<PublicApplication />} />
+      <Route path="/public/application/:type/:token" element={<PublicApplication />} />
 
       {/* Protected Routes */}
       <Route
@@ -107,6 +111,7 @@ const AppRoutes = () => (
         <Route path="/maintenance" element={<Maintenance />} />
         <Route path="/entities" element={<Entities />} />
         <Route path="/candidates" element={<Candidates />} />
+        <Route path="/candidates-new" element={<CandidatesNew />} />
         <Route path="/sync-monitor" element={<SyncMonitor />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/templates" element={<Templates />} />

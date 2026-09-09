@@ -55,6 +55,7 @@ import { ALL_MODULES } from '@/lib/modulesRegistry'
 const SIDEBAR_ITEMS = [
   { title: 'Painel', url: '/', icon: LayoutDashboard },
   { title: 'Gestão de Interessados', url: '/candidates', icon: UserPlus },
+  { title: 'Gestão de Interessados (Nova)', url: '/candidates-new', icon: UserPlus },
   { title: 'Documentos GED', url: '/documents', icon: FolderOpen },
   { title: 'Pendências de Análise', url: '/analysis-pending', icon: ClipboardCheck },
   { title: 'Documentos Adicionais', url: '/additional-documents', icon: FilePlus },

@@ -2,6 +2,8 @@ import { supabase } from '@/lib/supabase/client'
 import { useSyncExternalStore } from 'react'
 
 export const defaultModules = {
+  candidates: true,
+  candidates_new: true,
   entities: true,
   properties: true,
   templates: true,

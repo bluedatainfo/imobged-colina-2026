@@ -20,6 +20,7 @@ export interface ModuleEntry {
 export const ALL_MODULES: ModuleEntry[] = [
   { path: '/', label: 'Dashboard' },
   { path: '/candidates', label: 'Candidatos' },
+  { path: '/candidates-new', label: 'Gestão de Interessados (Nova)' },
   { path: '/ongoing-contracts', label: 'Contratos em Andamento' },
   { path: '/entities', label: 'Entidades' },
   { path: '/documents', label: 'Documentos' },

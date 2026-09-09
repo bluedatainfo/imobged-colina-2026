@@ -318,6 +318,29 @@ export const initMainStore = async () => {
     patchRole('Corretor', ['/analysis-pending'])
     patchRole('Caixa', ['/analysis-pending'])
 
+    // /candidates-new replica o acesso onde /candidates já era permitido
+    const allRoles = [
+      'Admin',
+      'Diretor',
+      'Gerente',
+      'Gestor de Contrato',
+      'Corretor',
+      'Jurídico',
+      'Financeiro',
+    ]
+    allRoles.forEach((r) => {
+      if (
+        rbac[r] &&
+        (rbac[r].includes('all') ||
+          rbac[r].includes('/candidates') ||
+          r === 'Gerente' ||
+          r === 'Gestor de Contrato' ||
+          r === 'Diretor')
+      ) {
+        patchRole(r, ['/candidates-new', '/candidates'])
+      }
+    })
+
     state.settings = {
       ...defaultState.settings,
       ...(settingsData.role_settings as any),
