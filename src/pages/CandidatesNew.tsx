@@ -96,7 +96,7 @@ export function CandidatesNew() {
   const loadCandidates = async () => {
     try {
       setLoading(true)
-      const data = await candidatesService.getAll()
+      const data = await candidatesService.getCandidates()
       setCandidates(data)
     } catch (error) {
       console.error('Erro ao carregar pré-cadastros:', error)
