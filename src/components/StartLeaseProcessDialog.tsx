@@ -226,7 +226,7 @@ export function StartLeaseProcessDialog({
         .select('*')
         .eq('category', 'Fiador')
         .then(({ data }) => {
-          const loadedGuarantors = data || []
+          const loadedGuarantors = (data || []) as PreRegistration[]
           setGuarantors(loadedGuarantors)
 
           if (candidate) {
@@ -480,9 +480,9 @@ export function StartLeaseProcessDialog({
         .eq('id', finalPropId)
         .maybeSingle()
 
-      let finalDetails = {
+      let finalDetails: Record<string, any> = {
         ...(typeof existingProp?.details === 'object' && existingProp?.details !== null
-          ? existingProp.details
+          ? (existingProp.details as Record<string, any>)
           : {}),
       }
       if (propertyMode === 'new' || propertyMode === 'existing') {

@@ -26,6 +26,18 @@ export const CandidateDetailView: React.FC<CandidateDetailViewProps> = ({ candid
     return val || '-'
   }
 
+  const formatDateTime = (dateStr?: string | null) => {
+    if (!dateStr) return '-'
+    try {
+      return new Date(dateStr).toLocaleString('pt-BR')
+    } catch {
+      return dateStr
+    }
+  }
+
+  const editedBy = candidate?.edited_by || candidate?.form_data?.edited_by || null
+  const editedAt = candidate?.edited_at || candidate?.form_data?.edited_at || null
+
   const renderField = (label: string, value: any) => (
     <div className="space-y-1">
       <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">
@@ -544,11 +556,27 @@ export const CandidateDetailView: React.FC<CandidateDetailViewProps> = ({ candid
             : 'Confirmação registrada.'}
           {formData.data_envio && (
             <span className="block mt-0.5 text-emerald-700">
-              Enviado em: {new Date(formData.data_envio).toLocaleString('pt-BR')}
+              Enviado em: {formatDateTime(formData.data_envio)}
             </span>
           )}
         </div>
       </div>
+
+      {/* Auditoria de Edição da Ficha (se houver sido editada) */}
+      {editedBy && (
+        <div className="p-3.5 rounded-lg bg-slate-100 border border-slate-300 text-xs text-slate-700 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+            <span className="font-semibold text-slate-800">Última edição realizada:</span>
+            <span>
+              Editado por <strong className="text-slate-900">{editedBy}</strong>
+            </span>
+          </div>
+          {editedAt && (
+            <span className="text-slate-500 font-medium shrink-0">{formatDateTime(editedAt)}</span>
+          )}
+        </div>
+      )}
     </div>
   )
 }

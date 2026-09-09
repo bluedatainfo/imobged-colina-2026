@@ -62,7 +62,9 @@ import {
   PreRegistrationCategory,
 } from '@/services/candidates'
 import { CandidateDetailView } from '@/components/CandidateDetailView'
+import { CandidateEditForm } from '@/components/CandidateEditForm'
 import { formatPhoneForWhatsApp } from '@/lib/boletoParser'
+import { Pencil } from 'lucide-react'
 
 export function CandidatesNew() {
   const [candidates, setCandidates] = useState<PreRegistration[]>([])
@@ -71,6 +73,8 @@ export function CandidatesNew() {
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [selectedCandidate, setSelectedCandidate] = useState<PreRegistration | null>(null)
   const [isDetailOpen, setIsDetailOpen] = useState(false)
+  const [isEditingFicha, setIsEditingFicha] = useState(false)
+  const [savingEdit, setSavingEdit] = useState(false)
   const [isIncludeDialogOpen, setIsIncludeDialogOpen] = useState(false)
   const [candidateToDelete, setCandidateToDelete] = useState<PreRegistration | null>(null)
   const [activeTab, setActiveTab] = useState<'PF' | 'PJ' | 'Fiador'>('PF')
@@ -228,23 +232,35 @@ RECEPÇÃO DE DOCUMENTOS`
   }
 
   const getStatusBadge = (status: PreRegistrationStatus) => {
-    const config: Record<
-      PreRegistrationStatus,
-      {
-        label: string
-        className: string
-        icon: React.ComponentType<{ className?: string }>
-      }
+    const config: Partial<
+      Record<
+        PreRegistrationStatus,
+        {
+          label: string
+          className: string
+          icon: React.ComponentType<{ className?: string }>
+        }
+      >
     > = {
       Novo: {
         label: 'Novo',
         className: 'bg-blue-100 text-blue-800 border-blue-200',
         icon: Clock,
       },
-      'Em Análise': {
+      'Em Análise da Gerência': {
         label: 'Em Análise',
         className: 'bg-yellow-100 text-yellow-800 border-yellow-200',
         icon: AlertCircle,
+      },
+      'Documentação Pendente': {
+        label: 'Doc. Pendente',
+        className: 'bg-amber-100 text-amber-800 border-amber-200',
+        icon: AlertCircle,
+      },
+      'Aguardando Vistoria': {
+        label: 'Aguard. Vistoria',
+        className: 'bg-indigo-100 text-indigo-800 border-indigo-200',
+        icon: Clock,
       },
       Aprovado: {
         label: 'Aprovado',
@@ -256,11 +272,6 @@ RECEPÇÃO DE DOCUMENTOS`
         className: 'bg-red-100 text-red-800 border-red-200',
         icon: AlertCircle,
       },
-      'Em Contrato': {
-        label: 'Em Contrato',
-        className: 'bg-purple-100 text-purple-800 border-purple-200',
-        icon: FileText,
-      },
     }
 
     const {
@@ -268,7 +279,7 @@ RECEPÇÃO DE DOCUMENTOS`
       className,
       icon: Icon,
     } = config[status] || {
-      label: status,
+      label: String(status || 'Novo'),
       className: 'bg-gray-100 text-gray-800 border-gray-200',
       icon: Clock,
     }
@@ -331,6 +342,54 @@ RECEPÇÃO DE DOCUMENTOS`
   })
 
   const currentOperatorName = getCurrentOperator() || 'Não Definido'
+
+  const handleOpenDetailModal = (candidate: PreRegistration) => {
+    setSelectedCandidate(candidate)
+    setIsEditingFicha(false)
+    setIsDetailOpen(true)
+  }
+
+  const handleSaveFichaEdit = async (updatedCandidate: PreRegistration) => {
+    if (!selectedCandidate) return
+    try {
+      setSavingEdit(true)
+      const saved = await candidatesService.updateFormData(
+        selectedCandidate.id,
+        updatedCandidate.form_data,
+        {
+          editedBy: currentOperatorName,
+          fullName: updatedCandidate.full_name,
+          cpf: updatedCandidate.cpf,
+          cnpj: updatedCandidate.cnpj,
+          email: updatedCandidate.email,
+          phone: updatedCandidate.phone,
+          address: updatedCandidate.address,
+        },
+      )
+
+      toast({
+        title: 'Ficha atualizada com sucesso!',
+        description: `Alterações salvas por ${currentOperatorName}.`,
+      })
+
+      // Atualiza selectedCandidate com os dados salvos
+      setSelectedCandidate(saved)
+      setIsEditingFicha(false)
+
+      // Atualiza lista em memória e recarrega em background
+      setCandidates((prev) => prev.map((c) => (c.id === saved.id ? saved : c)))
+      loadCandidates()
+    } catch (error: any) {
+      console.error('Erro ao salvar edição da ficha:', error)
+      toast({
+        title: 'Erro ao salvar ficha',
+        description: error?.message || 'Não foi possível gravar as alterações.',
+        variant: 'destructive',
+      })
+    } finally {
+      setSavingEdit(false)
+    }
+  }
 
   return (
     <div className="container mx-auto p-4 sm:p-6 space-y-6">
@@ -510,10 +569,7 @@ RECEPÇÃO DE DOCUMENTOS`
                 <Card
                   key={candidate.id}
                   className="hover:shadow-md transition-shadow cursor-pointer border bg-white flex flex-col justify-between"
-                  onClick={() => {
-                    setSelectedCandidate(candidate)
-                    setIsDetailOpen(true)
-                  }}
+                  onClick={() => handleOpenDetailModal(candidate)}
                 >
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between gap-2">
@@ -572,8 +628,7 @@ RECEPÇÃO DE DOCUMENTOS`
                         className="text-xs text-primary p-0 h-auto font-medium hover:underline"
                         onClick={(e) => {
                           e.stopPropagation()
-                          setSelectedCandidate(candidate)
-                          setIsDetailOpen(true)
+                          handleOpenDetailModal(candidate)
                         }}
                       >
                         Ver Ficha Completa →
@@ -605,19 +660,45 @@ RECEPÇÃO DE DOCUMENTOS`
       {/* ======================================================== */}
       {/* MODAL DA FICHA DETALHADA                                 */}
       {/* ======================================================== */}
-      <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
+      <Dialog
+        open={isDetailOpen}
+        onOpenChange={(open) => {
+          setIsDetailOpen(open)
+          if (!open) {
+            setIsEditingFicha(false)
+          }
+        }}
+      >
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           {selectedCandidate && (
             <div className="space-y-4">
               {/* OPERADOR ACIMA DA FICHA DETALHADA (Exigência do Usuário) */}
-              <div className="bg-slate-900 text-white px-4 py-2.5 rounded-lg flex items-center justify-between shadow-sm">
-                <div className="flex items-center gap-2 text-sm font-semibold tracking-wide">
-                  <span className="text-slate-400 text-xs uppercase">OPERADOR:</span>
-                  <span className="text-emerald-400 font-bold uppercase">
-                    {currentOperatorName}
-                  </span>
+              <div className="bg-slate-900 text-white px-4 py-2.5 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-sm">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                  <div className="flex items-center gap-2 text-sm font-semibold tracking-wide">
+                    <span className="text-slate-400 text-xs uppercase">OPERADOR:</span>
+                    <span className="text-emerald-400 font-bold uppercase">
+                      {currentOperatorName}
+                    </span>
+                  </div>
+                  {(selectedCandidate.edited_by || selectedCandidate.form_data?.edited_by) && (
+                    <div className="flex items-center gap-1 text-xs text-emerald-400 border-l border-slate-700 pl-3">
+                      <span className="text-slate-400">Editado por:</span>
+                      <span className="font-semibold text-white">
+                        {selectedCandidate.edited_by || selectedCandidate.form_data?.edited_by}
+                      </span>
+                      {(selectedCandidate.edited_at || selectedCandidate.form_data?.edited_at) && (
+                        <span className="text-slate-400">
+                          —{' '}
+                          {new Date(
+                            selectedCandidate.edited_at || selectedCandidate.form_data?.edited_at,
+                          ).toLocaleString('pt-BR')}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
-                <div className="text-xs text-slate-400">
+                <div className="text-xs text-slate-400 shrink-0">
                   Código:{' '}
                   <span className="text-white font-mono">{selectedCandidate.code || '-'}</span>
                 </div>
@@ -632,7 +713,9 @@ RECEPÇÃO DE DOCUMENTOS`
                       {getCategoryBadge(selectedCandidate.category)}
                     </DialogTitle>
                     <DialogDescription className="text-xs text-slate-500 mt-0.5">
-                      Ficha cadastral completa preenchida pelo pretendente
+                      {isEditingFicha
+                        ? 'Edição dos dados cadastrais pelo operador responsável'
+                        : 'Ficha cadastral completa preenchida pelo pretendente'}
                     </DialogDescription>
                   </div>
                   <div>{getStatusBadge(selectedCandidate.status)}</div>
@@ -641,7 +724,29 @@ RECEPÇÃO DE DOCUMENTOS`
 
               {/* Botões de Ação Principais no Topo da Ficha */}
               <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-50 p-3 rounded-lg border">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* BOTÃO VERDE EDITAR */}
+                  {!isEditingFicha ? (
+                    <Button
+                      size="sm"
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center gap-1.5 shadow-sm"
+                      onClick={() => setIsEditingFicha(true)}
+                    >
+                      <Pencil className="w-4 h-4" />
+                      EDITAR
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-slate-300 text-slate-700 hover:bg-slate-100 flex items-center gap-1.5"
+                      onClick={() => setIsEditingFicha(false)}
+                      disabled={savingEdit}
+                    >
+                      Visualizar Ficha
+                    </Button>
+                  )}
+
                   <Button
                     size="sm"
                     className="bg-primary hover:bg-primary/90 text-white font-semibold flex items-center gap-2"
@@ -680,8 +785,18 @@ RECEPÇÃO DE DOCUMENTOS`
                 </Button>
               </div>
 
-              {/* Renderização Fiel das Seções do Formulário */}
-              <CandidateDetailView candidate={selectedCandidate} />
+              {/* Renderização: Modo de Edição ou Ficha Somente-Leitura */}
+              {isEditingFicha ? (
+                <CandidateEditForm
+                  candidate={selectedCandidate}
+                  operatorName={currentOperatorName}
+                  onSave={handleSaveFichaEdit}
+                  onCancel={() => setIsEditingFicha(false)}
+                  saving={savingEdit}
+                />
+              ) : (
+                <CandidateDetailView candidate={selectedCandidate} />
+              )}
             </div>
           )}
         </DialogContent>

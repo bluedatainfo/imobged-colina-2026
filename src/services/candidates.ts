@@ -27,11 +27,60 @@ export interface PreRegistration {
   documents_link: string | null
   form_data: any
   operator: string | null
+  edited_by?: string | null
+  edited_at?: string | null
   created_at: string
   updated_at: string
 }
 
 export const candidatesService = {
+  async updateFormData(
+    id: string,
+    formData: any,
+    options?: {
+      editedBy?: string | null
+      fullName?: string
+      cpf?: string | null
+      cnpj?: string | null
+      email?: string | null
+      phone?: string | null
+      address?: string | null
+    },
+  ) {
+    const nowIso = new Date().toISOString()
+    const operatorName = options?.editedBy || resolveOperatorForPersistence()
+
+    // Mescla auditoria de edição dentro de form_data para máxima redundância e consistência
+    const updatedFormData = {
+      ...formData,
+      edited_by: operatorName,
+      edited_at: nowIso,
+    }
+
+    const payload: Record<string, any> = {
+      form_data: updatedFormData,
+      edited_by: operatorName,
+      edited_at: nowIso,
+      updated_at: nowIso,
+    }
+
+    if (options?.fullName !== undefined) payload.full_name = options.fullName
+    if (options?.cpf !== undefined) payload.cpf = options.cpf
+    if (options?.cnpj !== undefined) payload.cnpj = options.cnpj
+    if (options?.email !== undefined) payload.email = options.email
+    if (options?.phone !== undefined) payload.phone = options.phone
+    if (options?.address !== undefined) payload.address = options.address
+
+    const { data, error } = await supabase
+      .from('pre_registrations')
+      .update(payload)
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data as PreRegistration
+  },
   async getCandidates() {
     const { data, error } = await supabase
       .from('pre_registrations')
@@ -40,6 +89,13 @@ export const candidatesService = {
 
     if (error) throw error
     return data as PreRegistration[]
+  },
+
+  async delete(id: string) {
+    const { error } = await supabase.from('pre_registrations').delete().eq('id', id)
+
+    if (error) throw error
+    return true
   },
 
   async updateStatus(id: string, status: PreRegistrationStatus) {
