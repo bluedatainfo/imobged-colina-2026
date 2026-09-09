@@ -63,7 +63,6 @@ import {
 } from '@/services/candidates'
 import { CandidateDetailView } from '@/components/CandidateDetailView'
 import { formatPhoneForWhatsApp } from '@/lib/boletoParser'
-import { buildWhatsAppLink } from '@/lib/whatsappAndExcel'
 
 export function CandidatesNew() {
   const [candidates, setCandidates] = useState<PreRegistration[]>([])
@@ -223,7 +222,7 @@ Qualquer dúvida, estamos à disposição!!
 IMOBILIÁRIA COLINA 
 RECEPÇÃO DE DOCUMENTOS`
 
-    const waLink = buildWhatsAppLink(cleanPhone, message)
+    const waLink = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`
     window.open(waLink, '_blank', 'noopener,noreferrer')
     setIsWhatsAppModalOpen(false)
   }
