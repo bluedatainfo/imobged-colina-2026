@@ -242,6 +242,20 @@ export function GedUpload({
           propRecord?.guarantor_id ||
           (selectedProperty?.guarantor_id ? String(selectedProperty.guarantor_id) : null)
 
+        // Sincronizar tenant_id e guarantor_id encontrados no selectedProperty se estiverem ausentes
+        if (propRecord) {
+          if (propRecord.tenant_id && !selectedProperty.tenant_id) {
+            setSelectedProperty((prev: any) =>
+              prev ? { ...prev, tenant_id: propRecord.tenant_id } : prev,
+            )
+          }
+          if (propRecord.guarantor_id && !selectedProperty.guarantor_id) {
+            setSelectedProperty((prev: any) =>
+              prev ? { ...prev, guarantor_id: propRecord.guarantor_id } : prev,
+            )
+          }
+        }
+
         const candidateIds: string[] = []
         if (tenantId) candidateIds.push(tenantId)
         if (guarantorId && guarantorId !== tenantId) candidateIds.push(guarantorId)
@@ -767,6 +781,133 @@ export function GedUpload({
     }
   }, [selectedProperty, owners, selectedOwner])
 
+  // Pré-seleção automática de Locatário/Interessado vinculado ao imóvel
+  useEffect(() => {
+    if (docType === 'TENANT_DOCUMENT' && selectedProperty && !selectedTenant) {
+      const targetTenantId = selectedProperty.tenant_id
+        ? String(selectedProperty.tenant_id).trim()
+        : null
+      if (!targetTenantId) return
+
+      let tenantToSelect: any = null
+
+      // 1. Buscar primeiro em dbCandidates (por id ou code)
+      const foundCandidate = (dbCandidates || []).find(
+        (c) =>
+          String(c.id || '')
+            .trim()
+            .toLowerCase() === targetTenantId.toLowerCase() ||
+          String(c.code || '')
+            .trim()
+            .toLowerCase() === targetTenantId.toLowerCase(),
+      )
+
+      if (foundCandidate) {
+        const identifier = foundCandidate.code || foundCandidate.id
+        const isCandidate = isUuid(identifier)
+        tenantToSelect = {
+          ...foundCandidate,
+          id: foundCandidate.id,
+          code: identifier,
+          fullName: foundCandidate.full_name + (isCandidate ? ' (Interessado)' : ''),
+          title: foundCandidate.full_name,
+          isDbCandidate: true,
+          source: isCandidate ? 'Candidato' : 'ERP',
+        }
+      } else {
+        // 2. Buscar na lista de locatários ERP (tenants)
+        const foundErp = (tenants || []).find(
+          (t) =>
+            String(t.id || '')
+              .trim()
+              .toLowerCase() === targetTenantId.toLowerCase() ||
+            String(t.code || '')
+              .trim()
+              .toLowerCase() === targetTenantId.toLowerCase(),
+        )
+
+        if (foundErp) {
+          tenantToSelect = {
+            ...foundErp,
+            isDbCandidate: false,
+            source: isUuid(foundErp.code || foundErp.id) ? 'Candidato' : 'ERP',
+          }
+        }
+      }
+
+      if (tenantToSelect) {
+        setSelectedTenant(tenantToSelect)
+        setEntityCode(tenantToSelect.code || tenantToSelect.id || '')
+      }
+    }
+  }, [docType, selectedProperty, selectedTenant, dbCandidates, tenants])
+
+  // Pré-seleção automática de Fiador/Garantia vinculado ao imóvel
+  useEffect(() => {
+    if (docType === 'GUARANTEE_DOCUMENT' && selectedProperty && !selectedGuarantor) {
+      const targetGuarantorId = selectedProperty.guarantor_id
+        ? String(selectedProperty.guarantor_id).trim()
+        : null
+      if (!targetGuarantorId) return
+
+      let guarantorToSelect: any = null
+
+      // 1. Buscar primeiro em dbCandidates (por id ou code)
+      const foundCandidate = (dbCandidates || []).find(
+        (c) =>
+          String(c.id || '')
+            .trim()
+            .toLowerCase() === targetGuarantorId.toLowerCase() ||
+          String(c.code || '')
+            .trim()
+            .toLowerCase() === targetGuarantorId.toLowerCase(),
+      )
+
+      if (foundCandidate) {
+        const identifier = foundCandidate.code || foundCandidate.id
+        const isCandidate = isUuid(identifier)
+        guarantorToSelect = {
+          ...foundCandidate,
+          id: foundCandidate.id,
+          code: identifier,
+          fullName: foundCandidate.full_name,
+          title: foundCandidate.full_name,
+          isDbCandidate: true,
+          source: isCandidate ? 'Candidato' : 'ERP',
+        }
+      } else {
+        // 2. Buscar na lista de garantias ERP (guarantees)
+        const foundErp = (guarantees || []).find(
+          (g: any) =>
+            String(g.id || '')
+              .trim()
+              .toLowerCase() === targetGuarantorId.toLowerCase() ||
+            String(g.code || '')
+              .trim()
+              .toLowerCase() === targetGuarantorId.toLowerCase(),
+        )
+
+        if (foundErp) {
+          const gAny = foundErp as any
+          guarantorToSelect = {
+            ...foundErp,
+            id: foundErp.id,
+            code: gAny.code || foundErp.id,
+            fullName: gAny.nome || gAny.name || 'Sem Nome',
+            title: gAny.nome || gAny.name || 'Sem Nome',
+            isDbCandidate: false,
+            source: isUuid(gAny.code || foundErp.id) ? 'Candidato' : 'ERP',
+          }
+        }
+      }
+
+      if (guarantorToSelect) {
+        setSelectedGuarantor(guarantorToSelect)
+        setEntityCode(guarantorToSelect.code || guarantorToSelect.id || '')
+      }
+    }
+  }, [docType, selectedProperty, selectedGuarantor, dbCandidates, guarantees])
+
   const localServerOwners = useMemo(() => {
     // Deduplicação com prioridade para ERP
     const seen = new Set<string>()
@@ -860,7 +1001,7 @@ export function GedUpload({
   const localServerTenants = useMemo(() => {
     // Deduplicação com prioridade para ERP
     const seen = new Set<string>()
-    const combined: any[] = []
+    let combined: any[] = []
 
     // 1. Inserir registros do ERP primeiro
     ;(tenants || []).forEach((t: any) => {
@@ -935,6 +1076,17 @@ export function GedUpload({
 
     const normalizedQuery = normalizeStr(tenantSearchQuery)
 
+    if (selectedTenant) {
+      const tenantMatch = combined.some(
+        (item) =>
+          (selectedTenant.id && item.id === selectedTenant.id) ||
+          (selectedTenant.code && item.code === selectedTenant.code),
+      )
+      if (!tenantMatch) {
+        combined = [selectedTenant, ...combined]
+      }
+    }
+
     return combined
       .filter(
         (t: any) =>
@@ -944,12 +1096,12 @@ export function GedUpload({
           normalizeStr(t.name).includes(normalizedQuery),
       )
       .slice(0, 50)
-  }, [tenants, dbCandidates, tenantSearchQuery])
+  }, [tenants, dbCandidates, tenantSearchQuery, selectedTenant])
 
   const localServerGuarantors = useMemo(() => {
     // Deduplicação com prioridade para ERP
     const seen = new Set<string>()
-    const combined: any[] = []
+    let combined: any[] = []
 
     // 1. Inserir registros do ERP primeiro
     ;(guarantees || []).forEach((g: any) => {
@@ -1032,10 +1184,21 @@ export function GedUpload({
 
     const normalizedQuery = normalizeStr(guarantorSearchQuery)
 
+    if (selectedGuarantor) {
+      const guarantorMatch = combined.some(
+        (item) =>
+          (selectedGuarantor.id && item.id === selectedGuarantor.id) ||
+          (selectedGuarantor.code && item.code === selectedGuarantor.code),
+      )
+      if (!guarantorMatch) {
+        combined = [selectedGuarantor, ...combined]
+      }
+    }
+
     return combined
       .filter((x) => !normalizedQuery || normalizeStr(x.fullName).includes(normalizedQuery))
       .slice(0, 50)
-  }, [dbCandidates, guarantorSearchQuery, guarantees])
+  }, [dbCandidates, guarantorSearchQuery, guarantees, selectedGuarantor])
 
   useEffect(() => {
     if (preselectedPropertyId && !selectedProperty) {
@@ -1629,6 +1792,10 @@ export function GedUpload({
                       onSelect={() => {
                         setPropertyId(p.code || p.id)
                         setSelectedProperty(p)
+                        setSelectedOwner(null)
+                        setSelectedTenant(null)
+                        setSelectedGuarantor(null)
+                        setEntityCode('')
                         setPropertyOpen(false)
                       }}
                       className="flex flex-col items-start py-3 px-4 gap-1.5 cursor-pointer border-b border-border/40 last:border-0"
