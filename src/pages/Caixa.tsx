@@ -249,7 +249,11 @@ export default function Caixa() {
         // 3. Direct ERP API fallback if store search didn't find a match
         if (!matchedTenantObj) {
           try {
-            const erpRes = await fetch('http://192.168.10.225:9000/locatarios').catch(() => null)
+            const erpRes = await fetch('http://192.168.10.225:9000/locatarios', {
+              headers: {
+                Authorization: 'cadastro',
+              },
+            }).catch(() => null)
             if (erpRes && erpRes.ok) {
               const erpList = await erpRes.json()
               const foundErp = erpList.find((item: any) => {

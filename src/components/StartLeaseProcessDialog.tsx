@@ -329,7 +329,11 @@ export function StartLeaseProcessDialog({
       try {
         if (isNumeric) {
           const url = `http://192.168.10.225:9000/imoveis/dados/${encodeURIComponent(term)}`
-          const res = await fetch(url)
+          const res = await fetch(url, {
+            headers: {
+              Authorization: 'cadastro',
+            },
+          })
           if (res.status === 403) {
             if (isMounted) {
               setErpError403(true)
@@ -350,7 +354,11 @@ export function StartLeaseProcessDialog({
           }
         } else {
           const url = `http://192.168.10.225:9000/imoveis?name=${encodeURIComponent(term)}`
-          const res = await fetch(url)
+          const res = await fetch(url, {
+            headers: {
+              Authorization: 'cadastro',
+            },
+          })
           if (res.status === 403) {
             if (isMounted) {
               setErpError403(true)

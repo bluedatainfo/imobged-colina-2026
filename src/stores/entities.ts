@@ -39,10 +39,13 @@ let listeners: Array<() => void> = []
 
 export const initEntitiesStore = async () => {
   try {
+    const erpHeaders = {
+      Authorization: 'cadastro',
+    }
     const [ownersRes, tenantsRes, guaranteesRes] = await Promise.all([
-      fetch('http://192.168.10.225:9000/proprietarios').catch(() => null),
-      fetch('http://192.168.10.225:9000/locatarios').catch(() => null),
-      fetch('http://192.168.10.225:9000/garantias').catch(() => null),
+      fetch('http://192.168.10.225:9000/proprietarios', { headers: erpHeaders }).catch(() => null),
+      fetch('http://192.168.10.225:9000/locatarios', { headers: erpHeaders }).catch(() => null),
+      fetch('http://192.168.10.225:9000/garantias', { headers: erpHeaders }).catch(() => null),
     ])
 
     let erpOwners: any[] = []

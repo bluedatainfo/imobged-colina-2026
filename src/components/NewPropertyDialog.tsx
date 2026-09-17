@@ -82,6 +82,11 @@ export function NewPropertyDialog({ open, onClose }: { open: boolean; onClose: (
       try {
         const res = await fetch(
           `http://192.168.10.225:9000/imoveis?name=${encodeURIComponent(debouncedSearchERP)}`,
+          {
+            headers: {
+              Authorization: 'cadastro',
+            },
+          },
         )
         if (!res.ok) throw new Error('Falha na resposta do servidor local')
         const data = await res.json()

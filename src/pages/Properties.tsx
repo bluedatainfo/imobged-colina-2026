@@ -104,6 +104,11 @@ export default function Properties() {
       try {
         const res = await fetch(
           `http://192.168.10.225:9000/imoveis?name=${encodeURIComponent(debouncedSearch)}`,
+          {
+            headers: {
+              Authorization: 'cadastro',
+            },
+          },
         )
         if (!res.ok) throw new Error('Erro na comunicação com o servidor local')
         const data = await res.json()
@@ -141,6 +146,11 @@ export default function Properties() {
     try {
       const res = await fetch(
         `http://192.168.10.225:9000/imoveis?name=${encodeURIComponent(search)}`,
+        {
+          headers: {
+            Authorization: 'cadastro',
+          },
+        },
       )
       if (!res.ok) throw new Error('Erro na comunicação com o servidor local')
       const data = await res.json()

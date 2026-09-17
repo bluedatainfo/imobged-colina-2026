@@ -248,7 +248,11 @@ export function GedUpload({
         try {
           if (isNumeric) {
             const url = `http://192.168.10.225:9000/imoveis/dados/${encodeURIComponent(searchQuery.trim())}`
-            const response = await fetch(url)
+            const response = await fetch(url, {
+              headers: {
+                Authorization: 'cadastro',
+              },
+            })
             if (response.ok) {
               const data = await response.json()
               const items = normalizeErpResponse(data)
@@ -285,7 +289,11 @@ export function GedUpload({
             const url = searchQuery
               ? `http://192.168.10.225:9000/imoveis?name=${encodeURIComponent(searchQuery.trim())}`
               : 'http://192.168.10.225:9000/imoveis'
-            const response = await fetch(url)
+            const response = await fetch(url, {
+              headers: {
+                Authorization: 'cadastro',
+              },
+            })
             if (response.ok) {
               const data = await response.json()
               erpProperties = normalizeErpResponse(data)
