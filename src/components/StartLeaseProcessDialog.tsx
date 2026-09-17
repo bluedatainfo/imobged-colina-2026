@@ -155,6 +155,7 @@ export function StartLeaseProcessDialog({
   const debouncedSearchERP = useDebounce(searchERP, 400)
   const [erpOptions, setErpOptions] = useState<any[]>([])
   const [loadingERP, setLoadingERP] = useState(false)
+  const [erpError403, setErpError403] = useState(false)
   const [selectedERPProperty, setSelectedERPProperty] = useState<any | null>(null)
 
   const [newPropData, setNewPropData] = useState({
@@ -191,6 +192,7 @@ export function StartLeaseProcessDialog({
       setSelectedGuarantor('')
       setSelectedERPProperty(null)
       setSearchERP('')
+      setErpError403(false)
       setExistingOwnerName(null)
       setNewPropData({
         ownerName: '',
@@ -278,12 +280,14 @@ export function StartLeaseProcessDialog({
   useEffect(() => {
     if (propertyMode !== 'existing' || !debouncedSearchERP.trim()) {
       setErpOptions([])
+      setErpError403(false)
       return
     }
 
     let isMounted = true
     const fetchOptions = async () => {
       setLoadingERP(true)
+      setErpError403(false)
       const term = debouncedSearchERP.trim()
       const isNumeric = /^\d+$/.test(term)
 
@@ -326,29 +330,43 @@ export function StartLeaseProcessDialog({
         if (isNumeric) {
           const url = `http://192.168.10.225:9000/imoveis/dados/${encodeURIComponent(term)}`
           const res = await fetch(url)
-          if (res.ok) {
+          if (res.status === 403) {
+            if (isMounted) {
+              setErpError403(true)
+              setErpOptions([])
+            }
+          } else if (res.ok) {
             const data = await res.json()
             const items = normalizeErpResponse(data)
             if (isMounted) {
               setErpOptions(items)
+              setErpError403(false)
             }
           } else {
             if (isMounted) {
               setErpOptions([])
+              setErpError403(false)
             }
           }
         } else {
           const url = `http://192.168.10.225:9000/imoveis?name=${encodeURIComponent(term)}`
           const res = await fetch(url)
-          if (res.ok) {
+          if (res.status === 403) {
+            if (isMounted) {
+              setErpError403(true)
+              setErpOptions([])
+            }
+          } else if (res.ok) {
             const data = await res.json()
             const items = normalizeErpResponse(data)
             if (isMounted) {
               setErpOptions(items)
+              setErpError403(false)
             }
           } else {
             if (isMounted) {
               setErpOptions([])
+              setErpError403(false)
             }
           }
         }
@@ -356,6 +374,7 @@ export function StartLeaseProcessDialog({
         console.error('Erro na comunicação com o servidor local', err)
         if (isMounted) {
           setErpOptions([])
+          setErpError403(false)
         }
       } finally {
         if (isMounted) {
@@ -738,6 +757,7 @@ export function StartLeaseProcessDialog({
                           onValueChange={(val) => {
                             setSearchERP(val)
                             setSelectedERPProperty(null)
+                            setErpError403(false)
                           }}
                         />
                         <CommandList>
@@ -746,6 +766,13 @@ export function StartLeaseProcessDialog({
                               <div className="flex items-center justify-center gap-2 text-muted-foreground">
                                 <Loader2 className="h-4 w-4 animate-spin" />
                                 <span>Buscando no servidor local...</span>
+                              </div>
+                            ) : erpError403 ? (
+                              <div className="flex items-center justify-center gap-2 text-destructive font-medium px-4">
+                                <AlertTriangle className="h-4 w-4 shrink-0" />
+                                <span>
+                                  ERP negou acesso (sem permissão). Acione o administrador do ERP
+                                </span>
                               </div>
                             ) : debouncedSearchERP.trim().length > 0 ? (
                               'Nenhum imóvel encontrado pelo termo buscado.'
@@ -788,6 +815,17 @@ export function StartLeaseProcessDialog({
                       </Command>
                     </PopoverContent>
                   </Popover>
+                  {erpError403 && (
+                    <Alert
+                      variant="destructive"
+                      className="border-red-500 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400"
+                    >
+                      <AlertTriangle className="h-4 w-4 text-destructive" />
+                      <AlertDescription className="font-medium text-xs sm:text-sm">
+                        ERP negou acesso (sem permissão). Acione o administrador do ERP
+                      </AlertDescription>
+                    </Alert>
+                  )}
                 </div>
 
                 {selectedERPProperty && (
