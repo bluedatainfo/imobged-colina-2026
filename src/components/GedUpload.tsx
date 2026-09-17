@@ -9,7 +9,22 @@ import {
   Printer,
   FileText,
   X,
+  Users,
+  User,
+  ShieldAlert,
+  AlertTriangle,
 } from 'lucide-react'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -176,6 +191,209 @@ export function GedUpload({
       .then(({ data }) => setDbCandidates(data || []))
   }, [tenantOpen, ownerOpen, guarantorOpen])
 
+  // Informações do Interessado vinculado ao imóvel localizado
+  interface PropertyInterestedParty {
+    role: 'Locatário' | 'Fiador'
+    name: string
+    document: string
+    email: string
+    phone: string
+    categoryDisplay: string
+    status: string
+  }
+
+  const [interestedParties, setInterestedParties] = useState<PropertyInterestedParty[]>([])
+  const [loadingInterestedParties, setLoadingInterestedParties] = useState(false)
+  const [hasSearchedInterestedParties, setHasSearchedInterestedParties] = useState(false)
+  const [showNoInterestedAlert, setShowNoInterestedAlert] = useState(false)
+
+  // Consulta no Supabase se existe imóvel com vínculo a interessados (tenant_id / guarantor_id)
+  useEffect(() => {
+    let isCurrent = true
+
+    const fetchLinkedInterested = async () => {
+      const codeOrId = selectedProperty?.code || selectedProperty?.codigo || selectedProperty?.id
+      if (!selectedProperty || !codeOrId) {
+        setInterestedParties([])
+        setLoadingInterestedParties(false)
+        setHasSearchedInterestedParties(false)
+        return
+      }
+
+      setLoadingInterestedParties(true)
+      try {
+        const targetId = String(codeOrId).trim()
+
+        // Buscar na tabela public.properties pelo código/id do imóvel
+        const { data: propRows, error: propErr } = await supabase
+          .from('properties')
+          .select('id, tenant_id, guarantor_id')
+          .eq('id', targetId)
+
+        if (propErr) {
+          console.warn('Erro ao consultar imóvel no Supabase:', propErr)
+        }
+
+        const propRecord = propRows && propRows.length > 0 ? propRows[0] : null
+        const tenantId =
+          propRecord?.tenant_id ||
+          (selectedProperty?.tenant_id ? String(selectedProperty.tenant_id) : null)
+        const guarantorId =
+          propRecord?.guarantor_id ||
+          (selectedProperty?.guarantor_id ? String(selectedProperty.guarantor_id) : null)
+
+        const candidateIds: string[] = []
+        if (tenantId) candidateIds.push(tenantId)
+        if (guarantorId && guarantorId !== tenantId) candidateIds.push(guarantorId)
+
+        if (candidateIds.length === 0) {
+          if (isCurrent) {
+            setInterestedParties([])
+            setHasSearchedInterestedParties(true)
+            setLoadingInterestedParties(false)
+          }
+          return
+        }
+
+        const { data: candidates, error: candErr } = await supabase
+          .from('pre_registrations')
+          .select('id, full_name, cpf, cnpj, email, phone, category, status, form_data')
+          .in('id', candidateIds)
+
+        if (candErr) {
+          console.warn('Erro ao consultar pre_registrations vinculados:', candErr)
+        }
+
+        if (!isCurrent) return
+
+        const parties: PropertyInterestedParty[] = []
+
+        const formatCpfCnpjValue = (cpf?: string | null, cnpj?: string | null): string => {
+          if (cnpj && cnpj.trim()) {
+            const d = cnpj.replace(/\D/g, '')
+            if (d.length === 14) {
+              return d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5')
+            }
+            return cnpj
+          }
+          if (cpf && cpf.trim()) {
+            const d = cpf.replace(/\D/g, '')
+            if (d.length === 11) {
+              return d.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4')
+            }
+            return cpf
+          }
+          return 'Não informado'
+        }
+
+        const formatPhoneValue = (val?: string | null): string => {
+          if (!val) return 'Não informado'
+          const d = String(val).replace(/\D/g, '')
+          if (d.length === 11) {
+            return d.replace(/^(\d{2})(\d{5})(\d{4})$/, '($1) $2-$3')
+          }
+          if (d.length === 10) {
+            return d.replace(/^(\d{2})(\d{4})(\d{4})$/, '($1) $2-$3')
+          }
+          return String(val)
+        }
+
+        const getCategoryLabel = (
+          cat: string | null | undefined,
+          fallbackRole: 'Locatário' | 'Fiador',
+        ): string => {
+          const c = (cat || '').toUpperCase().trim()
+          if (c === 'PJ') return 'Pessoa Jurídica'
+          if (c === 'FIADOR') return 'Fiador'
+          if (c === 'PF') return 'Pessoa Física'
+          if (fallbackRole === 'Fiador') return 'Fiador'
+          return 'Pessoa Física'
+        }
+
+        const extractFromFormData = (fd: any) => {
+          if (!fd || typeof fd !== 'object') return {}
+          const email = fd.email || fd.Email || fd.EMAIL || ''
+          const phone =
+            fd.phone ||
+            fd.Phone ||
+            fd.fones ||
+            fd.Fones ||
+            fd.telefone ||
+            fd.celular ||
+            fd.contato ||
+            ''
+          const cpf = fd.cpf || fd.CPF || ''
+          const cnpj = fd.cnpj || fd.CNPJ || ''
+          const name = fd.nome || fd.Nome || fd.razaoSocial || fd.razao_social || ''
+          return { email, phone, cpf, cnpj, name }
+        }
+
+        // Processar Locatário (tenant_id)
+        if (tenantId) {
+          const c = (candidates || []).find((x) => x.id === tenantId)
+          if (c) {
+            const extra = extractFromFormData(c.form_data)
+            const rawName = c.full_name || extra.name || 'Não informado'
+            const rawCpf = c.cpf || extra.cpf
+            const rawCnpj = c.cnpj || extra.cnpj
+            const rawEmail = c.email || extra.email || 'Não informado'
+            const rawPhone = c.phone || extra.phone
+
+            parties.push({
+              role: 'Locatário',
+              name: rawName,
+              document: formatCpfCnpjValue(rawCpf, rawCnpj),
+              email: rawEmail,
+              phone: formatPhoneValue(rawPhone),
+              categoryDisplay: getCategoryLabel(c.category, 'Locatário'),
+              status: c.status || 'Não informado',
+            })
+          }
+        }
+
+        // Processar Fiador (guarantor_id)
+        if (guarantorId) {
+          const c = (candidates || []).find((x) => x.id === guarantorId)
+          if (c) {
+            const extra = extractFromFormData(c.form_data)
+            const rawName = c.full_name || extra.name || 'Não informado'
+            const rawCpf = c.cpf || extra.cpf
+            const rawCnpj = c.cnpj || extra.cnpj
+            const rawEmail = c.email || extra.email || 'Não informado'
+            const rawPhone = c.phone || extra.phone
+
+            parties.push({
+              role: 'Fiador',
+              name: rawName,
+              document: formatCpfCnpjValue(rawCpf, rawCnpj),
+              email: rawEmail,
+              phone: formatPhoneValue(rawPhone),
+              categoryDisplay: getCategoryLabel(c.category || 'Fiador', 'Fiador'),
+              status: c.status || 'Não informado',
+            })
+          }
+        }
+
+        setInterestedParties(parties)
+        setHasSearchedInterestedParties(true)
+        setLoadingInterestedParties(false)
+      } catch (err) {
+        console.error('Erro ao verificar interessados vinculados:', err)
+        if (isCurrent) {
+          setInterestedParties([])
+          setHasSearchedInterestedParties(true)
+          setLoadingInterestedParties(false)
+        }
+      }
+    }
+
+    fetchLinkedInterested()
+
+    return () => {
+      isCurrent = false
+    }
+  }, [selectedProperty])
+
   const [uploading, setUploading] = useState(false)
   const [scanningStatus, setScanningStatus] = useState('')
   const [leaseNumber, setLeaseNumber] = useState('')
@@ -316,7 +534,7 @@ export function GedUpload({
 
         // Combinar imóveis do Supabase (query + mainStore.properties) para ter o banco local completo
         const allDbMap = new Map<string, any>()
-        ;(dbData || []).forEach((p) => {
+        ;(dbData || []).forEach((p: any) => {
           const idStr = String(p.id || '').trim()
           const codeStr = String(p.code || p.id || '').trim()
           const key = (codeStr || idStr).toLowerCase()
@@ -328,7 +546,7 @@ export function GedUpload({
             })
           }
         })
-        ;(storeProperties || []).forEach((p) => {
+        ;(storeProperties || []).forEach((p: any) => {
           const idStr = String(p.id || '').trim()
           const codeStr = String(p.code || p.id || '').trim()
           const key = (codeStr || idStr).toLowerCase()
@@ -856,6 +1074,22 @@ export function GedUpload({
     setFiles((prev) => prev.filter((_, i) => i !== index))
   }
 
+  const handleUploadClick = () => {
+    if (!propertyId || !docType || !hasSpAccess || !selectedProperty) return
+    if (mode === 'file' && files.length === 0) return
+    if (mode === 'template' && (!template || !customFileName.trim())) return
+    if (mode === 'scanner' && !customFileName.trim()) return
+
+    // Se NÃO houver interessado vinculado ao imóvel, alertar antes de prosseguir
+    if (hasSearchedInterestedParties && interestedParties.length === 0) {
+      setShowNoInterestedAlert(true)
+      return
+    }
+
+    // Se houver interessado vinculado: fluxo normal direto
+    handleUpload()
+  }
+
   const handleUpload = async () => {
     if (!propertyId || !docType || !hasSpAccess || !selectedProperty) return
     if (mode === 'file' && files.length === 0) return
@@ -1034,10 +1268,10 @@ export function GedUpload({
         const path =
           typeof result === 'string'
             ? result
-            : result?.path ||
-              result?.serverRelativeUrl ||
-              result?.webUrl ||
-              result?.url ||
+            : (result as any)?.path ||
+              (result as any)?.serverRelativeUrl ||
+              (result as any)?.webUrl ||
+              (result as any)?.url ||
               `sharepoint:/${docType}/${finalFileName}`
 
         await documentsStore.addDocument({
@@ -1171,10 +1405,10 @@ export function GedUpload({
             const path =
               typeof result === 'string'
                 ? result
-                : result?.path ||
-                  result?.serverRelativeUrl ||
-                  result?.webUrl ||
-                  result?.url ||
+                : (result as any)?.path ||
+                  (result as any)?.serverRelativeUrl ||
+                  (result as any)?.webUrl ||
+                  (result as any)?.url ||
                   `sharepoint:/${docType}/${currentFile.name}`
 
             await documentsStore.addDocument({
@@ -1434,6 +1668,81 @@ export function GedUpload({
           </PopoverContent>
         </Popover>
       </div>
+
+      {/* Painel: Informações do Interessado */}
+      {selectedProperty && (
+        <div
+          data-testid="interested-parties-panel"
+          className="rounded-lg border bg-card text-card-foreground shadow-sm p-4 space-y-3 animate-fade-in"
+        >
+          <div className="flex items-center justify-between border-b pb-2">
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-primary" />
+              <h4 className="font-semibold text-sm tracking-tight">Informações do Interessado</h4>
+            </div>
+            {loadingInterestedParties && (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                <span>Consultando vínculos...</span>
+              </div>
+            )}
+          </div>
+
+          {!loadingInterestedParties && interestedParties.length === 0 && (
+            <div className="flex items-center gap-2 py-1 text-sm text-muted-foreground">
+              <AlertCircle className="h-4 w-4 text-muted-foreground/70 shrink-0" />
+              <span>Nenhum interessado vinculado a este imóvel</span>
+            </div>
+          )}
+
+          {!loadingInterestedParties && interestedParties.length > 0 && (
+            <div className="space-y-3">
+              {interestedParties.map((party, idx) => (
+                <div
+                  key={`${party.role}-${party.document}-${idx}`}
+                  className="rounded-md border bg-muted/30 p-3 space-y-2 text-xs"
+                >
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-1.5 font-medium text-sm text-foreground">
+                      <User className="h-3.5 w-3.5 text-primary shrink-0" />
+                      <span>{party.name}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Badge variant="outline" className="text-[11px] font-semibold bg-background">
+                        {party.role}
+                      </Badge>
+                      <Badge variant="secondary" className="text-[11px]">
+                        {party.categoryDisplay}
+                      </Badge>
+                      <Badge
+                        variant="default"
+                        className="text-[11px] bg-primary/15 text-primary border-primary/20 hover:bg-primary/20"
+                      >
+                        {party.status}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 border-t border-border/40 text-muted-foreground">
+                    <div>
+                      <span className="font-medium text-foreground">CPF/CNPJ: </span>
+                      <span>{party.document}</span>
+                    </div>
+                    <div>
+                      <span className="font-medium text-foreground">E-mail: </span>
+                      <span className="break-all">{party.email}</span>
+                    </div>
+                    <div>
+                      <span className="font-medium text-foreground">Telefone: </span>
+                      <span>{party.phone}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="grid gap-2">
         <Label>Categoria do Documento</Label>
@@ -1933,7 +2242,7 @@ export function GedUpload({
 
       <Button
         className="w-full mt-auto gap-2"
-        onClick={handleUpload}
+        onClick={handleUploadClick}
         disabled={
           (mode === 'file' && files.length === 0) ||
           (mode === 'template' && (!template || !customFileName.trim())) ||
@@ -1972,6 +2281,37 @@ export function GedUpload({
           </>
         )}
       </Button>
+
+      {/* Alerta de confirmação quando imóvel não possui interessado vinculado */}
+      <AlertDialog open={showNoInterestedAlert} onOpenChange={setShowNoInterestedAlert}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <div className="flex items-center gap-2 text-amber-600 mb-1">
+              <ShieldAlert className="h-5 w-5 shrink-0" />
+              <AlertDialogTitle className="text-base text-foreground">
+                Tem certeza que deseja incluir documentação para este imóvel?
+              </AlertDialogTitle>
+            </div>
+            <AlertDialogDescription className="text-sm text-muted-foreground leading-relaxed pt-1">
+              Imóvel sem interessado normalmente não está em análise para locação. Deseja prosseguir
+              com o envio/digitalização mesmo assim?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-2">
+            <AlertDialogCancel onClick={() => setShowNoInterestedAlert(false)}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setShowNoInterestedAlert(false)
+                handleUpload()
+              }}
+            >
+              Confirmar e Prosseguir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
