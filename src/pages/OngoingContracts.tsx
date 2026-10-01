@@ -57,6 +57,9 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useToast } from '@/hooks/use-toast'
 import { m365Service } from '@/lib/m365'
+import { useAuth } from '@/contexts/AuthContext'
+import { Checkbox } from '@/components/ui/checkbox'
+import { AlertTriangle } from 'lucide-react'
 
 const formatCurrency = (amount: number | string | null | undefined) => {
   if (amount === null || amount === undefined || amount === '') return 'Não informado'
@@ -100,7 +103,14 @@ export default function OngoingContracts() {
   const [confirmCandidate, setConfirmCandidate] = useState<any>(null)
   const [deleteConfirmDoc, setDeleteConfirmDoc] = useState<any>(null)
   const [deletingDocId, setDeletingDocId] = useState<string | null>(null)
+  const [dossierToDelete, setDossierToDelete] = useState<any>(null)
+  const [deleteStep, setDeleteStep] = useState<1 | 2>(1)
+  const [confirmedCheckbox, setConfirmedCheckbox] = useState(false)
+  const [isDeletingDossier, setIsDeletingDossier] = useState(false)
+  const { user } = useAuth()
   const { toast } = useToast()
+
+  const isAdmin = user?.role === 'Admin'
 
   useEffect(() => {
     const fetchCandidates = async () => {
@@ -136,6 +146,38 @@ export default function OngoingContracts() {
     }
     fetchCandidates()
   }, [])
+
+  const reloadData = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('pre_registrations')
+        .select('*')
+        .in('status', ['Aprovado', 'Em Análise da Gerência', 'Pendência Resolvida'])
+        .order('updated_at', { ascending: false })
+      if (error) throw error
+      setCandidates(data || [])
+
+      if (data && data.length > 0) {
+        const candidateIds = data.map((c) => c.id)
+        const { data: props, error: propError } = await supabase
+          .from('properties')
+          .select('id, tenant_id, status')
+          .in('tenant_id', candidateIds)
+
+        if (!propError && props) {
+          const statusMap: Record<string, string> = {}
+          props.forEach((p) => {
+            if (p.tenant_id) statusMap[p.tenant_id] = p.status
+          })
+          setPropertyStatuses(statusMap)
+        }
+      } else {
+        setPropertyStatuses({})
+      }
+    } catch (err: any) {
+      console.error('Erro ao recarregar dados:', err)
+    }
+  }
 
   const handleFinalizeContract = async (candidate: any) => {
     setFinalizingId(candidate.id)
@@ -346,6 +388,130 @@ export default function OngoingContracts() {
     )
   }
 
+  const handleDeleteDossier = async () => {
+    if (!dossierToDelete) return
+    setIsDeletingDossier(true)
+    const candidate = dossierToDelete
+    const candidateName = candidate.full_name || 'Candidato'
+    let propertyId: string | null = null
+    let propertyTitle = 'Imóvel vinculado'
+
+    try {
+      // 1. Localizar o imóvel vinculado ao candidato
+      const { data: prop, error: propError } = await supabase
+        .from('properties')
+        .select('id, title')
+        .eq('tenant_id', candidate.id)
+        .maybeSingle()
+
+      if (propError) throw propError
+
+      if (prop) {
+        propertyId = prop.id
+        propertyTitle = prop.title || propertyTitle
+
+        // 2. Localizar todos os documentos do imóvel
+        const { data: docs, error: docsError } = await supabase
+          .from('property_documents')
+          .select('id, name, file_path, category')
+          .eq('property_id', prop.id)
+
+        if (docsError) throw docsError
+
+        // 3. Excluir cada arquivo no SharePoint Online
+        if (docs && docs.length > 0) {
+          for (const doc of docs) {
+            if (doc.file_path && doc.category) {
+              try {
+                await m365Service.deleteFromSharePoint(doc.file_path, doc.category)
+              } catch (spErr: any) {
+                console.warn(
+                  `[SharePoint] Falha ao excluir arquivo "${doc.name || doc.file_path}":`,
+                  spErr,
+                )
+              }
+            }
+          }
+
+          // 4. Excluir os registros de property_documents
+          const { error: delDocsError } = await supabase
+            .from('property_documents')
+            .delete()
+            .eq('property_id', prop.id)
+
+          if (delDocsError) throw delDocsError
+        }
+
+        // 5. Excluir o registro de properties (vínculos com tenant_id, guarantor_id, owner_id)
+        const { error: delPropError } = await supabase.from('properties').delete().eq('id', prop.id)
+
+        if (delPropError) throw delPropError
+      }
+
+      // 6. Redefinir status do candidato em pre_registrations para 'Novo'
+      const { error: resetStatusError } = await supabase
+        .from('pre_registrations')
+        .update({
+          status: 'Novo',
+          pending_notes: null,
+          approval_notes: null,
+          rejection_notes: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', candidate.id)
+
+      if (resetStatusError) throw resetStatusError
+
+      // 7. Registrar auditoria em app_audit_logs
+      const currentOperator = (() => {
+        try {
+          return localStorage.getItem('app_current_operator') || null
+        } catch {
+          return null
+        }
+      })()
+
+      const auditLogPayload = {
+        id: `LOG-${Math.random().toString(36).substring(2, 9)}`,
+        property_id: propertyId,
+        action: 'Exclusão Completa de Dossiê',
+        user_name: user?.name || 'Administrador',
+        user_email: user?.email || undefined,
+        timestamp: new Date().toISOString(),
+        details: `Exclusão completa do dossiê do candidato ${candidateName} (ID: ${candidate.id}) referente ao imóvel "${propertyTitle}" (ID: ${propertyId || 'N/A'}). Todos os documentos, arquivos no SharePoint e vínculos de imóvel foram removidos. Pré-cadastro redefinido para status 'Novo' para permitir reinício do processo de análise do zero.`,
+        operator: currentOperator,
+      }
+
+      await supabase.from('app_audit_logs').insert(auditLogPayload)
+
+      // 8. Notificar sucesso e atualizar estado local
+      toast({
+        title: 'Dossiê Excluído com Sucesso',
+        description: `O dossiê de ${candidateName} foi removido por completo. O cadastro foi resetado para status 'Novo' em /candidates-new.`,
+      })
+
+      setDossierToDelete(null)
+      setDeleteStep(1)
+      setConfirmedCheckbox(false)
+
+      // Se a gaveta de detalhes estiver aberta para este candidato, fecha
+      if (selectedCandidate?.id === candidate.id) {
+        setSelectedCandidate(null)
+      }
+
+      await reloadData()
+    } catch (err: any) {
+      console.error('Erro ao excluir dossiê:', err)
+      toast({
+        title: 'Erro ao excluir dossiê',
+        description: err.message || 'Ocorreu uma falha ao tentar excluir o dossiê.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsDeletingDossier(false)
+    }
+  }
+
   const isFinalized = (candidateId: string) => propertyStatuses[candidateId] === FINALIZED_STATUS
 
   const displayedCandidates = candidates.filter((c) => {
@@ -463,6 +629,21 @@ export default function OngoingContracts() {
                             <CheckCheck className="w-4 h-4 mr-2" />
                           )}
                           Finalizar
+                        </Button>
+                      )}
+                      {isAdmin && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => {
+                            setDossierToDelete(c)
+                            setDeleteStep(1)
+                            setConfirmedCheckbox(false)
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Excluir Dossiê
                         </Button>
                       )}
                     </div>
@@ -842,6 +1023,138 @@ export default function OngoingContracts() {
               {deletingDocId ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
               Excluir
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Modal de Dupla Confirmação para Exclusão Completa do Dossiê (Apenas Admin) */}
+      <AlertDialog
+        open={!!dossierToDelete}
+        onOpenChange={(val) => {
+          if (!val && !isDeletingDossier) {
+            setDossierToDelete(null)
+            setDeleteStep(1)
+            setConfirmedCheckbox(false)
+          }
+        }}
+      >
+        <AlertDialogContent className="max-w-lg">
+          <AlertDialogHeader>
+            <div className="flex items-center gap-2 text-destructive mb-1">
+              <AlertTriangle className="w-6 h-6 shrink-0" />
+              <AlertDialogTitle className="text-xl">
+                {deleteStep === 1
+                  ? 'Excluir Dossiê Completo (Ação Irreversível)'
+                  : 'Confirmação Final de Exclusão'}
+              </AlertDialogTitle>
+            </div>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 pt-2 text-sm text-foreground">
+                {deleteStep === 1 ? (
+                  <>
+                    <p>
+                      Você solicitou a exclusão completa do dossiê de{' '}
+                      <strong className="text-foreground font-semibold">
+                        {dossierToDelete?.full_name}
+                      </strong>{' '}
+                      (CPF/CNPJ: {formatCpfCnpj(dossierToDelete?.cpf || dossierToDelete?.cnpj)}).
+                    </p>
+                    <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md text-xs space-y-1.5 text-destructive dark:text-red-300">
+                      <p className="font-semibold uppercase tracking-wide">
+                        O que será removido definitivamente:
+                      </p>
+                      <ul className="list-disc pl-4 space-y-1">
+                        <li>
+                          <strong>Arquivos no SharePoint:</strong> todos os documentos vinculados ao
+                          imóvel serão excluídos da nuvem M365.
+                        </li>
+                        <li>
+                          <strong>Documentos no Sistema:</strong> todos os registros em{' '}
+                          <code>property_documents</code> serão apagados.
+                        </li>
+                        <li>
+                          <strong>Vínculo do Imóvel:</strong> o registro em <code>properties</code>{' '}
+                          (e vínculos de locatário, fiador e proprietário) será excluído.
+                        </li>
+                      </ul>
+                    </div>
+                    <div className="p-3 bg-muted/60 border rounded-md text-xs text-muted-foreground space-y-1">
+                      <p className="font-semibold text-foreground">O que será preservado:</p>
+                      <p>
+                        O cadastro do interessado em <strong>/candidates-new</strong> será mantido
+                        (ficha e dados cadastrais intactos), com o status redefinido para{' '}
+                        <strong>&quot;Novo&quot;</strong>, permitindo reiniciar a análise do zero
+                        através de <em>&quot;Iniciar Análise para Locação&quot;</em>.
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-destructive font-semibold">
+                      ATENÇÃO: Esta é a última etapa antes da exclusão permanente.
+                    </p>
+                    <p className="text-sm">
+                      Confirme que você tem ciência de que os arquivos físicos no SharePoint e todos
+                      os vínculos no banco de dados serão eliminados e não poderão ser recuperados.
+                    </p>
+                    <div className="pt-2 flex items-start space-x-2">
+                      <Checkbox
+                        id="confirm-delete-dossier"
+                        checked={confirmedCheckbox}
+                        onCheckedChange={(checked) => setConfirmedCheckbox(!!checked)}
+                      />
+                      <label
+                        htmlFor="confirm-delete-dossier"
+                        className="text-xs leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 font-medium cursor-pointer pt-0.5"
+                      >
+                        Estou ciente de que esta ação é irreversível e desejo prosseguir com a
+                        exclusão total do dossiê de <strong>{dossierToDelete?.full_name}</strong>.
+                      </label>
+                    </div>
+                  </>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-4">
+            <AlertDialogCancel
+              disabled={isDeletingDossier}
+              onClick={() => {
+                if (deleteStep === 2) {
+                  setDeleteStep(1)
+                } else {
+                  setDossierToDelete(null)
+                  setDeleteStep(1)
+                  setConfirmedCheckbox(false)
+                }
+              }}
+            >
+              {deleteStep === 2 ? 'Voltar' : 'Cancelar'}
+            </AlertDialogCancel>
+            {deleteStep === 1 ? (
+              <Button variant="destructive" onClick={() => setDeleteStep(2)}>
+                Prosseguir para Confirmação
+              </Button>
+            ) : (
+              <Button
+                variant="destructive"
+                disabled={!confirmedCheckbox || isDeletingDossier}
+                onClick={handleDeleteDossier}
+                className="bg-destructive hover:bg-destructive/90"
+              >
+                {isDeletingDossier ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Excluindo Dossiê...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Confirmar e Excluir Dossiê
+                  </>
+                )}
+              </Button>
+            )}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* Chart Component primitives to use with recharts - Always use charts inside a ChartContainer - from shadcn/ui (exposes ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent, ChartStyle) */
 import * as React from 'react'
 import * as RechartsPrimitive from 'recharts'

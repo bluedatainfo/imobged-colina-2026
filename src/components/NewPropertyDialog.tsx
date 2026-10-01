@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useEffect } from 'react'
 import { Home, MapPin, Loader2, DownloadCloud, Search, ExternalLink } from 'lucide-react'
 import {

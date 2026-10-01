@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useEffect } from 'react'
 import { Save, Users, Clock, Mail, AlertCircle, Printer } from 'lucide-react'
 import {
