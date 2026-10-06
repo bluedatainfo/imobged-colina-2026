@@ -1,6 +1,7 @@
 import { useState, useRef, useTransition } from 'react'
 import {
   Upload,
+  Camera,
   CheckCircle,
   XCircle,
   Trash2,
@@ -63,6 +64,7 @@ export function InspectionWorkspace({
 }: InspectionWorkspaceProps) {
   const { toast } = useToast()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const cameraInputRef = useRef<HTMLInputElement>(null)
   const [, startTransition] = useTransition()
 
   // Estados de Upload
@@ -123,6 +125,7 @@ export function InspectionWorkspace({
     setUploadCurrentName('')
 
     if (fileInputRef.current) fileInputRef.current.value = ''
+    if (cameraInputRef.current) cameraInputRef.current.value = ''
 
     onPhotosChange()
 
@@ -302,6 +305,7 @@ export function InspectionWorkspace({
         <div className="flex items-center gap-2 flex-wrap">
           {!isFinalized && (
             <>
+              {/* Input padrão de arquivo / Enviar Fotos */}
               <input
                 ref={fileInputRef}
                 type="file"
@@ -310,6 +314,25 @@ export function InspectionWorkspace({
                 className="hidden"
                 onChange={handleFilesSelected}
               />
+              {/* Input com câmera traseira do celular / Tirar Foto */}
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={handleFilesSelected}
+              />
+              <Button
+                variant="outline"
+                className="gap-2"
+                disabled={uploading}
+                onClick={() => cameraInputRef.current?.click()}
+              >
+                <Camera className="w-4 h-4 text-primary" />
+                Tirar Foto
+              </Button>
+
               <Button
                 variant="outline"
                 className="gap-2"
@@ -317,7 +340,7 @@ export function InspectionWorkspace({
                 onClick={() => fileInputRef.current?.click()}
               >
                 <Upload className="w-4 h-4 text-primary" />
-                Adicionar Fotos (~50)
+                Enviar Fotos
               </Button>
 
               <Button
@@ -481,13 +504,23 @@ export function InspectionWorkspace({
             </p>
           </div>
           {!isFinalized && (
-            <Button
-              onClick={() => fileInputRef.current?.click()}
-              className="gap-2"
-              disabled={uploading}
-            >
-              <Upload className="w-4 h-4" /> Selecionar Fotos
-            </Button>
+            <div className="flex items-center justify-center gap-2 flex-wrap">
+              <Button
+                onClick={() => cameraInputRef.current?.click()}
+                className="gap-2"
+                disabled={uploading}
+              >
+                <Camera className="w-4 h-4" /> Tirar Foto
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                className="gap-2"
+                disabled={uploading}
+              >
+                <Upload className="w-4 h-4" /> Enviar Fotos
+              </Button>
+            </div>
           )}
         </div>
       ) : (
