@@ -44,11 +44,51 @@ export interface InspectionPhotoRecord {
   annotation?: string | null
   attached: boolean
   attached_sharepoint_path?: string | null
+  size_bytes?: number | null
   uploaded_at: string
   created_at?: string
   updated_at?: string
   // Helper for UI preview URL
   public_url?: string
+}
+
+export interface InspectionRetentionSettings {
+  id: string
+  retention_days: number
+  storage_limit_gb: number
+  last_cleanup_at?: string | null
+  last_cleanup_summary?: {
+    deleted_count?: number
+    freed_bytes?: number
+    inspections_affected?: string[]
+    executed_at?: string
+    triggered_by?: string
+  } | null
+  updated_at?: string
+  updated_by?: string | null
+}
+
+export interface InspectionStorageMetrics {
+  galleryTotalBytes: number
+  galleryOpenBytes: number
+  galleryFinalizedBytes: number
+  galleryPhotoCount: number
+  galleryOpenPhotoCount: number
+  galleryFinalizedPhotoCount: number
+  sharepointTotalBytes: number
+  sharepointDocCount: number
+  unselectedExpiringCount: number
+  unselectedExpiringBytes: number
+  retentionDays: number
+  storageLimitGb: number
+  limitWarningExceeded: boolean
+  usagePercent: number
+  monthlyHistory: Array<{
+    month: string
+    galleryBytes: number
+    sharepointBytes: number
+    photoCount: number
+  }>
 }
 
 export interface EligibleItem {
@@ -303,6 +343,7 @@ export const inspectionsService = {
         original_name: file.name,
         selected: true,
         attached: false,
+        size_bytes: file.size || 0,
         uploaded_at: new Date().toISOString(),
       })
       .select('*')
@@ -466,6 +507,7 @@ export const inspectionsService = {
           entity_name: inspection.candidate?.full_name || inspection.property?.tenant || null,
           operator: userName,
           status: 'approved',
+          size_bytes: photo.size_bytes || 0,
           review_notes: photo.annotation || 'Foto de vistoria sincronizada',
         })
 
@@ -570,5 +612,369 @@ export const inspectionsService = {
     } catch (e) {
       console.warn('Falha ao registrar auditoria de vistoria:', e)
     }
+  },
+
+  /**
+   * Obtém as configurações da política de retenção e limite de armazenamento
+   */
+  async getSettings(): Promise<InspectionRetentionSettings> {
+    const client = supabase as any
+    const { data, error } = await client
+      .from('inspection_settings')
+      .select('*')
+      .limit(1)
+      .maybeSingle()
+
+    if (error) {
+      console.error('Erro ao buscar configurações de retenção de vistoria:', error)
+    }
+
+    if (!data) {
+      return {
+        id: '11111111-1111-1111-1111-111111111111',
+        retention_days: 180,
+        storage_limit_gb: 10,
+        last_cleanup_at: null,
+        last_cleanup_summary: null,
+      }
+    }
+
+    return {
+      ...data,
+      retention_days: Number(data.retention_days || 180),
+      storage_limit_gb: Number(data.storage_limit_gb || 10),
+    } as InspectionRetentionSettings
+  },
+
+  /**
+   * Atualiza as configurações da política de retenção (apenas admin/autorizados)
+   * Registra log de auditoria em public.app_audit_logs
+   */
+  async updateSettings(params: {
+    retentionDays: number
+    storageLimitGb: number
+    userName: string
+    userEmail?: string
+  }): Promise<InspectionRetentionSettings> {
+    const current = await this.getSettings()
+    const client = supabase as any
+
+    const { data, error } = await client
+      .from('inspection_settings')
+      .update({
+        retention_days: params.retentionDays,
+        storage_limit_gb: params.storageLimitGb,
+        updated_at: new Date().toISOString(),
+        updated_by: params.userName,
+      })
+      .eq('id', current.id)
+      .select('*')
+      .single()
+
+    if (error) {
+      console.error('Erro ao atualizar configurações de vistoria:', error)
+      throw error
+    }
+
+    // Auditoria obrigatória
+    const details = `Política de Vistoria alterada por ${params.userName}. Prazo de retenção: de ${current.retention_days} dias para ${params.retentionDays} dias. Limite de alerta de galeria: de ${current.storage_limit_gb} GB para ${params.storageLimitGb} GB.`
+    await this.logAudit({
+      propertyId: null,
+      action: 'VISTORIA_POLITICA_ALTERADA',
+      details,
+      userName: params.userName,
+      userEmail: params.userEmail,
+    })
+
+    return {
+      ...data,
+      retention_days: Number(data.retention_days),
+      storage_limit_gb: Number(data.storage_limit_gb),
+    } as InspectionRetentionSettings
+  },
+
+  /**
+   * Executa a rotina de limpeza de fotos não selecionadas expiradas:
+   * A política afeta SOMENTE fotos NÃO selecionadas (selected = false, não anexadas ao contrato)
+   * Fotos selecionadas (anexadas/enviadas ao SharePoint) jamais são removidas.
+   * Remove do Storage do bucket inspection-photos e de public.inspection_photos.
+   * Registra auditoria em app_audit_logs.
+   */
+  async runRetentionCleanup(options?: {
+    triggeredBy?: string
+    userEmail?: string
+    force?: boolean
+  }): Promise<{
+    executed: boolean
+    deletedCount: number
+    freedBytes: number
+    inspectionsAffected: string[]
+    message: string
+  }> {
+    const settings = await this.getSettings()
+    const retentionDays = settings.retention_days || 180
+    const cutoffDate = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000).toISOString()
+
+    const client = supabase as any
+
+    // Buscar fotos não selecionadas mais antigas que cutoffDate
+    const { data: expiredPhotos, error: fetchErr } = await client
+      .from('inspection_photos')
+      .select(
+        'id, inspection_id, storage_path, original_name, size_bytes, uploaded_at, selected, attached',
+      )
+      .eq('selected', false)
+      .eq('attached', false)
+      .lt('uploaded_at', cutoffDate)
+
+    if (fetchErr) {
+      console.error('Erro ao consultar fotos expiradas:', fetchErr)
+      throw fetchErr
+    }
+
+    const photosList = expiredPhotos || []
+    if (photosList.length === 0) {
+      return {
+        executed: true,
+        deletedCount: 0,
+        freedBytes: 0,
+        inspectionsAffected: [],
+        message: `Nenhuma foto não selecionada possui mais de ${retentionDays} dias.`,
+      }
+    }
+
+    let deletedCount = 0
+    let freedBytes = 0
+    const inspectionsSet = new Set<string>()
+    const storagePathsToRemove: string[] = []
+    const idsToDelete: string[] = []
+
+    for (const photo of photosList) {
+      if (photo.storage_path) {
+        storagePathsToRemove.push(photo.storage_path)
+      }
+      idsToDelete.push(photo.id)
+      if (photo.inspection_id) {
+        inspectionsSet.add(photo.inspection_id)
+      }
+      freedBytes += Number(photo.size_bytes || 0)
+    }
+
+    // 1. Remover do Storage do Supabase (em lotes de 100)
+    for (let i = 0; i < storagePathsToRemove.length; i += 100) {
+      const batch = storagePathsToRemove.slice(i, i + 100)
+      const { error: storageDelErr } = await supabase.storage.from(STORAGE_BUCKET).remove(batch)
+      if (storageDelErr) {
+        console.warn('Aviso ao remover arquivos do bucket de fotos de vistoria:', storageDelErr)
+      }
+    }
+
+    // 2. Remover da tabela public.inspection_photos
+    for (let i = 0; i < idsToDelete.length; i += 100) {
+      const batch = idsToDelete.slice(i, i + 100)
+      const { error: dbDelErr } = await client.from('inspection_photos').delete().in('id', batch)
+
+      if (dbDelErr) {
+        console.error('Erro ao deletar registros de inspection_photos:', dbDelErr)
+        throw dbDelErr
+      }
+    }
+
+    deletedCount = idsToDelete.length
+    const inspectionsAffected = Array.from(inspectionsSet)
+
+    // 3. Atualizar last_cleanup_at e last_cleanup_summary em inspection_settings
+    const cleanupSummary = {
+      deleted_count: deletedCount,
+      freed_bytes: freedBytes,
+      inspections_affected: inspectionsAffected,
+      executed_at: new Date().toISOString(),
+      triggered_by: options?.triggeredBy || 'Sistema Automático',
+    }
+
+    await client
+      .from('inspection_settings')
+      .update({
+        last_cleanup_at: cleanupSummary.executed_at,
+        last_cleanup_summary: cleanupSummary,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', settings.id)
+
+    // 4. Auditoria em public.app_audit_logs
+    const mbFreed = (freedBytes / (1024 * 1024)).toFixed(2)
+    const auditDetails = `Limpeza automática de retenção executada (${retentionDays} dias). ${deletedCount} foto(s) não selecionada(s) removida(s) da Galeria de Trabalho (${mbFreed} MB liberados). Vistorias afetadas: [${inspectionsAffected.join(', ')}]. Acionado por: ${options?.triggeredBy || 'Rotina de Entrada do Módulo'}.`
+
+    await this.logAudit({
+      propertyId: null,
+      action: 'VISTORIA_LIMPEZA_RETENCAO',
+      details: auditDetails,
+      userName: options?.triggeredBy || 'Sistema',
+      userEmail: options?.userEmail,
+    })
+
+    return {
+      executed: true,
+      deletedCount,
+      freedBytes,
+      inspectionsAffected,
+      message: `${deletedCount} fotos não selecionadas excluídas com sucesso (${mbFreed} MB liberados).`,
+    }
+  },
+
+  /**
+   * Obtém métricas completas para o Painel de Uso de Armazenamento:
+   * - Total armazenado na galeria Supabase (dividido por Vistorias Abertas vs Finalizadas)
+   * - Total do SharePoint (dossiê oficial): soma dos tamanhos em property_documents de vistorias
+   * - Comparativo galeria × SharePoint
+   * - Histórico/evolução mensal do consumo
+   * - Cards de resumo
+   * - Alerta de limite configurável
+   */
+  async getStorageMetrics(): Promise<InspectionStorageMetrics> {
+    const settings = await this.getSettings()
+    const client = supabase as any
+
+    // 1. Carregar fotos da galeria com o status da vistoria
+    const { data: photos, error: pErr } = await client
+      .from('inspection_photos')
+      .select(
+        'id, inspection_id, size_bytes, selected, attached, uploaded_at, inspection:inspections(id, status)',
+      )
+
+    if (pErr) console.warn('Erro ao carregar inspection_photos:', pErr)
+
+    // 2. Carregar documentos de vistoria em property_documents (SharePoint)
+    const { data: spDocs, error: dErr } = await client
+      .from('property_documents')
+      .select('id, size_bytes, created_at, category')
+      .ilike('category', '%vistoria%')
+
+    if (dErr) console.warn('Erro ao carregar property_documents de vistoria:', dErr)
+
+    const allPhotos: any[] = photos || []
+    const allSpDocs: any[] = spDocs || []
+
+    let galleryTotalBytes = 0
+    let galleryOpenBytes = 0
+    let galleryFinalizedBytes = 0
+    let galleryOpenPhotoCount = 0
+    let galleryFinalizedPhotoCount = 0
+
+    let unselectedExpiringCount = 0
+    let unselectedExpiringBytes = 0
+
+    const retentionDays = settings.retention_days || 180
+    // Próximas do vencimento: por exemplo, com menos de 30 dias restantes antes da limpeza (mais de retentionDays - 30 dias de idade)
+    const warningCutoffMs = (retentionDays - 30) * 24 * 60 * 60 * 1000
+    const nowMs = Date.now()
+
+    // Histórico mensal agrupado por YYYY-MM
+    const monthlyMap = new Map<
+      string,
+      { galleryBytes: number; sharepointBytes: number; photoCount: number }
+    >()
+
+    for (const photo of allPhotos) {
+      const bytes = Number(photo.size_bytes || 0)
+      galleryTotalBytes += bytes
+
+      const isFinalized = photo.inspection?.status === 'Finalizada'
+      if (isFinalized) {
+        galleryFinalizedBytes += bytes
+        galleryFinalizedPhotoCount++
+      } else {
+        galleryOpenBytes += bytes
+        galleryOpenPhotoCount++
+      }
+
+      // Vencimento de fotos não selecionadas
+      if (!photo.selected && !photo.attached) {
+        const uploadedMs = new Date(photo.uploaded_at).getTime()
+        const ageMs = nowMs - uploadedMs
+        if (ageMs >= warningCutoffMs) {
+          unselectedExpiringCount++
+          unselectedExpiringBytes += bytes
+        }
+      }
+
+      // Histórico
+      const monthKey = photo.uploaded_at ? photo.uploaded_at.substring(0, 7) : '2026-10'
+      const currentMonth = monthlyMap.get(monthKey) || {
+        galleryBytes: 0,
+        sharepointBytes: 0,
+        photoCount: 0,
+      }
+      currentMonth.galleryBytes += bytes
+      currentMonth.photoCount++
+      monthlyMap.set(monthKey, currentMonth)
+    }
+
+    let sharepointTotalBytes = 0
+    for (const doc of allSpDocs) {
+      const bytes = Number(doc.size_bytes || 0)
+      sharepointTotalBytes += bytes
+
+      const monthKey = doc.created_at ? doc.created_at.substring(0, 7) : '2026-10'
+      const currentMonth = monthlyMap.get(monthKey) || {
+        galleryBytes: 0,
+        sharepointBytes: 0,
+        photoCount: 0,
+      }
+      currentMonth.sharepointBytes += bytes
+      monthlyMap.set(monthKey, currentMonth)
+    }
+
+    // Converter monthlyMap em array ordenado
+    const monthlyHistory = Array.from(monthlyMap.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([month, data]) => ({
+        month,
+        ...data,
+      }))
+
+    // Se estiver vazio, adiciona pelo menos o mês atual para exibir gráfico/tabela
+    if (monthlyHistory.length === 0) {
+      const currentMonthKey = new Date().toISOString().substring(0, 7)
+      monthlyHistory.push({
+        month: currentMonthKey,
+        galleryBytes: galleryTotalBytes,
+        sharepointBytes: sharepointTotalBytes,
+        photoCount: allPhotos.length,
+      })
+    }
+
+    const storageLimitGb = settings.storage_limit_gb || 10
+    const limitBytes = storageLimitGb * 1024 * 1024 * 1024
+    const limitWarningExceeded = galleryTotalBytes > limitBytes
+    const usagePercent = limitBytes > 0 ? Math.min(100, (galleryTotalBytes / limitBytes) * 100) : 0
+
+    return {
+      galleryTotalBytes,
+      galleryOpenBytes,
+      galleryFinalizedBytes,
+      galleryPhotoCount: allPhotos.length,
+      galleryOpenPhotoCount,
+      galleryFinalizedPhotoCount,
+      sharepointTotalBytes,
+      sharepointDocCount: allSpDocs.length,
+      unselectedExpiringCount,
+      unselectedExpiringBytes,
+      retentionDays,
+      storageLimitGb,
+      limitWarningExceeded,
+      usagePercent,
+      monthlyHistory,
+    }
+  },
+
+  /**
+   * Helper que calcula os dias restantes para uma foto não selecionada expirar
+   */
+  calculateDaysRemaining(uploadedAt: string, retentionDays: number = 180): number {
+    const uploadedMs = new Date(uploadedAt).getTime()
+    const expiryMs = uploadedMs + retentionDays * 24 * 60 * 60 * 1000
+    const diffDays = Math.ceil((expiryMs - Date.now()) / (1000 * 60 * 60 * 24))
+    return diffDays
   },
 }

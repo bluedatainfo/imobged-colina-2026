@@ -14,6 +14,9 @@ const SharePointMapping = lazy(() => import('@/components/settings/SharePointMap
 const ModulesSettings = lazy(() => import('@/components/settings/ModulesSettings'))
 const MenuOrder = lazy(() => import('@/components/settings/MenuOrder'))
 const DataCleanupSettings = lazy(() => import('@/components/settings/DataCleanupSettings'))
+const InspectionRetentionSettingsView = lazy(
+  () => import('@/components/settings/InspectionRetentionSettingsView'),
+)
 
 const SettingsFallback = () => (
   <div className="flex h-32 w-full items-center justify-center">
@@ -43,6 +46,9 @@ const Settings = () => {
           <TabsTrigger value="ged-mapping">Mapeamento GED</TabsTrigger>
           <TabsTrigger value="agency">Dados da Imobiliária</TabsTrigger>
           <TabsTrigger value="general">Geral & SLA</TabsTrigger>
+          <TabsTrigger value="inspection-retention">
+            Retenção de Vistorias & Armazenamento
+          </TabsTrigger>
           {isAdmin && <TabsTrigger value="menu-order">Ordenação do Menu</TabsTrigger>}
           {isAdmin && (
             <TabsTrigger
@@ -76,6 +82,9 @@ const Settings = () => {
           </TabsContent>
           <TabsContent value="general">
             <GeneralSettings />
+          </TabsContent>
+          <TabsContent value="inspection-retention">
+            <InspectionRetentionSettingsView />
           </TabsContent>
           {isAdmin && (
             <TabsContent value="menu-order">

@@ -36,20 +36,29 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useToast } from '@/hooks/use-toast'
 import { useAuth } from '@/contexts/AuthContext'
-import { inspectionsService, InspectionRecord, InspectionPhotoRecord } from '@/services/inspections'
+import {
+  inspectionsService,
+  InspectionRecord,
+  InspectionPhotoRecord,
+  InspectionStorageMetrics,
+} from '@/services/inspections'
 import { StartInspectionDialog } from '@/components/inspections/StartInspectionDialog'
 import { InspectionWorkspace } from '@/components/inspections/InspectionWorkspace'
+import { HardDrive, AlertTriangle } from 'lucide-react'
+import { Link } from 'react-router-dom'
 
 export default function Inspections() {
   const { toast } = useToast()
   const { user } = useAuth()
   const [, startTransition] = useTransition()
 
-  // Lista de vistorias
+  // Lista de vistorias e configurações de retenção/armazenamento
   const [inspections, setInspections] = useState<InspectionRecord[]>([])
+  const [storageMetrics, setStorageMetrics] = useState<InspectionStorageMetrics | null>(null)
+  const [retentionDays, setRetentionDays] = useState(180)
   const [loading, setLoading] = useState(true)
 
-  // Filtros
+  // Filtros de busca
   const [searchQuery, setSearchQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState<'ALL' | 'MOVE_IN' | 'MOVE_OUT'>('ALL')
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'Aberta' | 'Finalizada'>('ALL')
@@ -61,12 +70,36 @@ export default function Inspections() {
   const [activePhotos, setActivePhotos] = useState<InspectionPhotoRecord[]>([])
   const [loadingActive, setLoadingActive] = useState(false)
 
-  // Carregar vistorias
+  // Carregar vistorias e executar rotina de limpeza automática de retenção
   const loadInspections = async () => {
     setLoading(true)
     try {
-      const data = await inspectionsService.listInspections()
+      // 1. Executar rotina de limpeza de fotos não selecionadas expiradas (ao carregar vistorias)
+      try {
+        const cleanupResult = await inspectionsService.runRetentionCleanup({
+          triggeredBy: user?.name || user?.email || 'Acesso ao Módulo de Vistoria',
+          userEmail: user?.email || undefined,
+        })
+        if (cleanupResult.deletedCount > 0) {
+          toast({
+            title: 'Limpeza Automática de Retenção',
+            description: cleanupResult.message,
+          })
+        }
+      } catch (cleanupErr) {
+        console.warn('Rotina de retenção ignorou erro não bloqueante:', cleanupErr)
+      }
+
+      // 2. Carregar vistorias e métricas de armazenamento
+      const [data, metrics, settings] = await Promise.all([
+        inspectionsService.listInspections(),
+        inspectionsService.getStorageMetrics(),
+        inspectionsService.getSettings(),
+      ])
+
       setInspections(data)
+      setStorageMetrics(metrics)
+      setRetentionDays(settings.retention_days || 180)
     } catch (err: any) {
       console.error('Erro ao carregar vistorias:', err)
       toast({
@@ -183,6 +216,7 @@ export default function Inspections() {
       <InspectionWorkspace
         inspection={activeInspection}
         photos={activePhotos}
+        retentionDays={retentionDays}
         onPhotosChange={handlePhotosChange}
         onBack={handleBackToList}
         onInspectionUpdated={handleInspectionUpdated}
@@ -220,6 +254,22 @@ export default function Inspections() {
           <Plus className="w-4 h-4" /> Iniciar Vistoria
         </Button>
       </div>
+
+      {/* Alerta de Armazenamento Ultrapassado se aplicável */}
+      {storageMetrics?.limitWarningExceeded && (
+        <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg flex items-center justify-between text-xs text-destructive">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <span>
+              <strong>Atenção:</strong> O limite de armazenamento da galeria de vistorias (
+              {storageMetrics.storageLimitGb} GB) foi atingido.
+            </span>
+          </div>
+          <Link to="/settings" className="underline font-semibold hover:opacity-80">
+            Gerenciar em Configurações &rarr;
+          </Link>
+        </div>
+      )}
 
       {/* Cards de Métricas */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -279,6 +329,39 @@ export default function Inspections() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Barra de Retenção & Armazenamento da Galeria */}
+      {storageMetrics && (
+        <Card className="bg-muted/30 border">
+          <CardContent className="p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300">
+                <HardDrive className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="font-semibold text-foreground flex items-center gap-2">
+                  <span>Armazenamento da Galeria:</span>
+                  <Badge variant="outline" className="font-mono text-[11px]">
+                    {(storageMetrics.galleryTotalBytes / (1024 * 1024)).toFixed(1)} MB /{' '}
+                    {storageMetrics.storageLimitGb} GB
+                  </Badge>
+                </div>
+                <p className="text-muted-foreground mt-0.5">
+                  Política de Retenção ativa em <strong>{retentionDays} dias</strong> para fotos não
+                  selecionadas. Fotos no SharePoint são preservadas permanentemente.
+                </p>
+              </div>
+            </div>
+
+            <Link
+              to="/settings"
+              className="text-primary hover:underline font-medium shrink-0 flex items-center gap-1"
+            >
+              Configurar Retenção &rarr;
+            </Link>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Barra de Filtros e Busca */}
       <Card>

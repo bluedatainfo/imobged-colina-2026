@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
 import { Progress } from '@/components/ui/progress'
+import { Clock } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -46,6 +47,7 @@ import { useToast } from '@/hooks/use-toast'
 interface InspectionWorkspaceProps {
   inspection: InspectionRecord
   photos: InspectionPhotoRecord[]
+  retentionDays?: number
   onPhotosChange: () => void
   onBack: () => void
   onInspectionUpdated: () => void
@@ -56,6 +58,7 @@ interface InspectionWorkspaceProps {
 export function InspectionWorkspace({
   inspection,
   photos,
+  retentionDays = 180,
   onPhotosChange,
   onBack,
   onInspectionUpdated,
@@ -623,37 +626,72 @@ export function InspectionWorkspace({
                       </span>
                     </div>
 
-                    {/* Status da foto */}
-                    <div className="flex items-center gap-1">
-                      {photo.attached ? (
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] px-1.5 py-0 h-4 bg-emerald-50 text-emerald-700 border-emerald-300"
-                        >
-                          SharePoint &bull; Anexada
-                        </Badge>
-                      ) : isFinalized ? (
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] px-1.5 py-0 h-4 bg-amber-50 text-amber-700 border-amber-300"
-                        >
-                          Não anexada ao contrato
-                        </Badge>
-                      ) : photo.selected ? (
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] px-1.5 py-0 h-4 bg-primary/10 text-primary border-primary/30"
-                        >
-                          Selecionada p/ SharePoint
-                        </Badge>
-                      ) : (
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] px-1.5 py-0 h-4 text-muted-foreground"
-                        >
-                          Não selecionada
-                        </Badge>
-                      )}
+                    {/* Status da foto e Badge de Retenção/Expiração */}
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-1 flex-wrap">
+                        {photo.attached ? (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] px-1.5 py-0 h-4 bg-emerald-50 text-emerald-700 border-emerald-300"
+                          >
+                            SharePoint &bull; Anexada
+                          </Badge>
+                        ) : isFinalized ? (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] px-1.5 py-0 h-4 bg-amber-50 text-amber-700 border-amber-300"
+                          >
+                            Não anexada ao contrato
+                          </Badge>
+                        ) : photo.selected ? (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] px-1.5 py-0 h-4 bg-primary/10 text-primary border-primary/30"
+                          >
+                            Selecionada p/ SharePoint
+                          </Badge>
+                        ) : (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] px-1.5 py-0 h-4 text-muted-foreground"
+                          >
+                            Não selecionada
+                          </Badge>
+                        )}
+                      </div>
+
+                      {/* Sinalização de retenção para fotos NÃO selecionadas / NÃO anexadas */}
+                      {!photo.selected &&
+                        !photo.attached &&
+                        (() => {
+                          const daysLeft = inspectionsService.calculateDaysRemaining(
+                            photo.uploaded_at,
+                            retentionDays,
+                          )
+                          const isWarning = daysLeft <= 30
+                          const isExpired = daysLeft <= 0
+
+                          return (
+                            <div className="flex items-center gap-1">
+                              <Badge
+                                variant="outline"
+                                className={`text-[10px] px-1.5 py-0 h-4 font-mono flex items-center gap-1 ${
+                                  isExpired
+                                    ? 'bg-red-50 text-red-700 border-red-300 dark:bg-red-950/40'
+                                    : isWarning
+                                      ? 'bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/40'
+                                      : 'bg-muted/60 text-muted-foreground'
+                                }`}
+                                title={`Política de retenção: ${retentionDays} dias. Fotos não selecionadas serão excluídas após o prazo.`}
+                              >
+                                <Clock className="w-2.5 h-2.5" />
+                                {isExpired
+                                  ? 'Expirada (limpeza pendente)'
+                                  : `${daysLeft}d restantes`}
+                              </Badge>
+                            </div>
+                          )
+                        })()}
                     </div>
 
                     {/* Observação digitada pelo vistoriador */}
@@ -719,9 +757,21 @@ export function InspectionWorkspace({
               </div>
             )}
             <DialogFooter className="sm:justify-between items-center gap-2">
-              <div className="text-xs text-muted-foreground">
-                Enviada em{' '}
-                {previewPhoto && new Date(previewPhoto.uploaded_at).toLocaleString('pt-BR')}
+              <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
+                <span>
+                  Enviada em{' '}
+                  {previewPhoto && new Date(previewPhoto.uploaded_at).toLocaleString('pt-BR')}
+                </span>
+                {previewPhoto && !previewPhoto.selected && !previewPhoto.attached && (
+                  <Badge variant="outline" className="text-[10px] font-mono">
+                    Retenção:{' '}
+                    {inspectionsService.calculateDaysRemaining(
+                      previewPhoto.uploaded_at,
+                      retentionDays,
+                    )}{' '}
+                    dias restantes
+                  </Badge>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 {!isFinalized && previewPhoto && (
