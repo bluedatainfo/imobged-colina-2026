@@ -1,29 +1,23 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useState, useEffect, useTransition } from 'react'
 import {
-  Camera,
-  WifiOff,
-  Wifi,
-  RefreshCw,
-  ClipboardList,
+  ClipboardCheck,
+  Plus,
+  Search,
+  Filter,
   CheckCircle,
-  UploadCloud,
+  Clock,
+  Home,
+  User,
+  ArrowRight,
   Loader2,
-  LayoutDashboard,
+  Calendar,
+  Layers,
+  Sparkles,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Switch } from '@/components/ui/switch'
-import { Label } from '@/components/ui/label'
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { Textarea } from '@/components/ui/textarea'
+import { Badge } from '@/components/ui/badge'
 import {
   Select,
   SelectContent,
@@ -31,7 +25,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Table,
   TableBody,
@@ -40,430 +33,476 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Badge } from '@/components/ui/badge'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useToast } from '@/hooks/use-toast'
-import useMainStore, { mainStore } from '@/stores/main'
 import { useAuth } from '@/contexts/AuthContext'
-import { m365Service } from '@/lib/m365'
-import { InspectionOCRDialog } from '@/components/InspectionOCRDialog'
-import { useIsMobile } from '@/hooks/use-mobile'
-import { MobileInspectionView } from '@/components/MobileInspectionView'
-import { InspectionMap } from '@/components/InspectionMap'
+import { inspectionsService, InspectionRecord, InspectionPhotoRecord } from '@/services/inspections'
+import { StartInspectionDialog } from '@/components/inspections/StartInspectionDialog'
+import { InspectionWorkspace } from '@/components/inspections/InspectionWorkspace'
 
-const Inspections = () => {
+export default function Inspections() {
   const { toast } = useToast()
   const { user } = useAuth()
-  const store = useMainStore()
-  const isMobile = useIsMobile()
-  const [isOffline, setIsOffline] = useState(false)
-  const [unsyncedCount, setUnsyncedCount] = useState(0)
+  const [, startTransition] = useTransition()
 
-  const pendingInspections = store.properties.filter((p) => p.status === 'Vistoria')
-  const inProgressInspections = store.properties.filter((p) => p.status === 'Análise Gerencial')
-  const completedInspections = store.properties.filter((p) => store.inspectionsData[p.id])
+  // Lista de vistorias
+  const [inspections, setInspections] = useState<InspectionRecord[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const allInspections = [
-    ...pendingInspections.map((p) => ({ ...p, inspStatus: 'Pendente' })),
-    ...inProgressInspections.map((p) => ({ ...p, inspStatus: 'Em Andamento' })),
-    ...completedInspections
-      .filter((p) => p.status !== 'Vistoria' && p.status !== 'Análise Gerencial')
-      .map((p) => ({ ...p, inspStatus: 'Concluída' })),
-  ]
+  // Filtros
+  const [searchQuery, setSearchQuery] = useState('')
+  const [typeFilter, setTypeFilter] = useState<'ALL' | 'MOVE_IN' | 'MOVE_OUT'>('ALL')
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'Aberta' | 'Finalizada'>('ALL')
 
-  const [inspectingId, setInspectingId] = useState<string | null>(null)
-  const [wallCondition, setWallCondition] = useState('')
-  const [furnitureNotes, setFurnitureNotes] = useState('')
-  const [inspectionType, setInspectionType] = useState('INSPECTION_MOVE_IN')
+  // Modais e Visão ativa
+  const [startModalOpen, setStartModalOpen] = useState(false)
+  const [activeInspectionId, setActiveInspectionId] = useState<string | null>(null)
+  const [activeInspection, setActiveInspection] = useState<InspectionRecord | null>(null)
+  const [activePhotos, setActivePhotos] = useState<InspectionPhotoRecord[]>([])
+  const [loadingActive, setLoadingActive] = useState(false)
 
-  const [ocrLoading, setOcrLoading] = useState(false)
-  const [ocrData, setOcrData] = useState<any>(null)
-
-  const processInspection = async (
-    propertyId: string,
-    notes: string,
-    type: string = 'INSPECTION_MOVE_IN',
-  ) => {
-    let parsedNotes: any = null
+  // Carregar vistorias
+  const loadInspections = async () => {
+    setLoading(true)
     try {
-      parsedNotes = JSON.parse(notes)
-    } catch (e) {
-      // Not JSON
-    }
-
-    const finalWallCondition = parsedNotes
-      ? `[${parsedNotes['Paredes']?.status || 'N/A'}] ${parsedNotes['Paredes']?.notes || ''}`
-      : 'Extraído via Mobile/OCR'
-
-    const finalFurnitureNotes = parsedNotes
-      ? `[${parsedNotes['Móveis']?.status || 'N/A'}] ${parsedNotes['Móveis']?.notes || ''}`
-      : notes
-
-    mainStore.saveInspection({
-      propertyId,
-      wallCondition: finalWallCondition,
-      furnitureNotes: finalFurnitureNotes,
-      generalNotes: notes,
-    })
-
-    mainStore.updatePropertyStatus(propertyId, 'Confecção de Contrato')
-
-    const p = store.properties.find((prop) => prop.id === propertyId)
-    const blob = new Blob([notes], { type: 'text/plain' })
-    try {
-      await m365Service.uploadStructuredDocument(
-        blob,
-        `Laudo_${type}_${propertyId}.txt`,
-        type,
-        propertyId,
-        p?.title || propertyId,
-        user?.name || 'Sistema',
-      )
-    } catch (e) {
-      console.error('Falha no upload estruturado da vistoria', e)
-    }
-  }
-
-  const handleMobileComplete = (propertyId: string, notes: string, type: string) => {
-    processInspection(propertyId, notes, type)
-    toast({
-      title: 'Vistoria Sincronizada',
-      description: 'Documento processado e salvo na estrutura do SharePoint correspondente.',
-    })
-  }
-
-  const handleStartInspection = (id: string) => {
-    if (isOffline) {
-      setUnsyncedCount((prev) => prev + 1)
+      const data = await inspectionsService.listInspections()
+      setInspections(data)
+    } catch (err: any) {
+      console.error('Erro ao carregar vistorias:', err)
       toast({
-        title: 'Modo Offline Ativo',
-        description: 'Vistoria iniciada. Os dados serão salvos localmente.',
+        title: 'Erro ao carregar vistorias',
+        description: err.message,
+        variant: 'destructive',
       })
-    } else {
-      setInspectingId(id)
-      setWallCondition('')
-      setFurnitureNotes('')
-      setInspectionType('INSPECTION_MOVE_IN')
+    } finally {
+      setLoading(false)
     }
   }
 
-  const handleCompleteInspection = () => {
-    if (!inspectingId) return
-    const data = { propertyId: inspectingId, wallCondition, furnitureNotes }
+  useEffect(() => {
+    loadInspections()
+  }, [])
 
-    processInspection(inspectingId, JSON.stringify(data), inspectionType)
-
-    m365Service.syncToList('Vistorias Realizadas', JSON.stringify(data))
-
-    setInspectingId(null)
-    toast({
-      title: 'Vistoria Concluída',
-      description: 'Dados estruturados enviados e laudo gerado no SharePoint.',
-    })
-  }
-
-  const handleFileUpload = () => {
-    setOcrLoading(true)
-    setTimeout(() => {
-      setOcrLoading(false)
-      setOcrData({
-        address: 'Rua Flores, 123',
-        date: new Date().toLocaleDateString('pt-BR'),
-        wallCondition: 'Pintura nova',
-        generalNotes: 'Aprovado.',
+  // Carregar vistoria ativa e suas fotos
+  const loadActiveInspection = async (id: string) => {
+    setLoadingActive(true)
+    try {
+      const [insp, photos] = await Promise.all([
+        inspectionsService.getInspectionById(id),
+        inspectionsService.listPhotos(id),
+      ])
+      setActiveInspection(insp)
+      setActivePhotos(photos)
+    } catch (err: any) {
+      console.error('Erro ao carregar vistoria ativa:', err)
+      toast({
+        title: 'Erro ao abrir vistoria',
+        description: err.message,
+        variant: 'destructive',
       })
-    }, 2000)
+      setActiveInspectionId(null)
+    } finally {
+      setLoadingActive(false)
+    }
   }
 
-  const handleOcrConfirm = (data: any, propertyId: string, type: string) => {
-    setOcrData(null)
-    processInspection(propertyId, JSON.stringify(data), type)
-    toast({
-      title: 'OCR Processado com Sucesso',
-      description: 'Dados extraídos e enviados para a pasta da Vistoria.',
-    })
+  const handleOpenInspection = (id: string) => {
+    setActiveInspectionId(id)
+    loadActiveInspection(id)
   }
 
-  if (isMobile) {
+  const handleBackToList = () => {
+    setActiveInspectionId(null)
+    setActiveInspection(null)
+    setActivePhotos([])
+    loadInspections()
+  }
+
+  const handlePhotosChange = () => {
+    if (activeInspectionId) {
+      inspectionsService.listPhotos(activeInspectionId).then((photos) => {
+        startTransition(() => {
+          setActivePhotos(photos)
+        })
+      })
+    }
+  }
+
+  const handleInspectionUpdated = () => {
+    if (activeInspectionId) {
+      inspectionsService.getInspectionById(activeInspectionId).then((insp) => {
+        startTransition(() => {
+          setActiveInspection(insp)
+        })
+      })
+    }
+    loadInspections()
+  }
+
+  // Filtragem da lista
+  const filteredInspections = inspections.filter((insp) => {
+    // Filtro de tipo
+    if (typeFilter !== 'ALL' && insp.type !== typeFilter) return false
+    // Filtro de status
+    if (statusFilter !== 'ALL' && insp.status !== statusFilter) return false
+
+    // Busca textual
+    if (!searchQuery.trim()) return true
+    const q = searchQuery.toLowerCase()
+    const propId = (insp.property_id || '').toLowerCase()
+    const propTitle = (insp.property?.title || '').toLowerCase()
+    const propAddress = (insp.property?.address || '').toLowerCase()
+    const inspector = (insp.inspector_name || '').toLowerCase()
+    const contract = (insp.contract_number || '').toLowerCase()
+    const tenant = (insp.candidate?.full_name || insp.property?.tenant || '').toLowerCase()
+
     return (
-      <MobileInspectionView
-        pendingInspections={pendingInspections}
-        onComplete={handleMobileComplete}
+      propId.includes(q) ||
+      propTitle.includes(q) ||
+      propAddress.includes(q) ||
+      inspector.includes(q) ||
+      contract.includes(q) ||
+      tenant.includes(q)
+    )
+  })
+
+  // Se estiver na tela da vistoria ativa
+  if (activeInspectionId) {
+    if (loadingActive || !activeInspection) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-[400px] gap-3">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">
+            Carregando detalhes e fotos da vistoria...
+          </p>
+        </div>
+      )
+    }
+
+    return (
+      <InspectionWorkspace
+        inspection={activeInspection}
+        photos={activePhotos}
+        onPhotosChange={handlePhotosChange}
+        onBack={handleBackToList}
+        onInspectionUpdated={handleInspectionUpdated}
+        currentUserName={user?.name || 'Vistoriador'}
+        currentUserEmail={user?.email || undefined}
       />
     )
   }
 
+  // Contadores de resumo
+  const totalCount = inspections.length
+  const openCount = inspections.filter((i) => i.status === 'Aberta').length
+  const finalizedCount = inspections.filter((i) => i.status === 'Finalizada').length
+  const moveInCount = inspections.filter((i) => i.type === 'MOVE_IN').length
+  const moveOutCount = inspections.filter((i) => i.type === 'MOVE_OUT').length
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+    <div className="space-y-6 animate-in fade-in">
+      {/* Cabeçalho */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-2">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Vistorias Inteligentes</h1>
-          <p className="text-muted-foreground">
-            Preencha offline, planeje rotas com o mapa ou utilize OCR para laudos de vistoria
-            terceirizados.
+          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+            <ClipboardCheck className="w-8 h-8 text-primary" /> Módulo de Vistoria
+          </h1>
+          <p className="text-muted-foreground text-sm">
+            Gestão fotográfica e laudos de vistoria de Entrada e Saída integrados ao SharePoint e
+            Dossiê.
           </p>
         </div>
-        <div className="flex items-center gap-4 flex-wrap">
-          <div className="flex items-center space-x-2 bg-muted/50 p-2 rounded-lg border">
-            {isOffline ? (
-              <WifiOff className="h-4 w-4 text-destructive" />
-            ) : (
-              <Wifi className="h-4 w-4 text-emerald-500" />
-            )}
-            <Label htmlFor="offline-mode" className="text-sm cursor-pointer whitespace-nowrap">
-              {isOffline ? 'Offline' : 'Online'}
-            </Label>
-            <Switch id="offline-mode" checked={isOffline} onCheckedChange={setIsOffline} />
-          </div>
-        </div>
+
+        <Button
+          onClick={() => setStartModalOpen(true)}
+          className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
+        >
+          <Plus className="w-4 h-4" /> Iniciar Vistoria
+        </Button>
       </div>
 
-      {!isOffline && unsyncedCount > 0 && (
-        <Card className="bg-amber-50 border-amber-200 shadow-sm animate-fade-in">
-          <CardContent className="p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-3 text-amber-800">
-              <WifiOff className="h-5 w-5 shrink-0" />
-              <div>
-                <p className="font-medium">Você possui {unsyncedCount} vistoria(s) offline.</p>
-              </div>
-            </div>
-            <Button
-              className="shrink-0 gap-2 bg-amber-600 hover:bg-amber-700 text-white"
-              onClick={() => {
-                setUnsyncedCount(0)
-                toast({ title: 'Sincronização concluída com o SharePoint' })
-              }}
-            >
-              <RefreshCw className="h-4 w-4" /> Sincronizar Pendentes
-            </Button>
+      {/* Cards de Métricas */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs font-medium text-muted-foreground uppercase flex items-center justify-between">
+              <span>Vistorias Abertas</span>
+              <Clock className="w-4 h-4 text-amber-500" />
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">{openCount}</div>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Em campo / Galeria ativa</p>
           </CardContent>
         </Card>
-      )}
 
-      <Tabs defaultValue="dashboard">
-        <TabsList className="mb-4">
-          <TabsTrigger value="dashboard" className="gap-2">
-            <LayoutDashboard className="w-4 h-4" /> Dashboard
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs font-medium text-muted-foreground uppercase flex items-center justify-between">
+              <span>Finalizadas</span>
+              <CheckCircle className="w-4 h-4 text-emerald-500" />
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+              {finalizedCount}
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Sincronizadas no SharePoint</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs font-medium text-muted-foreground uppercase flex items-center justify-between">
+              <span>Entrada (Novos)</span>
+              <Sparkles className="w-4 h-4 text-blue-500" />
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{moveInCount}</div>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Análises aprovadas</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs font-medium text-muted-foreground uppercase flex items-center justify-between">
+              <span>Saída (Em Andamento)</span>
+              <Layers className="w-4 h-4 text-purple-500" />
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+              {moveOutCount}
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Rescisões e entregas</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Barra de Filtros e Busca */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex flex-col md:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por imóvel, contrato, locatário ou vistoriador..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="w-40">
+                <Select value={typeFilter} onValueChange={(val: any) => setTypeFilter(val)}>
+                  <SelectTrigger>
+                    <Filter className="w-3.5 h-3.5 mr-1.5 text-muted-foreground" />
+                    <SelectValue placeholder="Tipo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">Todos os Tipos</SelectItem>
+                    <SelectItem value="MOVE_IN">Entrada</SelectItem>
+                    <SelectItem value="MOVE_OUT">Saída</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="w-36">
+                <Select value={statusFilter} onValueChange={(val: any) => setStatusFilter(val)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">Todos os Status</SelectItem>
+                    <SelectItem value="Aberta">Abertas</SelectItem>
+                    <SelectItem value="Finalizada">Finalizadas</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {(searchQuery || typeFilter !== 'ALL' || statusFilter !== 'ALL') && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setSearchQuery('')
+                    setTypeFilter('ALL')
+                    setStatusFilter('ALL')
+                  }}
+                  className="text-xs"
+                >
+                  Limpar Filtros
+                </Button>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Tabs / Tabela de Vistorias */}
+      <Tabs defaultValue="all">
+        <TabsList>
+          <TabsTrigger value="all" onClick={() => setStatusFilter('ALL')}>
+            Todas ({totalCount})
           </TabsTrigger>
-          <TabsTrigger value="fila">Fila de Preenchimento</TabsTrigger>
-          <TabsTrigger value="mapa">Mapa de Vistorias</TabsTrigger>
-          <TabsTrigger value="ocr">Upload & OCR (IA)</TabsTrigger>
+          <TabsTrigger value="open" onClick={() => setStatusFilter('Aberta')}>
+            Abertas ({openCount})
+          </TabsTrigger>
+          <TabsTrigger value="finalized" onClick={() => setStatusFilter('Finalizada')}>
+            Finalizadas ({finalizedCount})
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="dashboard">
-          <div className="grid gap-4 md:grid-cols-3 mb-6">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Vistorias Pendentes
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-amber-600">{pendingInspections.length}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Em Andamento
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-blue-600">
-                  {inProgressInspections.length}
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Concluídas
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-emerald-600">
-                  {completedInspections.length}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
+        <TabsContent value="all" className="mt-4">
           <Card>
-            <CardHeader>
-              <CardTitle>Histórico e Status de Vistorias</CardTitle>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Listagem Geral de Vistorias</CardTitle>
               <CardDescription>
-                Visão centralizada de todas as vistorias registradas.
+                Selecione uma vistoria para gerenciar a Galeria de Trabalho, marcar fotos ou enviar
+                ao SharePoint.
               </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Imóvel</TableHead>
-                    <TableHead>Endereço</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Ação</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {allInspections.map((p, i) => (
-                    <TableRow key={`${p.id}-${i}`}>
-                      <TableCell className="font-medium">{p.title}</TableCell>
-                      <TableCell className="text-muted-foreground">{p.address}</TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            p.inspStatus === 'Concluída'
-                              ? 'default'
-                              : p.inspStatus === 'Em Andamento'
-                                ? 'secondary'
-                                : 'outline'
-                          }
-                        >
-                          {p.inspStatus}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Button variant="link" asChild className="px-0">
-                          <Link to={`/properties/${p.id}/dossier`}>Ver Dossiê</Link>
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {allInspections.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
-                        Nenhuma vistoria encontrada.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="fila">
-          <Card>
-            <CardHeader className="pb-3 border-b">
-              <CardTitle className="flex items-center gap-2">
-                <ClipboardList className="w-5 h-5 text-primary" /> Fila de Imóveis
-              </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="divide-y">
-                {pendingInspections.map((p) => (
-                  <div
-                    key={p.id}
-                    className="flex items-center justify-between p-4 hover:bg-muted/30 transition-colors"
-                  >
-                    <div className="flex items-start gap-4">
-                      <div className="bg-primary/10 p-3 rounded-lg hidden sm:block">
-                        <Camera className="h-6 w-6 text-primary" />
-                      </div>
-                      <div>
-                        <h4 className="font-semibold text-base">{p.title}</h4>
-                        <p className="text-sm text-muted-foreground">{p.address}</p>
-                      </div>
-                    </div>
-                    <Button onClick={() => handleStartInspection(p.id)}>Iniciar Vistoria</Button>
-                  </div>
-                ))}
-                {pendingInspections.length === 0 && (
-                  <div className="p-8 text-center text-muted-foreground">
-                    <CheckCircle className="w-8 h-8 mx-auto mb-2 opacity-50 text-emerald-500" />
-                    <p>Nenhum imóvel aguardando vistoria no momento.</p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+              {loading ? (
+                <div className="flex items-center justify-center p-12 text-muted-foreground">
+                  <Loader2 className="w-6 h-6 animate-spin mr-2 text-primary" /> Carregando
+                  vistorias...
+                </div>
+              ) : filteredInspections.length === 0 ? (
+                <div className="text-center py-12 p-4 text-muted-foreground space-y-3">
+                  <ClipboardCheck className="w-12 h-12 mx-auto opacity-20" />
+                  <p className="font-medium">Nenhuma vistoria encontrada com os filtros atuais.</p>
+                  <Button variant="outline" size="sm" onClick={() => setStartModalOpen(true)}>
+                    <Plus className="w-4 h-4 mr-1" /> Iniciar Primeira Vistoria
+                  </Button>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Tipo</TableHead>
+                        <TableHead>Imóvel / Endereço</TableHead>
+                        <TableHead>Contrato</TableHead>
+                        <TableHead>Locatário</TableHead>
+                        <TableHead>Vistoriador</TableHead>
+                        <TableHead>Data</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Ação</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredInspections.map((insp) => {
+                        const isMoveIn = insp.type === 'MOVE_IN'
+                        const isFinished = insp.status === 'Finalizada'
 
-        <TabsContent value="mapa">
-          <Card>
-            <CardHeader>
-              <CardTitle>Rotas e Logística (Mapa)</CardTitle>
-              <CardDescription>
-                Visualize os imóveis pendentes geograficamente para planejar as visitas da equipe.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-1 sm:p-6">
-              <InspectionMap
-                properties={pendingInspections}
-                onStartInspection={handleStartInspection}
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
+                        return (
+                          <TableRow key={insp.id} className="hover:bg-muted/40 transition-colors">
+                            <TableCell>
+                              <Badge
+                                variant={isMoveIn ? 'default' : 'secondary'}
+                                className={
+                                  isMoveIn
+                                    ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                                    : 'bg-purple-600 hover:bg-purple-700 text-white'
+                                }
+                              >
+                                {isMoveIn ? 'Entrada' : 'Saída'}
+                              </Badge>
+                            </TableCell>
 
-        <TabsContent value="ocr">
-          <Card
-            className="border-dashed border-2 flex flex-col items-center justify-center p-12 cursor-pointer transition-colors hover:bg-muted/50"
-            onClick={handleFileUpload}
-          >
-            <CardHeader className="text-center">
-              <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-                {ocrLoading ? (
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                ) : (
-                  <UploadCloud className="h-8 w-8 text-primary" />
-                )}
-              </div>
-              <CardTitle>Análise de Laudo (PDF/Imagem)</CardTitle>
-              <CardDescription>Arraste um laudo para extração automática via OCR.</CardDescription>
-            </CardHeader>
+                            <TableCell>
+                              <div className="font-semibold text-sm flex items-center gap-1.5">
+                                <Home className="w-3.5 h-3.5 text-primary shrink-0" />
+                                <span
+                                  className="truncate max-w-[220px]"
+                                  title={insp.property?.title}
+                                >
+                                  {insp.property?.title || insp.property_id}
+                                </span>
+                              </div>
+                              <div className="text-xs text-muted-foreground truncate max-w-[240px]">
+                                {insp.property?.address || `Cód. ${insp.property_id}`}
+                              </div>
+                            </TableCell>
+
+                            <TableCell className="font-mono text-xs font-semibold">
+                              {insp.contract_number || insp.property_id}
+                            </TableCell>
+
+                            <TableCell>
+                              <div className="text-xs font-medium flex items-center gap-1">
+                                <User className="w-3 h-3 text-muted-foreground" />
+                                <span
+                                  className="truncate max-w-[160px]"
+                                  title={insp.candidate?.full_name || insp.property?.tenant}
+                                >
+                                  {insp.candidate?.full_name ||
+                                    insp.property?.tenant ||
+                                    'Não informado'}
+                                </span>
+                              </div>
+                            </TableCell>
+
+                            <TableCell className="text-xs">
+                              {insp.inspector_name || 'Vistoriador'}
+                            </TableCell>
+
+                            <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                              <span className="flex items-center gap-1">
+                                <Calendar className="w-3 h-3" />
+                                {new Date(insp.started_at).toLocaleDateString('pt-BR')}
+                              </span>
+                            </TableCell>
+
+                            <TableCell>
+                              <Badge
+                                variant="outline"
+                                className={
+                                  isFinished
+                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40'
+                                    : 'bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/40'
+                                }
+                              >
+                                {insp.status}
+                              </Badge>
+                            </TableCell>
+
+                            <TableCell className="text-right">
+                              <Button
+                                size="sm"
+                                variant={isFinished ? 'outline' : 'default'}
+                                className="gap-1 h-8 text-xs"
+                                onClick={() => handleOpenInspection(insp.id)}
+                              >
+                                {isFinished ? 'Ver Galeria' : 'Abrir Galeria'}
+                                <ArrowRight className="w-3.5 h-3.5" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
 
-      <Dialog open={!!inspectingId} onOpenChange={(val) => !val && setInspectingId(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Checklist Inteligente de Vistoria</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label>Tipo de Vistoria</Label>
-              <Select value={inspectionType} onValueChange={setInspectionType}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="INSPECTION_MOVE_IN">Entrada</SelectItem>
-                  <SelectItem value="INSPECTION_MOVE_OUT">Saída</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-2">
-              <Label>Condição das Paredes e Pintura</Label>
-              <Input value={wallCondition} onChange={(e) => setWallCondition(e.target.value)} />
-            </div>
-            <div className="grid gap-2">
-              <Label>Móveis e Observações</Label>
-              <Textarea
-                className="min-h-[100px]"
-                value={furnitureNotes}
-                onChange={(e) => setFurnitureNotes(e.target.value)}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setInspectingId(null)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleCompleteInspection}>Sincronizar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <InspectionOCRDialog
-        open={!!ocrData}
-        onClose={() => setOcrData(null)}
-        initialData={ocrData}
-        onConfirm={handleOcrConfirm}
+      {/* Modal para Iniciar Vistoria */}
+      <StartInspectionDialog
+        open={startModalOpen}
+        onClose={() => setStartModalOpen(false)}
+        onCreated={(id) => {
+          handleOpenInspection(id)
+        }}
+        currentUserName={user?.name || 'Vistoriador'}
+        currentUserEmail={user?.email || undefined}
       />
     </div>
   )
 }
-
-export default Inspections
