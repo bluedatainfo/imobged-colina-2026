@@ -107,61 +107,113 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (code) {
       const processAuth = async () => {
-        setIsExchanging(true)
+        // Limpa imediatamente o código da URL para não reenviar em recarregamento
         window.history.replaceState({}, document.title, window.location.pathname)
+        setIsExchanging(true)
 
-        let { sharepoint } = mainStore.getState()
-        let { clientId, tenantId, primaryDomain } = sharepoint
-        const codeVerifier = localStorage.getItem('pkce_code_verifier')
+        // Helper para garantir timeout em qualquer Promise ou PromiseLike (padrão 30s)
+        const withTimeout = <T,>(
+          promise: PromiseLike<T>,
+          timeoutMs = 30000,
+          errorMessage = 'Tempo de resposta excedido. Não foi possível concluir o login. Tente novamente.',
+        ): Promise<T> => {
+          return new Promise<T>((resolve, reject) => {
+            const timer = setTimeout(() => {
+              reject(new Error(errorMessage))
+            }, timeoutMs)
 
-        if (!clientId || !tenantId) {
-          const { data: dbSettings } = await supabase
-            .from('app_settings')
-            .select('client_id, tenant_id, default_domain')
-            .order('updated_at', { ascending: false })
-            .limit(1)
-            .maybeSingle()
-
-          if (dbSettings) {
-            clientId = dbSettings.client_id || clientId
-            tenantId = dbSettings.tenant_id || tenantId
-            primaryDomain = dbSettings.default_domain || primaryDomain
-            mainStore.hydrateSharePointSettings({ clientId, tenantId, primaryDomain })
-          }
-        }
-
-        if (!clientId || !tenantId || !codeVerifier) {
-          setIsExchanging(false)
-          toast({
-            variant: 'destructive',
-            title: 'Sessão Incompleta ou Expirada',
-            description:
-              'A sessão de login expirou ou as configurações de Client/Tenant ID estão ausentes. Por favor, inicie o login novamente.',
+            Promise.resolve(promise)
+              .then((result) => {
+                clearTimeout(timer)
+                resolve(result)
+              })
+              .catch((err) => {
+                clearTimeout(timer)
+                reject(err)
+              })
           })
-          return
         }
 
-        const redirectUri = window.location.origin + '/login'
-        const tokenParams = new URLSearchParams()
-        tokenParams.append('client_id', clientId)
-        tokenParams.append(
-          'scope',
-          'openid profile email User.Read User.ReadBasic.All Files.ReadWrite.All Sites.Read.All offline_access',
-        )
-        tokenParams.append('code', code)
-        tokenParams.append('redirect_uri', redirectUri)
-        tokenParams.append('grant_type', 'authorization_code')
-        tokenParams.append('code_verifier', codeVerifier)
+        const fetchWithTimeout = (
+          input: RequestInfo | URL,
+          init?: RequestInit,
+          timeoutMs = 30000,
+        ): Promise<Response> => {
+          const controller = new AbortController()
+          const timer = setTimeout(() => controller.abort(), timeoutMs)
+          return fetch(input, { ...init, signal: controller.signal }).finally(() => {
+            clearTimeout(timer)
+          })
+        }
 
         try {
-          const res = await fetch(
-            `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-              body: tokenParams.toString(),
-            },
+          let { sharepoint } = mainStore.getState()
+          let { clientId, tenantId, primaryDomain } = sharepoint
+          const codeVerifier = localStorage.getItem('pkce_code_verifier')
+
+          if (!clientId || !tenantId) {
+            const { data: dbSettings, error: dbSettingsError } = await withTimeout(
+              supabase
+                .from('app_settings')
+                .select('client_id, tenant_id, default_domain')
+                .order('updated_at', { ascending: false })
+                .limit(1)
+                .maybeSingle(),
+              30000,
+              'Tempo esgotado ao consultar configurações do sistema. Tente novamente.',
+            )
+
+            if (dbSettingsError) {
+              throw new Error(
+                'Falha ao consultar configurações do sistema: ' + dbSettingsError.message,
+              )
+            }
+
+            if (dbSettings) {
+              clientId = dbSettings.client_id || clientId
+              tenantId = dbSettings.tenant_id || tenantId
+              primaryDomain = dbSettings.default_domain || primaryDomain
+              mainStore.hydrateSharePointSettings({ clientId, tenantId, primaryDomain })
+            }
+          }
+
+          if (!clientId || !tenantId || !codeVerifier) {
+            throw new Error(
+              'A sessão de login expirou ou as configurações de Client/Tenant ID estão ausentes. Por favor, inicie o login novamente.',
+            )
+          }
+
+          const redirectUri = window.location.origin + '/login'
+          const tokenParams = new URLSearchParams()
+          tokenParams.append('client_id', clientId)
+          tokenParams.append(
+            'scope',
+            'openid profile email User.Read User.ReadBasic.All Files.ReadWrite.All Sites.Read.All offline_access',
           )
+          tokenParams.append('code', code)
+          tokenParams.append('redirect_uri', redirectUri)
+          tokenParams.append('grant_type', 'authorization_code')
+          tokenParams.append('code_verifier', codeVerifier)
+
+          let res: Response
+          try {
+            res = await fetchWithTimeout(
+              `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`,
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: tokenParams.toString(),
+              },
+              30000,
+            )
+          } catch (fetchErr: any) {
+            if (fetchErr?.name === 'AbortError') {
+              throw new Error(
+                'Tempo limite excedido ao obter token do Microsoft Entra ID. Tente novamente.',
+              )
+            }
+            throw fetchErr
+          }
 
           if (!res.ok) {
             const errData = await res.json().catch(() => null)
@@ -180,9 +232,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
           localStorage.removeItem('pkce_code_verifier')
 
-          const profileRes = await fetch('https://graph.microsoft.com/v1.0/me', {
-            headers: { Authorization: `Bearer ${token}` },
-          })
+          let profileRes: Response
+          try {
+            profileRes = await fetchWithTimeout(
+              'https://graph.microsoft.com/v1.0/me',
+              {
+                headers: { Authorization: `Bearer ${token}` },
+              },
+              30000,
+            )
+          } catch (profileErr: any) {
+            if (profileErr?.name === 'AbortError') {
+              throw new Error(
+                'Tempo limite excedido ao obter perfil do usuário no Microsoft Graph. Tente novamente.',
+              )
+            }
+            throw profileErr
+          }
 
           if (!profileRes.ok) {
             const errData = await profileRes.json().catch(() => null)
@@ -207,21 +273,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
           let photoUrl = ''
           try {
-            const pRes = await fetch('https://graph.microsoft.com/v1.0/me/photo/$value', {
-              headers: { Authorization: `Bearer ${token}` },
-            })
+            const pRes = await fetchWithTimeout(
+              'https://graph.microsoft.com/v1.0/me/photo/$value',
+              {
+                headers: { Authorization: `Bearer ${token}` },
+              },
+              10000,
+            )
             if (pRes.ok) {
               const blob = await pRes.blob()
               photoUrl = URL.createObjectURL(blob)
             }
           } catch (e) {
-            // Ignore photo fetch errors
+            // Falha ao obter foto é não-crítica; continua login normalmente
           }
 
-          const { error: sysAuthError } = await supabase.auth.signInWithPassword({
-            email: 'system@imobiliaria.local',
-            password: 'SystemPassword123!',
-          })
+          const { error: sysAuthError } = await withTimeout(
+            supabase.auth.signInWithPassword({
+              email: 'system@imobiliaria.local',
+              password: 'SystemPassword123!',
+            }),
+            30000,
+            'Tempo limite esgotado ao inicializar sessão do sistema. Tente novamente.',
+          )
 
           if (sysAuthError) {
             throw new Error('Falha ao inicializar sessão do sistema: ' + sysAuthError.message)
@@ -229,7 +303,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
           // Popula o store de usuários ANTES de decidir a role, para que as
           // permissões RBAC configuradas em /settings sejam respeitadas.
-          await initUsersStore()
+          await withTimeout(
+            initUsersStore(),
+            30000,
+            'Tempo limite esgotado ao carregar usuários. Tente novamente.',
+          )
 
           const existingUser = usersStore
             .getState()
@@ -248,18 +326,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // desatualizado e envie o usuário para /access-denied. Mesmo se o
           // RBAC vier incompleto do banco, ensureRbacLoaded restaura os
           // padrões e o fallback de checkAccess libera as áreas comuns.
-          await ensureRbacLoaded()
+          await withTimeout(
+            ensureRbacLoaded(),
+            30000,
+            'Tempo limite esgotado ao carregar permissões do sistema. Tente novamente.',
+          )
 
           setCurrentUserId(matched.id)
           localStorage.setItem('app_user_id', matched.id)
 
-          await Promise.all([
-            initContractsStore(),
-            initKeysStore(),
-            initEntitiesStore(),
-            initTemplatesStore(),
-            initDocumentsStore(),
-          ])
+          await withTimeout(
+            Promise.all([
+              initContractsStore(),
+              initKeysStore(),
+              initEntitiesStore(),
+              initTemplatesStore(),
+              initDocumentsStore(),
+            ]),
+            30000,
+            'Tempo limite esgotado ao inicializar módulos do sistema. Tente novamente.',
+          )
 
           // Redireciona para a primeira rota permitida pelo RBAC do perfil
           // (ex.: "Caixa" → "/caixa", "Gestor de Contrato" → "/ongoing-contracts")
@@ -280,13 +366,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             description: `Bem-vindo(a), ${profileData.displayName || matched.name}`,
           })
         } catch (e: any) {
+          // Limpa tokens, verifier e dados parciais em caso de qualquer falha
           localStorage.removeItem('m365_token')
           localStorage.removeItem('m365_refresh_token')
+          localStorage.removeItem('pkce_code_verifier')
+          localStorage.removeItem('app_user_id')
+          setCurrentUserId(null)
+          supabase.auth.signOut().catch(() => {})
+
+          // Garante que a URL esteja limpa de qualquer resquício de ?code=
+          window.history.replaceState({}, document.title, window.location.pathname)
+
           toast({
             variant: 'destructive',
-            title: 'Erro de Integração',
-            description:
-              e.message || 'Não foi possível completar a autenticação com o Microsoft 365.',
+            title: 'Erro de Autenticação',
+            description: e?.message || 'Não foi possível concluir o login. Tente novamente.',
           })
         } finally {
           setIsExchanging(false)
