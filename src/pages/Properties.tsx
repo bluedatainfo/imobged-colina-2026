@@ -24,6 +24,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 import { useDebounce } from '@/hooks/use-debounce'
+import { searchErpProperties } from '@/lib/erpProperties'
 
 interface ERPProperty {
   id: number | string
@@ -102,20 +103,9 @@ export default function Properties() {
     const fetchOptions = async () => {
       setLoading(true)
       try {
-        const res = await fetch(
-          `http://192.168.10.225:9000/imoveis?name=${encodeURIComponent(debouncedSearch)}`,
-          {
-            headers: {
-              Authorization: 'cadastro',
-            },
-          },
-        )
-        if (!res.ok) throw new Error('Erro na comunicação com o servidor local')
-        const data = await res.json()
-
+        const items = await searchErpProperties(debouncedSearch)
         if (isMounted) {
-          const dataArray = Array.isArray(data) ? data : [data]
-          setOptions(dataArray.filter((item) => item && item.id))
+          setOptions(items.filter((item) => item && item.id))
         }
       } catch (err) {
         console.error(err)
@@ -144,19 +134,8 @@ export default function Properties() {
     setOpen(false)
 
     try {
-      const res = await fetch(
-        `http://192.168.10.225:9000/imoveis?name=${encodeURIComponent(search)}`,
-        {
-          headers: {
-            Authorization: 'cadastro',
-          },
-        },
-      )
-      if (!res.ok) throw new Error('Erro na comunicação com o servidor local')
-      const data = await res.json()
-
-      const dataArray = Array.isArray(data) ? data : [data]
-      setResults(dataArray.filter((item) => item && item.id))
+      const items = await searchErpProperties(search)
+      setResults(items.filter((item) => item && item.id))
     } catch (err) {
       console.error(err)
       toast({

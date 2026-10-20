@@ -37,6 +37,12 @@ import { mainStore } from '@/stores/main'
 import { useDebounce } from '@/hooks/use-debounce'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
+import {
+  ERP_BASE_URL,
+  ERP_HEADERS,
+  deduplicateErpProperties,
+  normalizeErpPropertyResponse,
+} from '@/lib/erpProperties'
 
 interface Props {
   open: boolean
@@ -328,11 +334,9 @@ export function StartLeaseProcessDialog({
 
       try {
         if (isNumeric) {
-          const url = `http://192.168.10.225:9000/imoveis/dados/${encodeURIComponent(term)}`
+          const url = `${ERP_BASE_URL}/imoveis/dados/${encodeURIComponent(term)}`
           const res = await fetch(url, {
-            headers: {
-              Authorization: 'cadastro',
-            },
+            headers: ERP_HEADERS,
           })
           if (res.status === 403) {
             if (isMounted) {
@@ -341,9 +345,9 @@ export function StartLeaseProcessDialog({
             }
           } else if (res.ok) {
             const data = await res.json()
-            const items = normalizeErpResponse(data)
+            const items = normalizeErpPropertyResponse(data)
             if (isMounted) {
-              setErpOptions(items)
+              setErpOptions(deduplicateErpProperties(items))
               setErpError403(false)
             }
           } else {
@@ -353,29 +357,38 @@ export function StartLeaseProcessDialog({
             }
           }
         } else {
-          const url = `http://192.168.10.225:9000/imoveis?name=${encodeURIComponent(term)}`
-          const res = await fetch(url, {
-            headers: {
-              Authorization: 'cadastro',
-            },
-          })
-          if (res.status === 403) {
-            if (isMounted) {
-              setErpError403(true)
-              setErpOptions([])
+          // Busca textual: chamada dupla (?name= e ?endereco=) com tolerância a falha parcial
+          const encoded = encodeURIComponent(term)
+          const nameUrl = `${ERP_BASE_URL}/imoveis?name=${encoded}`
+          const enderecoUrl = `${ERP_BASE_URL}/imoveis?endereco=${encoded}`
+
+          let has403 = false
+          const fetchCall = async (url: string) => {
+            try {
+              const res = await fetch(url, { headers: ERP_HEADERS })
+              if (res.status === 403) {
+                has403 = true
+                return []
+              }
+              if (!res.ok) return []
+              const data = await res.json()
+              return normalizeErpPropertyResponse(data)
+            } catch {
+              return []
             }
-          } else if (res.ok) {
-            const data = await res.json()
-            const items = normalizeErpResponse(data)
-            if (isMounted) {
-              setErpOptions(items)
-              setErpError403(false)
-            }
-          } else {
-            if (isMounted) {
-              setErpOptions([])
-              setErpError403(false)
-            }
+          }
+
+          const [nameItems, enderecoItems] = await Promise.all([
+            fetchCall(nameUrl),
+            fetchCall(enderecoUrl),
+          ])
+
+          const merged = deduplicateErpProperties([...nameItems, ...enderecoItems])
+
+          if (isMounted) {
+            setErpOptions(merged)
+            // Se retornou algum resultado, não trata como 403 impeditivo
+            setErpError403(has403 && merged.length === 0)
           }
         }
       } catch (err) {

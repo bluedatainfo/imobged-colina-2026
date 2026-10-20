@@ -27,6 +27,7 @@ import { supabase } from '@/lib/supabase/client'
 import { useDebounce } from '@/hooks/use-debounce'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
+import { searchErpProperties } from '@/lib/erpProperties'
 
 const getOwnerName = (property: any) => {
   if (!property) return 'Não informado'
@@ -81,20 +82,9 @@ export function NewPropertyDialog({ open, onClose }: { open: boolean; onClose: (
     const fetchOptions = async () => {
       setLoadingERP(true)
       try {
-        const res = await fetch(
-          `http://192.168.10.225:9000/imoveis?name=${encodeURIComponent(debouncedSearchERP)}`,
-          {
-            headers: {
-              Authorization: 'cadastro',
-            },
-          },
-        )
-        if (!res.ok) throw new Error('Falha na resposta do servidor local')
-        const data = await res.json()
-
+        const items = await searchErpProperties(debouncedSearchERP)
         if (isMounted) {
-          const dataArray = Array.isArray(data) ? data : [data]
-          setErpOptions(dataArray.filter((item) => item && item.id))
+          setErpOptions(items.filter((item) => item && item.id))
         }
       } catch (err) {
         if (isMounted) setErpOptions([])

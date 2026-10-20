@@ -55,6 +55,12 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
 import { supabase } from '@/lib/supabase/client'
+import {
+  ERP_BASE_URL,
+  ERP_HEADERS,
+  deduplicateErpProperties,
+  normalizeErpPropertyResponse,
+} from '@/lib/erpProperties'
 
 interface GedUploadProps {
   preselectedPropertyId?: string
@@ -479,15 +485,13 @@ export function GedUpload({
         }
         try {
           if (isNumeric) {
-            const url = `http://192.168.10.225:9000/imoveis/dados/${encodeURIComponent(searchQuery.trim())}`
+            const url = `${ERP_BASE_URL}/imoveis/dados/${encodeURIComponent(searchQuery.trim())}`
             const response = await fetch(url, {
-              headers: {
-                Authorization: 'cadastro',
-              },
+              headers: ERP_HEADERS,
             })
             if (response.ok) {
               const data = await response.json()
-              const items = normalizeErpResponse(data)
+              const items = normalizeErpPropertyResponse(data)
               erpProperties = items.map((item: any) => {
                 const ownerName =
                   item.proprietario ||
@@ -517,18 +521,36 @@ export function GedUpload({
             } else if (response.status === 404) {
               erpProperties = []
             }
+          } else if (searchQuery.trim()) {
+            const encoded = encodeURIComponent(searchQuery.trim())
+            const nameUrl = `${ERP_BASE_URL}/imoveis?name=${encoded}`
+            const enderecoUrl = `${ERP_BASE_URL}/imoveis?endereco=${encoded}`
+
+            const fetchSafe = async (url: string) => {
+              try {
+                const res = await fetch(url, { headers: ERP_HEADERS })
+                if (!res.ok) return []
+                const data = await res.json()
+                return normalizeErpPropertyResponse(data)
+              } catch {
+                return []
+              }
+            }
+
+            const [nameItems, enderecoItems] = await Promise.all([
+              fetchSafe(nameUrl),
+              fetchSafe(enderecoUrl),
+            ])
+
+            erpProperties = deduplicateErpProperties([...nameItems, ...enderecoItems])
           } else {
-            const url = searchQuery
-              ? `http://192.168.10.225:9000/imoveis?name=${encodeURIComponent(searchQuery.trim())}`
-              : 'http://192.168.10.225:9000/imoveis'
+            const url = `${ERP_BASE_URL}/imoveis`
             const response = await fetch(url, {
-              headers: {
-                Authorization: 'cadastro',
-              },
+              headers: ERP_HEADERS,
             })
             if (response.ok) {
               const data = await response.json()
-              erpProperties = normalizeErpResponse(data)
+              erpProperties = deduplicateErpProperties(normalizeErpPropertyResponse(data))
             }
           }
         } catch (error) {
